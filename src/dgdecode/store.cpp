@@ -1,4 +1,4 @@
-/* 
+/*
  *  MPEG2Dec3 : YV12 & PostProcessing
  *
  *	Copyright (C) 2002-2003 Marc Fauconneau <marc.fd@liberysurf.fr>
@@ -26,6 +26,11 @@
 //#define MPEG2DEC_EXPORTS
 #include "global.h"
 #include "postprocess.h"
+#include "AvisynthAPI.h"
+
+#ifdef uc  // its defined in AvisynthAPI.h, need our own def here
+#undef uc
+#endif
 
 #define uc uint8_t
 
@@ -42,7 +47,7 @@ __inline void MBnum(uc* dst, int stride, int number)
 	uc num2[7] = { 1,3,3,1,2,2,1 };
 	uc num3[7] = { 1,3,3,1,3,3,1 };
 	uc num4[7] = { 4,4,4,1,3,3,3 };
-	uc num5[7] = { 1,3,3,1,3,3,1 };
+	uc num5[7] = { 1,2,2,1,3,3,1 };
 	uc num6[7] = { 1,2,2,1,4,4,1 };
 	uc num7[7] = { 1,3,3,3,3,3,3 };
 	uc num8[7] = { 1,4,4,1,4,4,1 };
@@ -145,31 +150,61 @@ void CMPEG2Decoder::assembleFrame(unsigned char *src[], int pf, YV12PICT *dst)
 
 	dst->pf = pf;
 
-	if (Fault_Flag)
-		Fault_Flag = 0;
+	if (Fault_Flag) Fault_Flag = 0;
 
-	uc* ppptr[] = {dst->y,dst->u,dst->v};
-
-	if (pp_mode != 0) {
-		if (iPP) {	// Field Based PP
-			postprocess(src, this->Coded_Picture_Width*2, ppptr, this->Coded_Picture_Width*2, this->Coded_Picture_Width*2,
-				this->Coded_Picture_Height/2, this->QP, this->mb_width, pp_mode, moderate_h, moderate_v);
-		} else {	// Image Based PP
-			postprocess(src, this->Coded_Picture_Width, ppptr, this->Coded_Picture_Width, this->Coded_Picture_Width,
-				this->Coded_Picture_Height, this->QP, this->mb_width, pp_mode, moderate_h, moderate_v);
+	if (pp_mode != 0)
+	{
+		uc* ppptr[3];
+		if (!(upConv && chroma_format == 1))
+		{
+			ppptr[0] = dst->y;
+			ppptr[1] = dst->u;
+			ppptr[2] = dst->v;
 		}
-	} else {
+		else
+		{
+			ppptr[0] = dst->y;
+			ppptr[1] = u422;
+			ppptr[2] = v422;
+		}
+		if (iPP == 1 || (iPP == -1 && pf == 0)) 
+		{	// Field Based PP
+			postprocess(src, this->Coded_Picture_Width*2, ppptr, this->Coded_Picture_Width*2, this->Coded_Picture_Width*2,
+				this->Coded_Picture_Height/2, this->QP, this->mb_width, pp_mode, moderate_h, moderate_v, chroma_format == 1 ? false : true);
+		}
+		else 
+		{	// Image Based PP
+			postprocess(src, this->Coded_Picture_Width, ppptr, this->Coded_Picture_Width, this->Coded_Picture_Width,
+				this->Coded_Picture_Height, this->QP, this->mb_width, pp_mode, moderate_h, moderate_v, chroma_format == 1 ? false : true);
+		}
+		if (upConv && chroma_format == 1)
+		{
+			conv420to422(ppptr[1],dst->u,pf,dst->ypitch,Coded_Picture_Height);
+			conv420to422(ppptr[2],dst->v,pf,dst->ypitch,Coded_Picture_Height);
+		}
+	} 
+	else 
+	{
 		YV12PICT psrc;
 		psrc.y = src[0]; psrc.u = src[1]; psrc.v = src[2];
-		psrc.ypitch = Coded_Picture_Width; psrc.uvpitch = Coded_Picture_Width>>1;
-		Copyall(&psrc,dst);
+		psrc.ypitch = Coded_Picture_Width; 
+		psrc.uvpitch = Chroma_Width;
+		if (upConv && chroma_format == 1)
+		{
+			AVSenv->BitBlt(dst->y,dst->ypitch,psrc.y,psrc.ypitch,dst->ypitch,Coded_Picture_Height);
+			conv420to422(psrc.u,dst->u,pf,dst->ypitch,Coded_Picture_Height);
+			conv420to422(psrc.v,dst->v,pf,dst->ypitch,Coded_Picture_Height);
+		}
+		else Copyall(&psrc,dst);
 	}
 
-	int x,y;
-
-	if (showQ) {
-		for(y=0;y<this->mb_height;y++) {
-			for(x=0;x<this->mb_width;x++) {
+	if (showQ)
+	{
+		int x, y;
+		for(y=0; y<this->mb_height; y++) 
+		{
+			for(x=0;x<this->mb_width; x++) 
+			{
 				MBnum(&dst->y[x*16+y*16*this->Coded_Picture_Width],this->Coded_Picture_Width,QP[x+y*this->mb_width]);
 			}
 		}

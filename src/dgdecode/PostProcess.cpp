@@ -33,7 +33,7 @@ void postprocess(unsigned char * src[], int src_stride,
                  unsigned char * dst[], int dst_stride, 
                  int horizontal_size,   int vertical_size,
                  QP_STORE_T *QP_store,  int QP_stride,
-				 int mode, int moderate_h, int moderate_v) 
+				 int mode, int moderate_h, int moderate_v, bool is422) 
 {
 
 
@@ -77,12 +77,13 @@ void postprocess(unsigned char * src[], int src_stride,
 	} /* for loop */
 
 	if (mode & PP_DERING_Y) {
-		dering(dst[0],horizontal_size,vertical_size,dst_stride,QP_store,QP_stride,false);
+		dering(dst[0],horizontal_size,vertical_size,dst_stride,QP_store,QP_stride,0);
 	}
 
 	/* now we're going to do U and V assuming 4:2:0 */
+	// not anymore :)  -- (tritical 1/05/2004,  4:2:2 PLANAR support)
+	if (!is422) vertical_size >>= 1;
 	horizontal_size >>= 1;
-	vertical_size   >>= 1;
 	src_stride      >>= 1;
 	dst_stride      >>= 1;
 
@@ -103,9 +104,9 @@ void postprocess(unsigned char * src[], int src_stride,
 		
 			if (mode & PP_DEBLOCK_C_H) 
 			{
-				puc_flt = &((dst[i])[y*dst_stride]);  
+				puc_flt = &((dst[i])[y*dst_stride]);
 				QP_ptr  = &(QP_store[(y>>3)*QP_stride]);
-				deblock_horiz(puc_flt, horizontal_size, dst_stride, QP_ptr, QP_stride, 1, moderate_h);
+				deblock_horiz(puc_flt, horizontal_size, dst_stride, QP_ptr, QP_stride, is422 ? 2 : 1, moderate_h);
 			}
 
 			if (mode & PP_DEBLOCK_C_V) 
@@ -113,8 +114,9 @@ void postprocess(unsigned char * src[], int src_stride,
 				if ( (y%8) && (y-4)>5 )   
 				{
 					puc_flt = &((dst[i])[(y-4)*dst_stride]);  
-					QP_ptr  = &(QP_store[(y>>4)*QP_stride]);
-					deblock_vert( puc_flt, horizontal_size,   dst_stride, QP_ptr, QP_stride, 1, moderate_v);
+					if (is422) QP_ptr  = &(QP_store[(y>>4)*QP_stride]);
+					else QP_ptr  = &(QP_store[(y>>3)*QP_stride]);
+					deblock_vert( puc_flt, horizontal_size,   dst_stride, QP_ptr, QP_stride, is422 ? 2 : 1, moderate_v);
 				}
 			}
 
@@ -123,8 +125,8 @@ void postprocess(unsigned char * src[], int src_stride,
 	} /* U,V loop */
 
 	if (mode & PP_DERING_C) {
-		dering(dst[1],horizontal_size,vertical_size,dst_stride,QP_store,QP_stride,true);
-		dering(dst[2],horizontal_size,vertical_size,dst_stride,QP_store,QP_stride,true);
+		dering(dst[1],horizontal_size,vertical_size,dst_stride,QP_store,QP_stride,is422 ? 2 : 1);
+		dering(dst[2],horizontal_size,vertical_size,dst_stride,QP_store,QP_stride,is422 ? 2 : 1);
 	}
 
 	do_emms();
@@ -231,8 +233,9 @@ void deblock_horiz(uint8_t *image, int width, int stride, QP_STORE_T *QP_store, 
 		for (x=8; x<width; x+=8) 
 		{
 			/* extract QP from the decoder's array of QP values */
-			QP = chromaFlag ? QP_store[y/8*QP_stride+x/8]
-			                : QP_store[y/16*QP_stride+x/16];	
+			QP = chromaFlag == 1 ? QP_store[y/8*QP_stride+x/8]
+			          : chromaFlag == 0 ? QP_store[y/16*QP_stride+x/16]
+					  : QP_store[y/16*QP_stride+x/8];	
 
 			/* v points to pixel v0, in the left-hand block */
 			v = &(image[y*stride + x]) - 5;
@@ -280,7 +283,6 @@ void deblock_horiz(uint8_t *image, int width, int stride, QP_STORE_T *QP_store, 
 					}
 					#endif
 				}
-
 			} 
 			else	/* use default mode */
 			{     
@@ -305,7 +307,16 @@ void deblock_horiz(uint8_t *image, int width, int stride, QP_STORE_T *QP_store, 
 INLINE int deblock_horiz_DC_on(uint8_t *v, int stride, int QP) 
 {
 	/* 99% of the time, this test turns out the same as the |max-min| strategy in the standard */
-	return (ABS(v[1]-v[8]) < 2*QP);
+	for (int i=0; i<4; ++i)
+	{
+		if (ABS(v[0]-v[5]) >= 2*QP) return false;
+		if (ABS(v[1]-v[8]) >= 2*QP) return false;
+		if (ABS(v[1]-v[4]) >= 2*QP) return false;
+		if (ABS(v[2]-v[7]) >= 2*QP) return false;
+		if (ABS(v[3]-v[6]) >= 2*QP) return false;
+		v += stride;
+	}
+	return true;
 }
 
 /* horizontal deblocking filter used in default (non-DC) mode */
@@ -391,9 +402,6 @@ const static uint64_t mm64_coefs[18] =  {
 };
 static uint32_t mm32_p1p2;
 static uint8_t *pmm1;
-
-
-
 
 /* The 9-tap low pass filter used in "DC" regions */
 /* I'm not sure that I like this implementation any more...! */
@@ -766,8 +774,9 @@ void deblock_vert( uint8_t *image, int width, int stride, QP_STORE_T *QP_store, 
 		/* loop over all blocks, left to right */
 		for (Bx=0; Bx<width; Bx+=8) 
 		{
-			QP = chromaFlag ? QP_store[y/8*QP_stride+Bx/8]
-			                : QP_store[y/16*QP_stride+Bx/16];	
+			QP = chromaFlag == 1 ? QP_store[y/8*QP_stride+Bx/8]
+			            : chromaFlag == 0 ? QP_store[y/16*QP_stride+Bx/16]
+						: QP_store[y/16*QP_stride+Bx/8];	
 			QPx16 = 16 * QP;
 			v = &(image[y*stride + Bx]) - 5*stride;
 
@@ -803,8 +812,8 @@ void deblock_vert( uint8_t *image, int width, int stride, QP_STORE_T *QP_store, 
 
 			/* decide whether to use DC mode on a block-by-block basis */
 			useDC = deblock_vert_useDC(v, stride, moderate_v);
-						
-			if (useDC) 
+
+			if (useDC)
 			{
  				/* we are in DC mode for this block.  But we only want to filter low-energy areas */
 				
@@ -1066,6 +1075,21 @@ INLINE void deblock_vert_copy_and_unpack(int stride, uint8_t *source, uint64_t *
 /* decide whether the DC filter should be turned on accoding to QP */
 INLINE int deblock_vert_DC_on(uint8_t *v, int stride, int QP) 
 {
+	for (int i=0; i<8; ++i)
+	{
+		if (ABS(v[i+0*stride]-v[i+5*stride]) >= 2*QP) return false;
+		if (ABS(v[i+1*stride]-v[i+4*stride]) >= 2*QP) return false;
+		if (ABS(v[i+1*stride]-v[i+8*stride]) >= 2*QP) return false;
+		if (ABS(v[i+2*stride]-v[i+7*stride]) >= 2*QP) return false;
+		if (ABS(v[i+3*stride]-v[i+6*stride]) >= 2*QP) return false;
+	}
+	return true;
+}
+
+#if 0
+// This older method produces artifacts.
+INLINE int deblock_vert_DC_on(uint8_t *v, int stride, int QP) 
+{
 	uint64_t QP_x_2;
 	uint8_t *ptr1;
 	uint8_t *ptr2;
@@ -1126,6 +1150,7 @@ INLINE int deblock_vert_DC_on(uint8_t *v, int stride, int QP)
 
 	return DC_on;
 }
+#endif
 
 /* Vertical deblocking filter for use in non-flat picture regions */
 INLINE void deblock_vert_default_filter(uint8_t *v, int stride, int QP) 
@@ -2047,8 +2072,9 @@ void dering( uint8_t *image, int width, int height, int stride, QP_STORE_T *QP_s
 		for (x=8; x< width-8; x+=8) 
 		{
 			/* QP for this block.. */
-			QP = chroma ? QP_store[(y>>3)*QP_stride+(x>>3)] // Nick: QP_store[y/8*QP_stride+x/8]
-			            : QP_store[(y>>4)*QP_stride+(x>>4)]; //Nick: QP_store[y/16*QP_stride+x/16];	
+			QP = chroma == 1 ? QP_store[(y>>3)*QP_stride+(x>>3)] // Nick: QP_store[y/8*QP_stride+x/8]
+			            : chroma == 0 ? QP_store[(y>>4)*QP_stride+(x>>4)]  //Nick: QP_store[y/16*QP_stride+x/16];
+						: QP_store[(y>>4)*QP_stride+(x>>3)];
 	
 			/* pointer to the top left pixel in 8x8   block */
 			b8x8   = &(image[stride*y + x]);
@@ -2674,8 +2700,9 @@ void dering_OLD( uint8_t *image, int width, int height, int stride, QP_STORE_T *
 		for (x=8; x< width-8; x+=8) 
 		{
 			/* QP for this block.. */
-			QP = chroma ? QP_store[(y>>3)*QP_stride+(x>>3)] // Nick: QP_store[y/8*QP_stride+x/8]
-			            : QP_store[(y>>4)*QP_stride+(x>>4)]; //Nick: QP_store[y/16*QP_stride+x/16];	
+			QP = chroma == 1 ? QP_store[(y>>3)*QP_stride+(x>>3)] // Nick: QP_store[y/8*QP_stride+x/8]
+			            : chroma == 0 ? QP_store[(y>>4)*QP_stride+(x>>4)] //Nick: QP_store[y/16*QP_stride+x/16];
+						: QP_store[(y>>4)*QP_stride+(x>>3)];
 	
 			/* pointer to the top left pixel in 8x8   block */
 			b8x8   = &(image[stride*y + x]);

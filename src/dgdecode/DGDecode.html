@@ -5,7 +5,7 @@
 </head>
 <body BGCOLOR="#FFFFFF">
 <font face=verdana>
-<center><u><h1>DGDecode 1.0.0 : MPEG2 Decoder<br>for Avisynth 2.5+<br></u>
+<center><u><h1>DGDecode 1.1.0 : MPEG2 Decoder<br>for Avisynth 2.5+<br></u>
 <small>
 
 <!-- Version -->
@@ -134,6 +134,13 @@ integrated PostProcessing, Luminance Filtering, etc.<br>
 	smaller values are stronger. use with care.<br>
 	default : moderate_h=20, moderate_v=40<br>
 	</ul><br>
+	<u>info</u> : true/false.
+	<ul>
+	Overlay decode information on the video.<br>
+	true  : Overlay decode information<br>
+	false : Do not overlay decode information<br>
+	default : false
+	</ul><br>
 	<u>idct</u> : 1 to 5.
 	<ul>
 	iDCT : iDCT algo used.<br>
@@ -147,17 +154,17 @@ integrated PostProcessing, Luminance Filtering, etc.<br>
 	7 : SimpleiDCT (Very accurate iDCT from XviD project)<br>	
 	default : 0
 	</ul><br>
-	<u>iPP</u> :
+	<u>iPP</u> : true/false
 	<ul>
-	To use Field-Based Post-Processing.<br>
-	it' better if you want to deinterlace<br>
-	- True : Field based<br>
-	- False : Image based (default)<br>
+	Field-based post-processing (it's better if you want to deinterlace).<br>
+	true  : Field-based<br>
+	false : Frame-based (progressive)<br>
+     default (option not specified) : auto (switches between field/frame based on<br>
+&nbsp;&nbsp;the progressive_frame flag)
 	</ul><br>
 	<u>showQ</u> :
 	<ul>
-	To see the quantizers used for each MB.<br>
-	a fun tool to play with ^^<br>
+	To see the quantizers used for each MB (a fun tool to play with)<br>
 	default : false<br>
 	</ul><br>
 	<u>fastMC</u> :
@@ -186,6 +193,17 @@ integrated PostProcessing, Luminance Filtering, etc.<br>
 	5 : luma deringing<br>
 	6 : chroma deringing<br>
 	default : " " (disabled)<br>
+	</ul><br>
+
+	<u>upConv</u> : true/false<br>
+	<ul>
+     Upconvert to 4:2:2 from 4:2:0 based on progressive_frame flag<br>
+     (ignored if the input is not 4:2:0).<br>
+	true  : Upconvert based on progressive_frame flag<br>
+	false : Don't upconvert<br>
+	default : false<br><br>
+	Use YV12toYUY2(interlaced=true) to upsample always interlaced.
+	Use YV12toYUY2(interlaced=false) to upsample always progressive.
 	</ul><br>
 	
 	</ul><h3>LumaFilter :</h3><br><ul>
@@ -250,8 +268,8 @@ integrated PostProcessing, Luminance Filtering, etc.<br>
 	BlindPP(clip, int "quant", int "cpu", str "cpu2", bool "iPP", int "moderate_h", int "moderate_v")<br>
 	</code><br>
 	To Deblock and Dering on any kind of DCT-encoded source.<br>
-	Of course, less accurate than decoder intergrated PP, but still very efficient<br>
-	need YV12 input.<br>
+	Of course, it's less accurate than the decoder-integrated PP, but still very useful.<br>
+	Supports YUY2 and YV12 input.<br>
 	<br>
 	<u>quant</u> : <br>
 	<ul>
@@ -398,18 +416,18 @@ Nic: Damn! There was a problem with the Luminance filter and 1.77.3 D2V files. F
 
 <h2>Credits :</h2>
 <ul>
-MarcFD<br>
-Chia-chen Kuo, author of DVD2AVI<br>
-Peter Gubanov, author of the MMX/SSEMMX iDCT<br>
-Dmitry Rozhdestvensky, author of the SSE2 iDCT<br>
-Miha Peternel, author of the Floating Point and Reference iDCT<br>
 Mathias Born, author of MPEG2Dec<br>
-<br>
-Special thanks to Nic, for the Post Processing who made DGDecode possible<br>
-</ul>
-<ul>
-1.01 and above: Nic, trbarry, sh0dan<BR>
-Thanks to Skal for the use of his iDCT (http://skal.planet-d.net)
+Donald Graft, for frame loss fix, accurate indexing, and more<br>
+Peter Gubanov, author of the MMX/SSEMMX iDCT<br>
+Chia-chen Kuo, author of DVD2AVI<br>
+"MarcFD", for YV12 support and more<br>
+Nic, for the post processing<br>
+Miha Peternel, author of the Floating Point and Reference iDCT<br>
+Dmitry Rozhdestvensky, author of the SSE2 iDCT<br>
+"sh0dan", code optimizations<br>
+"Skal", for the use of his iDCT<br>
+"trbarry", transport parsing, and code optimizations<br>
+"tritical", for upsampling, info overlay, and lots of bug fixes<br>
 </ul>
 
 <h2>Code Distribution :</h2>

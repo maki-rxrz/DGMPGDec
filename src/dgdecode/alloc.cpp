@@ -130,18 +130,23 @@ extern "C" void aligned_free(void *mem_ptr)
 
 //  YV12 pictures memory allocation for MPEG2Dec3. MarcFD 25 nov 2002
 
-
-YV12PICT* create_YV12PICT(int height, int width) 
+// It's not really YV12 anymore, more like PLANARPICT... but
+// I don't want to go to the trouble of renaming everything
+// -- tritical (1/05/2005)
+YV12PICT* create_YV12PICT(int height, int width, int chroma_format) 
 {
 	YV12PICT* pict;
 	pict = (YV12PICT*)malloc(sizeof(YV12PICT));
+	int div = chroma_format == 1 ? 4 : chroma_format == 2 ? 2 : 1;
+	int uvpitch = div == 1 ? width : width/2;
 	pict->y = (unsigned char*)aligned_malloc(height*width,128);
-	pict->u = (unsigned char*)aligned_malloc(height*width/4,128);
-	pict->v = (unsigned char*)aligned_malloc(height*width/4,128);
+	pict->u = (unsigned char*)aligned_malloc(height*width/div,128);
+	pict->v = (unsigned char*)aligned_malloc(height*width/div,128);
 	pict->ypitch = width;
-	pict->uvpitch = width/2;
+	pict->uvpitch = uvpitch;
 	return pict;
 }
+
 void destroy_YV12PICT(YV12PICT * pict) 
 {
 	aligned_free(pict->y);

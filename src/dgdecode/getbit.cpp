@@ -149,6 +149,7 @@ typedef struct {
 void CMPEG2Decoder::Next_Transport_Packet()
 {
 	int Packet_Length;  // # bytes remaining in MPEG-2 transport packet
+	int Packet_Header_Length;
 	unsigned int code;
 	int tp_previous_continuity_counter = 0; // this isn't used 
 
@@ -233,7 +234,40 @@ void CMPEG2Decoder::Next_Transport_Packet()
 //		if ( (tp.pid == 0x0021 || tp.pid == 0x0011 ) && (Packet_Length > 0) ) 
 		if ( tp.pid == MPEG2_Transport_VideoPID && Packet_Length > 0 ) 
 		{
-			// we really should check for an MPEG-2 PES packet-header, but I'm lazy
+			code = Get_Short();
+			code = (code & 0xffff)<<16 | Get_Short();
+			Packet_Length = Packet_Length - 4; // remove these two bytes
+
+			// Packet start?
+			if (code < 0x000001E0 || code > 0x000001EF ) 		
+			{
+				// No, move the buffer-pointer back.
+				Rdptr -= 4; 
+				Packet_Length = Packet_Length + 4; // restore these four bytes
+			}
+			else
+			{
+				// YES, pull out PTS 
+				//Packet_Length = Get_Short();
+				Get_Short(); // MPEG2-PES total Packet_Length
+				Get_Byte(); // skip a byte
+				code = Get_Byte();
+				Packet_Header_Length = Get_Byte();
+				Packet_Length = Packet_Length - 5; // compensate the bytes we extracted
+	
+				// get PTS, and skip rest of PES-header
+				if (code>=0x80 && Packet_Header_Length > 4 ) // Extension_flag ?
+				{
+					// Skip PES_PTS
+					Get_Byte();
+					Get_Short();
+					Get_Short();
+					Packet_Length = Packet_Length - 5;
+					SKIP_TRANSPORT_PACKET_BYTES( Packet_Header_Length-5 )
+				}
+				else
+					SKIP_TRANSPORT_PACKET_BYTES( Packet_Header_Length )
+			}
 			Rdmax = Rdptr + Packet_Length;
 			return;
 		}
@@ -333,7 +367,10 @@ void CMPEG2Decoder::Next_File()
 	}
 	else
 	{
+		// This mechanism is not yet working.
+#if 0
 		Fault_Flag = OUT_OF_BITS;
+#endif
 		File_Flag = 0;
 	}
 	// Even if we ran out of files, we reread the first one, just so
@@ -401,11 +438,14 @@ void CMPEG2Decoder::Fill_Next()
 //		start_bit_timer();
 	#endif
 
+	// This mechanism is not yet working.
+#if 0
 	if (Rdptr >= buffer_invalid)
 	{
 		Fault_Flag = OUT_OF_BITS;
 		return;
 	}
+#endif
 
 	if (SystemStream_Flag && Rdptr > Rdmax - 4)
 	{
@@ -460,11 +500,14 @@ unsigned int CMPEG2Decoder::Get_Byte()
 //		start_bit_timer();
 	#endif
 
+	// This mechanism is not yet working.
+#if 0
 	if (Rdptr >= buffer_invalid)
 	{
 		Fault_Flag = OUT_OF_BITS;
 		return Rdptr[-1];
 	}
+#endif
 
 	while (Rdptr >= (Rdbfr + BUFFER_SIZE))
 	{

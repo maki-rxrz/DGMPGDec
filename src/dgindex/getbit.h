@@ -34,7 +34,9 @@ unsigned int BitsLeft, CurrentBfr, NextBfr, Val, Read;
 __forceinline static unsigned int Show_Bits(unsigned int N)
 {
 	if (N <= BitsLeft)
+	{
 		return (CurrentBfr << (32 - BitsLeft)) >> (32 - N);
+	}
 	else
 	{
 		N -= BitsLeft;
@@ -66,28 +68,9 @@ int _donread(int fd, void *buffer, unsigned int count);
 
 __forceinline static unsigned int Get_Byte()
 {
-	extern unsigned char *buffer_invalid;
-
-	if (Rdptr >= buffer_invalid)
-	{
-		if (Check_Flag == true && !D2V_Flag && !Decision_Flag)
-		{
-			if (Frame_Number - 1 == 0)
-				Write_Frame(backward_reference_frame, d2v_backward, 0);
-			else if (picture_coding_type == B_TYPE)
-				Write_Frame(auxframe, d2v_current, Frame_Number-1);
-			else
-				Write_Frame(forward_reference_frame, d2v_forward, Frame_Number-1);
-		}
-		sprintf(szBuffer, "%d", Frame_Number);
-		SetDlgItemText(hDlg, IDC_CODED_NUMBER, szBuffer);
-		ThreadKill();
-	}
-
 	while (Rdptr >= Rdbfr+BUFFER_SIZE)
 	{
 		Read = _donread(Infile[File_Flag], Rdbfr, BUFFER_SIZE);
-
 		if (Read < BUFFER_SIZE)	Next_File();
 
 		Rdptr -= BUFFER_SIZE;
@@ -99,24 +82,6 @@ __forceinline static unsigned int Get_Byte()
 
 __forceinline static void Fill_Next()
 {
-	extern unsigned char *buffer_invalid;
-
-	if (Rdptr >= buffer_invalid - 4)
-	{
-		if (Check_Flag == true && !D2V_Flag && !Decision_Flag)
-		{
-			if (Frame_Number - 1 == 0)
-				Write_Frame(backward_reference_frame, d2v_backward, 0);
-			else if (picture_coding_type == B_TYPE)
-				Write_Frame(auxframe, d2v_current, Frame_Number-1);
-			else
-				Write_Frame(forward_reference_frame, d2v_forward, Frame_Number-1);
-		}
-		sprintf(szBuffer, "%d", Frame_Number);
-		SetDlgItemText(hDlg, IDC_CODED_NUMBER, szBuffer);
-		ThreadKill();
-	}
-
 	if (SystemStream_Flag && Rdptr > Rdmax - 4)
 	{
 		if (Rdptr >= Rdmax)
@@ -172,6 +137,9 @@ __forceinline static void next_start_code()
 
 __forceinline static unsigned int Get_Short()
 {
-	unsigned int i = Get_Byte();
-	return (i<<8) | Get_Byte();
+	unsigned int i;
+	
+	i = Get_Byte() << 8;
+	i |= Get_Byte();
+	return (i);
 }

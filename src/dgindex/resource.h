@@ -11,9 +11,11 @@
 #define ID_DEL                          101
 #define IDD_ABOUT                       102
 #define ID_ADD_AUTO                     102
+#define ID_UP                           102
 #define IDM_ABOUT                       103
 #define ID_DELALL                       103
 #define IDM_EXIT                        104
+#define ID_DOWN                         104
 #define IDI_SMALL                       105
 #define IDC_GUI                         106
 #define IDI_MOVIE                       133
@@ -37,11 +39,14 @@
 #define IDC_REMAIN                      1024
 #define IDC_ELAPSED                     1025
 #define IDC_FILE_SIZE                   1026
+#define IDC_FRAME_SIZE                  1026
 #define IDC_FILE                        1027
+#define IDC_PROFILE                     1027
 #define IDC_FPS                         1028
 #define IDC_AUDIO_TYPE                  1029
 #define IDC_TIMESTAMP                   1030
 #define IDC_LIST                        1031
+#define IDC_FRAME_STRUCTURE             1031
 #define IDC_INFO                        1032
 #define IDC_BITRATE                     1033
 #define IDC_DELAY                       1034
@@ -156,7 +161,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        143
 #define _APS_NEXT_COMMAND_VALUE         32869
-#define _APS_NEXT_CONTROL_VALUE         1066
+#define _APS_NEXT_CONTROL_VALUE         1067
 #define _APS_NEXT_SYMED_VALUE           107
 #endif
 #endif

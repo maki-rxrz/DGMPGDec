@@ -1,4 +1,4 @@
-/* 
+/*
  *	Copyright (C) Chia-chen Kuo - April 2001
  *
  *  This file is part of DVD2AVI, a free MPEG-2 decoder

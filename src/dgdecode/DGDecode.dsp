@@ -134,6 +134,10 @@ SOURCE=.\store.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=".\text-overlay.cpp"
+# End Source File
+# Begin Source File
+
 SOURCE=.\vfapidec.cpp
 # End Source File
 # End Group
@@ -151,6 +155,10 @@ SOURCE=.\global.h
 # Begin Source File
 
 SOURCE=.\skl_nasm.h
+# End Source File
+# Begin Source File
+
+SOURCE=".\text-overlay.h"
 # End Source File
 # End Group
 # Begin Group "DGDecode"

@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
 	bool first, found;
 	int D2Vformat = 0;
 
-	printf("DGFix 1.0.0 by Donald A. Graft\n\n");
+	printf("DGFix 1.1.0 by Donald A. Graft\n\n");
 	if (argc < 2)
 	{
 		printf("Usage: DGFix d2v_file\n");

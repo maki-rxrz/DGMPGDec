@@ -286,11 +286,11 @@ HMENU hMenu; HDC hDC;
 
 /* Global Value */
 FILE *D2VFile;
-char D2VFilePath[1024];
+char D2VFilePath[_MAX_PATH];
 int VOB_ID, CELL_ID;
 
 HWND hWnd, hDlg, hTrack;
-char szInput[_MAX_PATH], szOutput[_MAX_PATH], szBuffer[_MAX_PATH];
+char szInput[_MAX_PATH], szOutput[_MAX_PATH], szBuffer[_MAX_PATH], szSave[_MAX_PATH];;
 
 unsigned char *backward_reference_frame[3], *forward_reference_frame[3];
 unsigned char *auxframe[3], *current_frame[3];
@@ -343,12 +343,14 @@ int top_field_first;
 int repeat_first_field;
 int intra_vlc_format;
 
+int strverscmp(const char *s1, const char *s2);
+
 /* getbit.c */
 void UpdateInfo(void);
 
 /* gethdr.c */
-int Get_Hdr(void);
-void sequence_header(void);
+void Get_Hdr(int);
+void sequence_header(__int64 start);
 int slice_header(void);
 
 /* getpic.c */

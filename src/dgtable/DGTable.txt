@@ -1,4 +1,4 @@
-DGTable 1.0.0 -- PAT/PMT Table Parser by Donald A. Graft
+DGTable 1.1.0 -- PAT/PMT Table Parser by Donald A. Graft
 ------------------------------------------------------
 
 This command line program parses the transport stream's
@@ -9,4 +9,4 @@ Usage is:
 
 	dgtable filename
 
-[Donald Graft, May 2004]
+[Donald Graft, (c) 2004,2005]

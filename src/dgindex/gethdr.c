@@ -56,7 +56,7 @@ static double frame_rate_Table[16] =
 };
 
 __forceinline static void group_of_pictures_header(void);
-__forceinline static void picture_header(__int64);
+__forceinline static void picture_header(__int64, boolean);
 
 static void sequence_extension(void);
 static void sequence_display_extension(void);
@@ -67,11 +67,14 @@ static void copyright_extension(void);
 static int  extra_bit_information(void);
 static void extension_and_user_data(void);
 
-/* decode headers from one input stream */
-int Get_Hdr()
+// Decode headers up to a picture header and then return.
+// If the start parameter is true, require the picture header to
+// follow a sequence header.
+void Get_Hdr(int start)
 {
 	int code;
 	__int64 position;
+	boolean HadSequenceHeader = false;
 
 	for (;;)
 	{
@@ -88,16 +91,22 @@ int Get_Hdr()
 		switch (code)
 		{
 			case SEQUENCE_HEADER_CODE:
-				sequence_header();
+				sequence_header(position);
+				HadSequenceHeader = true;
 				break;
 
 			case GROUP_START_CODE:
-				group_of_pictures_header();
+				if (!start || HadSequenceHeader)
+					group_of_pictures_header();
 				break;
 
 			case PICTURE_START_CODE:
-				picture_header(position);
-				return 1;
+				if (!start || HadSequenceHeader)
+				{
+					picture_header(position, HadSequenceHeader);
+					return;
+				}
+				break;
 
 			default:
 				break;
@@ -106,12 +115,21 @@ int Get_Hdr()
 }
 
 /* decode sequence header */
-void sequence_header()
+void sequence_header(__int64 start)
 {
 	int constrained_parameters_flag;
 	int bit_rate_value;
 	int vbv_buffer_size;
 	int i;
+
+	// Index the location of the sequence header for the D2V file.
+	if (SystemStream_Flag)
+		d2v_current.position = start;
+	else
+	{
+		d2v_current.position = _telli64(Infile[File_Flag])
+				- (__int64)BUFFER_SIZE  + (__int64)Rdptr - (__int64)Rdbfr - 12 + ((32 - (__int64)BitsLeft) / 8);
+	}
 
 	horizontal_size             = Get_Bits(12);
 	vertical_size               = Get_Bits(12);
@@ -181,7 +199,7 @@ static void group_of_pictures_header()
 
 /* decode picture header */
 /* ISO/IEC 13818-2 section 6.2.3 */
-static void picture_header(__int64 start)
+static void picture_header(__int64 start, boolean HadSequenceHeader)
 {
 	int temporal_reference;
 	int vbv_delay;
@@ -191,15 +209,21 @@ static void picture_header(__int64 start)
 	int backward_f_code;
 	int Extra_Information_Byte_Count;
 	int trackpos;
-	__int64 position;
+	__int64 position = 0;
 
-	if (SystemStream_Flag)
-		position = start;
-	else
+    // We prefer to index the sequence header, but if one doesn't exist,
+	// we index the picture header of the first I frame of the GOP.
+	if (HadSequenceHeader == false)
 	{
-		position = _telli64(Infile[File_Flag])
-			- (__int64)BUFFER_SIZE  + (__int64)Rdptr - (__int64)Rdbfr - 12 + ((32 - (__int64)BitsLeft) / 8);
+		if (SystemStream_Flag)
+			position = start;
+		else
+		{
+			position = _telli64(Infile[File_Flag])
+				- (__int64)BUFFER_SIZE  + (__int64)Rdptr - (__int64)Rdbfr - 12 + ((32 - (__int64)BitsLeft) / 8);
+		}
 	}
+
 	temporal_reference  = Get_Bits(10);
 	picture_coding_type = Get_Bits(3);
 
@@ -210,11 +234,15 @@ static void picture_header(__int64 start)
 		d2v_current.file = process.startfile = File_Flag;
 		process.startloc = _telli64(Infile[File_Flag]);
 		d2v_current.lba = process.startloc/BUFFER_SIZE - 1;
-		trackpos = (int)((process.run+d2v_current.lba*BUFFER_SIZE)*TRACK_PITCH/process.total);
-		SendMessage(hTrack, TBM_SETPOS, (WPARAM)true, trackpos);
-
-		// Defensive programming. This should never happen.
-		if (d2v_current.lba < 0) d2v_current.lba = 0;
+		if (d2v_current.lba < 0)
+		{
+			d2v_current.lba = 0;
+		}
+		else
+		{
+			trackpos = (int)((process.run+d2v_current.lba*BUFFER_SIZE)*TRACK_PITCH/process.total);
+			SendMessage(hTrack, TBM_SETPOS, (WPARAM)true, trackpos);
+		}
 
 		if (process.locate==LOCATE_RIP)
 		{
@@ -250,9 +278,12 @@ static void picture_header(__int64 start)
 	Extra_Information_Byte_Count = extra_bit_information();
 	extension_and_user_data();
 
-	// Indexing for the D2V file.
-	if (picture_coding_type == I_TYPE && picture_structure != BOTTOM_FIELD) 
-		d2v_current.position = position;
+	if (HadSequenceHeader == false)
+	{
+		// Indexing for the D2V file.
+		if (picture_coding_type == I_TYPE && picture_structure != BOTTOM_FIELD) 
+			d2v_current.position = position;
+	}
 }
 
 /* decode slice header */
@@ -331,9 +362,9 @@ static void extension_and_user_data()
 
 /* decode sequence extension */
 /* ISO/IEC 13818-2 section 6.2.2.3 */
+int profile_and_level_indication;
 static void sequence_extension()
 {
-	int profile_and_level_indication;
 	int low_delay;
 	int frame_rate_extension_n;
 	int frame_rate_extension_d;

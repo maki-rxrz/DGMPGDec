@@ -47,7 +47,7 @@ HRESULT __stdcall vfGetPluginInfo(LPVF_PluginInfo info)
 	info->dwVersion = 1;
 	info->dwSupportStreamType = VF_STREAM_VIDEO;
 
-	strcpy(info->cPluginInfo, "DGMPGDec 1.0.0 D2V Reader");
+	strcpy(info->cPluginInfo, "DGMPGDec 1.1.0 D2V Reader");
 	strcpy(info->cFileType, "DGIndex Project File (*.d2v)|*.d2v");
 
 	return VF_OK;

@@ -82,6 +82,17 @@ void CMPEG2Decoder::group_of_pictures_header()
 	broken_link = Get_Bits(1);
 
 	extension_and_user_data();
+
+	if (info)
+	{
+		if (track_frame != Info_Store.frame)
+		{
+			Info_StoreP = Info_Store;
+			Info_Store.frame = track_frame;
+			Info_Store.tref_start = -1;
+		}
+		Info_Store.closed_gop = closed_gop == 1 ? true : false;
+	}
 }
 
 /* decode picture header */
@@ -99,6 +110,13 @@ void CMPEG2Decoder::picture_header()
 	picture_coding_type = Get_Bits(3);
 	vbv_delay           = Get_Bits(16);
 
+	if (info) 
+	{
+		if (Info_Store.tref_start < 0) Info_Store.tref_start = temporal_reference;
+		else if (temporal_reference < Info_Store.tref_start) Info_Store.tref_start = temporal_reference;
+		Info_Store.ftype[temporal_reference] = picture_coding_type;
+	}
+
 	if (picture_coding_type==P_TYPE || picture_coding_type==B_TYPE)
 	{
 		full_pel_forward_vector = Get_Bits(1);
@@ -113,6 +131,8 @@ void CMPEG2Decoder::picture_header()
 
 	Extra_Information_Byte_Count = extra_bit_information();
 	extension_and_user_data();
+
+	++track_frame;
 }
 
 /* decode sequence header */
@@ -278,6 +298,17 @@ void CMPEG2Decoder::sequence_extension()
 
 	horizontal_size = (horizontal_size_extension<<12) | (horizontal_size&0x0fff);
 	vertical_size = (vertical_size_extension<<12) | (vertical_size&0x0fff);
+
+	if (info)
+	{
+		if (Info_Store.frame != track_frame)
+		{
+			Info_StoreP = Info_Store;
+			Info_Store.frame = track_frame;
+			Info_Store.tref_start = -1;
+		}
+		Info_Store.info_ps = progressive_sequence;
+	}
 }
 
 /* decode sequence display extension */
@@ -294,12 +325,14 @@ void CMPEG2Decoder::sequence_display_extension()
 	video_format      = Get_Bits(3);
 	color_description = Get_Bits(1);
 
+	matrix_coefficients = 1;
 	if (color_description)
 	{
 		color_primaries          = Get_Bits(8);
 		transfer_characteristics = Get_Bits(8);
 		matrix_coefficients      = Get_Bits(8);
 	}
+	Matrix = matrix_coefficients;
 
 	display_horizontal_size = Get_Bits(14);
 	Flush_Buffer(1);	// marker bit
@@ -411,6 +444,7 @@ void CMPEG2Decoder::picture_coding_extension()
 	composite_display_flag     = Get_Bits(1);
 
 	pf_current = progressive_frame;
+	if (info) Info_Store.info_pf[temporal_reference] = progressive_frame;
 
 	if (composite_display_flag)
 	{

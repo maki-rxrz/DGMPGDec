@@ -1,17 +1,69 @@
+2005/01/11
+----------
+
+Fixed a little bug with the info option, and added faster mmx conv
+routines for 4:2:2 planar -> 4:2:2 packed and vice versa.
+
+by "tritical"
+
+2005/01/05
+----------
+
+This is a 1.0.13b4 version of dgdecode but with the following changes:
+
+1.) added info option to mpeg2source() to display info on frames
+      - example usage:  mpeg2source(info=true)
+
+2.) iPP is a bool again.  If it is not explicitly set to true or false then it 
+       defaults to auto which switches between field/frame based pp based on the 
+       progressive_frame flag
+
+3.) 4:2:2 input support
+      - can now correctly decode 4:2:2 input sources and correctly output it
+           to AviSynth as YUY2
+
+      *NOTE:  mpeg2source() now throws an error on 4:4:4 input, it could handle it
+               but AviSynth 2.5 does not have internal YUV 4:4:4 support
+
+    3a.) 4:2:2 PLANAR post-processing support
+
+4.) Upsampling to 4:2:2 from 4:2:0 based on progressive_frame flag.  Uses new
+       upConv parameter of mpeg2source().
+
+      - example   mpeg2source(upConv=true)
+
+      *NOTES:  it will only work if input is 4:2:0, if input is anything else
+                then the upConv parameter is ignored
+
+5.) BlindPP now supports YUY2 colorspace
+
+6.) other stuff:
+
+      - fixed blindPP syntax bug  (x and X)
+      - fixed a small bug with showQ option
+      - fixed small memory leak with FrameList/GOPList not being free'd
+      - fixed a bug in the vertical chroma deblocking postprocessing
+              QP pointer being passed was incorrect for 4:2:0
+      - faster mmx 4:2:2 to packed YUY2 and YUY2 to planar 4:2:2 conversions
+      - info output would not work correctly if temporal_reference was not zero
+        based at the beginning of gops, it does now
+
+by "tritical"
+
 changes.doc (Sept 11, 2003)
 --------------------------
 
 Modified the decoding and random access code so that it never has
 to skip B frames. This was the cause of the frame dropping problem.
 This version must be used with an appropriately modified DVD2AVI
-version, for example, DVD2AVIdg. If these two are used together,
+version, for example, DGIndex. If these two are used together,
 frames will never be dropped. Refer to the DVD2AVI forum at doom9.org
 for a discussion of this problem. Search for the thread "does dvd2avi
 chop off frames?". Also fixes several bugs in MPEG2 decoding.
 
 Note: This version is derived from Nic's MPEG2DEC3 1.10.
 
-Donald A. Graft
+by Donald A. Graft
 
 changes.doc (08 dec 2002)
 -------------------------

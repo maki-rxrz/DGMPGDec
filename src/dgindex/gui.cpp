@@ -29,7 +29,7 @@ extern "C"
 #include "pat.h"
 }
 
-static char Version[] = "DGIndex 1.0.12";
+static char Version[] = "DGIndex 1.1.0";
 
 #define TRACK_HEIGHT	30
 #define INIT_WIDTH		480
@@ -94,7 +94,6 @@ static char Outfilename[MAX_FILE_NUMBER][_MAX_PATH];
 
 char *ExitOnEnd;
 int CLIActive = 0;
-int AutoIncrement = 0;
 
 PATParser pat_parser;
 
@@ -127,8 +126,8 @@ NEW_VERSION:
 		SRC_Flag = SRC_NONE;
 		Norm_Ratio = 100;
 		Priority_Flag = PRIORITY_NORMAL;
-		MPEG2_Transport_VideoPID = 0x11;
-		MPEG2_Transport_AudioPID = 0x14;
+		MPEG2_Transport_VideoPID = 0x02;
+		MPEG2_Transport_AudioPID = 0x02;
 	}
 	else
 	{
@@ -277,11 +276,57 @@ TEST_END:
 	if(*lpCmdLine != 0x00)
 	{
 		int tmp;
-		char cwd[1024], *ext;
+		char cwd[1024];
 
 		File_Limit = 0;
 		SystemStream_Flag = 0;
-		if ((ptr = strstr(ucCmdLine,"-INPUT-FILES")) || (ptr = strstr(ucCmdLine,"-IF")))
+		if ((ptr = strstr(ucCmdLine,"-AUTO-INPUT-FILES")) || (ptr = strstr(ucCmdLine,"-AIF")))
+		{
+			ptr = lpCmdLine + (ptr - ucCmdLine);
+			ptr  = strstr(ptr,"[")+1;
+			ende = strstr(ptr, "]");
+			*ende = 0;
+			strcpy(aFName, ptr);
+			*ende = ']';
+			while (true)
+			{
+				/* If the specified file does not include a path, use the
+				   current directory. */
+				if (!strstr(aFName, "\\"))
+				{
+					GetCurrentDirectory(sizeof(cwd) - 1, cwd);
+					strcat(cwd, "\\");
+					strcat(cwd, aFName);
+				}
+				else
+				{
+					strcpy(cwd, aFName);
+				}
+				if ((tmp = _open(cwd, _O_RDONLY | _O_BINARY | _O_SEQUENTIAL)) == -1) break;
+				strcpy(Infilename[File_Limit], cwd);
+				Infile[File_Limit] = tmp;
+				File_Limit++;
+
+				// First scan back from the end of the name for an _ character.
+				p = aFName+strlen(aFName);
+				while (*p != '_' && p >= aFName) p--;
+				if (*p != '_') break;
+				// Now pick up the number value and increment it.
+				p++;
+				if (*p < '0' || *p > '9') break;
+				sscanf(p, "%d", &val);
+				val++;
+				// Save the suffix after the number.
+				q = p;
+				while (*p >= '0' && *p <= '9') p++;
+				strcpy(suffix, p);
+				// Write the new incremented number.
+				sprintf(q, "%d", val);
+				// Append the saved suffix.
+				strcat(aFName, suffix);
+			}
+		}
+		else if ((ptr = strstr(ucCmdLine,"-INPUT-FILES")) || (ptr = strstr(ucCmdLine,"-IF")))
 		{
 		  ptr = lpCmdLine + (ptr - ucCmdLine);
 		  ptr  = strstr(ptr,"[")+1;
@@ -324,66 +369,59 @@ TEST_END:
 				strcpy(Infilename[File_Limit], cwd);
 				Infile[File_Limit] = tmp;
 				File_Limit++;
-				ext = strrchr(cwd, '.');
-				if (!_strnicmp(ext, ".tp", 3) ||
-					!_strnicmp(ext, ".trp", 4) ||
-					!_strnicmp(ext, ".ts", 3) ||
-					!_strnicmp(ext, ".m2t", 4))
-					SystemStream_Flag = 2;
 			}
 		  }
 		  while (ptr < ende);
 		}
-		else if ((ptr = strstr(ucCmdLine,"-AUTO-INPUT-FILES")) || (ptr = strstr(ucCmdLine,"-AIF")))
+		else if ((ptr = strstr(ucCmdLine,"-BATCH-FILES")) || (ptr = strstr(ucCmdLine,"-BF")))
 		{
+			FILE *bf;
+			char line[1024];
+
 			ptr = lpCmdLine + (ptr - ucCmdLine);
 			ptr  = strstr(ptr,"[")+1;
 			ende = strstr(ptr, "]");
 			*ende = 0;
 			strcpy(aFName, ptr);
 			*ende = ']';
-			while (true)
+			/* If the specified batch file does not include a path, use the
+			   current directory. */
+			if (!strstr(aFName, "\\"))
 			{
-				/* If the specified file does not include a path, use the
-				   current directory. */
-				if (!strstr(aFName, "\\"))
+				GetCurrentDirectory(sizeof(cwd) - 1, cwd);
+				strcat(cwd, "\\");
+				strcat(cwd, aFName);
+			}
+			else
+			{
+				strcpy(cwd, aFName);
+			}
+			bf = fopen(cwd, "r");
+			if (bf != 0)
+			{
+				while (fgets(line, 1023, bf) != 0)
 				{
-					GetCurrentDirectory(sizeof(cwd) - 1, cwd);
-					strcat(cwd, "\\");
-					strcat(cwd, aFName);
+					// Zap the newline.
+					line[strlen(line)-1] = 0;
+					/* If the specified batch file does not include a path, use the
+					   current directory. */
+					if (!strstr(line, "\\"))
+					{
+						GetCurrentDirectory(sizeof(cwd) - 1, cwd);
+						strcat(cwd, "\\");
+						strcat(cwd, line);
+					}
+					else
+					{
+						strcpy(cwd, line);
+					}
+					if ((tmp = _open(cwd, _O_RDONLY | _O_BINARY)) != -1)
+					{
+						strcpy(Infilename[File_Limit], cwd);
+						Infile[File_Limit] = tmp;
+						File_Limit++;
+					}
 				}
-				else
-				{
-					strcpy(cwd, aFName);
-				}
-				if ((tmp = _open(cwd, _O_RDONLY | _O_BINARY | _O_SEQUENTIAL)) == -1) break;
-				strcpy(Infilename[File_Limit], cwd);
-				Infile[File_Limit] = tmp;
-				File_Limit++;
-				ext = strrchr(cwd, '.');
-				if (!_strnicmp(ext, ".tp", 3) ||
-					!_strnicmp(ext, ".trp", 4) ||
-					!_strnicmp(ext, ".ts", 3) ||
-					!_strnicmp(ext, ".m2t", 4))
-					SystemStream_Flag = 2;
-
-				// First scan back from the end of the name for an _ character.
-				p = aFName+strlen(aFName);
-				while (*p != '_' && p >= aFName) p--;
-				if (*p != '_') break;
-				// Now pick up the number value and increment it.
-				p++;
-				if (*p < '0' || *p > '9') break;
-				sscanf(p, "%d", &val);
-				val++;
-				// Save the suffix after the number.
-				q = p;
-				while (*p >= '0' && *p <= '9') p++;
-				strcpy(suffix, p);
-				// Write the new incremented number.
-				sprintf(q, "%d", val);
-				// Append the saved suffix.
-				strcat(aFName, suffix);
 			}
 		}
 	}
@@ -694,7 +732,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			{
 				if (wParam == 0xa5a5a5a5)
 				{
-					MessageBox(hWnd, "D2V file written successfuly!", "Save Project", MB_ICONINFORMATION | MB_SYSTEMMODAL);
+//					MessageBox(hWnd, "D2V file written successfuly!", "Save Project", MB_ICONINFORMATION | MB_SYSTEMMODAL);
 
 					// Make an AVS file if it doesn't already exist and a template exists.
 					GetModuleFileName(NULL, prog, 255);
@@ -731,6 +769,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 						}
 					}
 				}
+#if 0
 				else
 					MessageBox(hWnd, "Play/Preview Completed!", "Play/Preview", MB_ICONINFORMATION | MB_SYSTEMMODAL);
 				DestroyWindow(hDlg);
@@ -738,6 +777,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				process.startloc = 0;
 				process.locate = LOCATE_INIT;
 				hThread = CreateThread(NULL, 0, MPEG2Dec, 0, 0, &threadId);
+#endif
 			}
 			break;
 
@@ -790,19 +830,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			// parse the menu selections
 			switch (wmId)
 			{
-				case IDM_OPEN_AUTO:
-					AutoIncrement = 1;
-					DialogBox(hInst, (LPCTSTR)IDD_FILELIST, hWnd, (DLGPROC)VideoList);
-					break;
-
 				case IDM_OPEN:
-					AutoIncrement = 0;
 					DialogBox(hInst, (LPCTSTR)IDD_FILELIST, hWnd, (DLGPROC)VideoList);
 					break;
 
 				case IDM_PREVIEW:
 				case IDM_PLAY:
-					if (IsWindowEnabled(hTrack))
+					if (!Check_Flag)
+					{
+						MessageBox(hWnd, "No data. Check your PIDS.", "Preview/Play", MB_OK | MB_ICONWARNING);
+					}
+					else if (IsWindowEnabled(hTrack))
 					{
 						RunningEnables();
 						Display_Flag = true;
@@ -824,12 +862,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 				case IDM_SAVE_D2V:
 saved2v:
-					if (CLIActive || PopFileDlg(szOutput, hWnd, SAVE_D2V))
+					if (!Check_Flag)
+					{
+						MessageBox(hWnd, "No data. Check your PIDS.", "Save Project", MB_OK | MB_ICONWARNING);
+					}
+
+					else if (CLIActive || PopFileDlg(szOutput, hWnd, SAVE_D2V))
 					{
 						sprintf(szBuffer, "%s.d2v", szOutput);
 						if (CLIActive)
 						{
-							if ((D2VFile = fopen(szBuffer, "w+")) == 0) break;
+							if ((D2VFile = fopen(szBuffer, "w+")) == 0)
+								if (ExitOnEnd) exit (0);
+								else CLIActive = 0;
 						}
 						else 
 						{
@@ -837,8 +882,8 @@ saved2v:
 							{
 								char line[255];
 								sprintf(line, "%s already exists.\nDo you want to replace it?", szBuffer);
-								if (MessageBox(hWnd, line, "Save As",
-									MB_YESNO | MB_SYSTEMMODAL | MB_ICONWARNING) != IDYES)
+								if (MessageBox(hWnd, line, "Save D2V",
+									MB_YESNO | MB_ICONWARNING) != IDYES)
 								break;
 							}
 							D2VFile = fopen(szBuffer, "w+");
@@ -866,7 +911,7 @@ saved2v:
 							}
 						}
 						else
-							MessageBox(hWnd, "Couldn't write D2V file. Is it read-only?", NULL, MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+							MessageBox(hWnd, "Couldn't write D2V file. Is it read-only?", "Save D2V", MB_OK | MB_ICONERROR);
 					}
 					break;
 
@@ -1515,11 +1560,21 @@ D2V_PROCESS:
 			break;
 
 		case WM_DROPFILES:
-			char *ext;
+			char *ext, *tmp;
 			int drop_count, drop_index;
+			int n;
+			char path[_MAX_PATH];
 
 			DragQueryFile((HDROP)wParam, 0, szInput, sizeof(szInput));
 			SetForegroundWindow(hWnd);
+
+			// Set the output directory for a Save D2V operation to the
+			// same path as these input files.
+			strcpy(path, szInput);
+			tmp = path + strlen(path);
+			while (*tmp != '\\' && tmp >= path) tmp--;
+			tmp[1] = 0;
+			strcpy(szSave, path);
 
 			ext = strrchr(szInput, '.');
 			if (ext!=NULL)
@@ -1566,25 +1621,41 @@ D2V_PROCESS:
 			drop_count = DragQueryFile((HDROP)wParam, 0xffffffff, szInput, sizeof(szInput));
 			for (drop_index = 0; drop_index < drop_count; drop_index++)
 			{
-				char *ext;
-
 				DragQueryFile((HDROP)wParam, drop_index, szInput, sizeof(szInput));
 				struct _finddata_t seqfile;
 				if (_findfirst(szInput, &seqfile) != -1L)
 				{
 					strcpy(Infilename[File_Limit], szInput);
-					Infile[File_Limit] = _open(szInput, _O_RDONLY | _O_BINARY | _O_SEQUENTIAL);
 					File_Limit++;
-					ext = strrchr(szInput, '.');
-					if (!_strnicmp(ext, ".ts", 3) || !_strnicmp(ext, ".tp", 3) ||
-						!_strnicmp(ext, ".trp", 4) || !_strnicmp(ext, ".m2t", 4))
-						SystemStream_Flag = 2;
-					else
-						SystemStream_Flag = 0;
+					SystemStream_Flag = 0;
 				}
 			}
 			DragFinish((HDROP)wParam);
-
+			// Sort the filenames.
+			// This is a special sort designed to do things intelligently
+			// for typical sequentially numbered filenames.
+			// Sorry, just a bubble sort. No need for performance here. KISS.
+			n = File_Limit;
+			for (i = 0; i < n - 1; i++)
+			{
+				for (j = 0; j < n - 1 - i; j++)
+				{
+					if (strverscmp(Infilename[j+1], Infilename[j]) < 0)
+					{
+						tmp = Infilename[j];
+						Infilename[j] = Infilename[j+1];
+						Infilename[j+1] = tmp;
+					}
+				}
+			}
+			// Open the files.
+			for (i = 0; i < File_Limit; i++)
+			{
+				Infile[i] = _open(Infilename[i], _O_RDONLY | _O_BINARY | _O_SEQUENTIAL);
+			}
+			DialogBox(hInst, (LPCTSTR)IDD_FILELIST, hWnd, (DLGPROC)VideoList);
+#if 0
+			// The old way. Don't pop up file list and just start decoding.
 			Recovery();
 
 			if (File_Limit)
@@ -1601,6 +1672,7 @@ D2V_PROCESS:
 				if (!threadId || WaitForSingleObject(hThread, INFINITE)==WAIT_OBJECT_0)
 					hThread = CreateThread(NULL, 0, MPEG2Dec, 0, 0, &threadId);
 			}
+#endif
 			break;
 
 		case WM_DESTROY:
@@ -1693,6 +1765,7 @@ LRESULT CALLBACK DetectPids(HWND hDialog, UINT message, WPARAM wParam, LPARAM lP
 								sscanf(ptr, "%x", &MPEG2_Transport_VideoPID);
 						}
 					}
+					if (LOWORD(wParam) == IDC_SET_AUDIO) break;
 					Recovery();
 					if (File_Limit)
 					{
@@ -1722,10 +1795,14 @@ LRESULT CALLBACK DetectPids(HWND hDialog, UINT message, WPARAM wParam, LPARAM lP
 LRESULT CALLBACK VideoList(HWND hVideoListDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	int i, j;
+	char updown[_MAX_PATH];
+	char *name;
+	int handle;
 
 	switch (message)
 	{
 		case WM_INITDIALOG:
+			SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_SETHORIZONTALEXTENT, (WPARAM) 1024, 0);  
 			if (File_Limit)
 				for (i=0; i<File_Limit; i++)
 					SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_ADDSTRING, 0, (LPARAM)Infilename[i]);
@@ -1740,19 +1817,45 @@ LRESULT CALLBACK VideoList(HWND hVideoListDlg, UINT message, WPARAM wParam, LPAR
 			switch (LOWORD(wParam))
 			{
 				case ID_ADD:
-					AutoIncrement = 0;
 					OpenVideoFile(hVideoListDlg);
 
 					if (File_Limit)
 						SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_SETCURSEL, File_Limit-1, 0);
 					break;
 
-				case ID_ADD_AUTO:
-					AutoIncrement = 1;
-					OpenVideoFile(hVideoListDlg);
+				case ID_UP:
+					i = SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_GETCURSEL, 0, 0);
+					if (i != 0)
+					{
+						name = Infilename[i];
+						Infilename[i] = Infilename[i-1];
+						Infilename[i-1] = name;
+						handle = Infile[i];
+						Infile[i] = Infile[i-1];
+						Infile[i-1] = handle;
+						SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_GETTEXT, i - 1, (LPARAM) updown);
+						SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_DELETESTRING, i - 1, 0);
+						SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_INSERTSTRING, i, (LPARAM) updown);
+						SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_SETCURSEL, i - 1, 0);
+					}
+					break;
 
-					if (File_Limit)
-						SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_SETCURSEL, File_Limit-1, 0);
+				case ID_DOWN:
+					i = SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_GETCURSEL, 0, 0);
+					j = SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_GETCOUNT, 0, 0);
+					if (i < j - 1)
+					{
+						name = Infilename[i];
+						Infilename[i] = Infilename[i+1];
+						Infilename[i+1] = name;
+						handle = Infile[i];
+						Infile[i] = Infile[i+1];
+						Infile[i+1] = handle;
+						SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_GETTEXT, i, (LPARAM) updown);
+						SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_DELETESTRING, i, 0);
+						SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_INSERTSTRING, i + 1, (LPARAM) updown);
+						SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_SETCURSEL, i + 1, 0);
+					}
 					break;
 
 				case ID_DEL:
@@ -1760,16 +1863,13 @@ LRESULT CALLBACK VideoList(HWND hVideoListDlg, UINT message, WPARAM wParam, LPAR
 					{
 						i= SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_GETCURSEL, 0, 0);
 						SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_DELETESTRING, i, 0);
-
 						File_Limit--;
 						_close(Infile[i]);
-
 						for (j=i; j<File_Limit; j++)
 						{
 							Infile[j] = Infile[j+1];
 							strcpy(Infilename[j], Infilename[j+1]);
 						}
-
 						SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_SETCURSEL, i>=File_Limit ? File_Limit-1 : i, 0);
 					}
 					if (!File_Limit)
@@ -1785,15 +1885,7 @@ LRESULT CALLBACK VideoList(HWND hVideoListDlg, UINT message, WPARAM wParam, LPAR
 						File_Limit--;
 						i= SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_GETCURSEL, 0, 0);
 						SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_DELETESTRING, i, 0);
-
 						_close(Infile[i]);
-
-						for (j=i; j<File_Limit; j++)
-						{
-							Infile[j] = Infile[j+1];
-							strcpy(Infilename[j], Infilename[j+1]);
-						}
-
 						SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_SETCURSEL, i>=File_Limit ? File_Limit-1 : i, 0);
 					}
 					Recovery();
@@ -1835,42 +1927,92 @@ static void OpenVideoFile(HWND hVideoListDlg)
 {
 	if (PopFileDlg(szInput, hVideoListDlg, OPEN_VOB))
 	{
-		char *p, *q, *ext;
-		int val;
-		char suffix[_MAX_PATH];
+		char *p;
+		char path[_MAX_PATH];
+		char filename[_MAX_PATH];
+		char curPath[_MAX_PATH];
 		struct _finddata_t seqfile;
+		int i, j, n;
+		char *tmp;
 
-		ext = strrchr(szInput, '.');
-		if (!_strnicmp(ext, ".ts", 3) || !_strnicmp(ext, ".tp", 3) ||
-			!_strnicmp(ext, ".trp", 4) || !_strnicmp(ext, ".m2t", 4))
-			SystemStream_Flag = 2;
-		else
-			SystemStream_Flag = 0;
-		while (_findfirst(szInput, &seqfile) != -1L)
+		SystemStream_Flag = 0;
+		getcwd(curPath, _MAX_PATH);
+		if (strlen(curPath) != strlen(szInput))
 		{
-			SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_ADDSTRING, 0, (LPARAM)szInput);
+			// Only one file specified.
+			if (_findfirst(szInput, &seqfile) == -1L) return;
+			SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_ADDSTRING, 0, (LPARAM) szInput);
 			strcpy(Infilename[File_Limit], szInput);
 			Infile[File_Limit] = _open(szInput, _O_RDONLY | _O_BINARY | _O_SEQUENTIAL);
 			File_Limit++;
-			if (AutoIncrement == 0) break;
-
-			// First scan back from the end of the name for an _ character.
-			p = szInput+strlen(szInput);
-			while (*p != '_' && p >= szInput) p--;
-			if (*p != '_') break;
-			// Now pick up the number value and increment it.
-			p++;
-			if (*p < '0' || *p > '9') break;
-			sscanf(p, "%d", &val);
-			val++;
-			// Save the suffix after the number.
-			q = p;
-			while (*p >= '0' && *p <= '9') p++;
-			strcpy(suffix, p);
-			// Write the new incremented number.
-			sprintf(q, "%d", val);
-			// Append the saved suffix.
-			strcat(szInput, suffix);
+			// Set the output directory for a Save D2V operation to the
+			// same path as this input files.
+			strcpy(path, szInput);
+			p = path + strlen(path);
+			while (*p != '\\' && p >= path) p--;
+			p[1] = 0;
+			strcpy(szSave, path);
+			return;
+		}
+		// Multi-select handling.
+		// First clear existing file list box.
+		n = File_Limit;
+		while (n)
+		{
+			n--;
+			i = SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_GETCURSEL, 0, 0);
+			SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_DELETESTRING, i, 0);
+			SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_SETCURSEL, i >= n ? n - 1 : i, 0);
+		}
+		// Save the path prefix (path without the filename).
+		strcpy(path, szInput);
+		// Also set that path as the default for a Save D2V operation.
+		strcpy(szSave, szInput);
+		// Add a trailing backslash if needed.
+		p = szInput;
+		while (*p != 0) p++;
+		p--;
+		if (*p != '\\')
+			strcat(path, "\\");
+		// Skip the path prefix.
+		p = szInput;
+		while (*p++ != 0);
+		// Load the filenames.
+		while (1)
+		{
+			// Build full path plus filename.
+			strcpy(filename, path);
+			strcat(filename, p);
+			if (_findfirst(filename, &seqfile) == -1L) break;
+			strcpy(Infilename[File_Limit], filename);
+			File_Limit++;
+			// Skip to next filename.
+			while (*p++ != 0);
+			// A double zero is the end of the file list.
+			if (*p == 0) break;
+		}
+		// Sort the filenames.
+		// This is a special sort designed to do things intelligently
+		// for typical sequentially numbered filenames.
+		// Sorry, just a bubble sort. No need for performance here. KISS.
+		n = File_Limit;
+		for (i = 0; i < n - 1; i++)
+		{
+			for (j = 0; j < n - 1 - i; j++)
+			{
+				if (strverscmp(Infilename[j+1], Infilename[j]) < 0)
+				{
+					tmp = Infilename[j];
+					Infilename[j] = Infilename[j+1];
+					Infilename[j+1] = tmp;
+				}
+			}
+		}
+		// Load up the file open dialog list box and open the files.
+		for (i = 0; i < File_Limit; i++)
+		{
+			SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_ADDSTRING, 0, (LPARAM) Infilename[i]);
+			Infile[i] = _open(Infilename[i], _O_RDONLY | _O_BINARY | _O_SEQUENTIAL);
 		}
 	}
 }
@@ -2006,14 +2148,9 @@ void ThreadKill()
 		{
 			// Revised by Donald Graft to support IBBPIBBP...
 			WriteGopLine(1);
-			if (Stop_Flag)
-			{
-				fprintf(D2VFile, "\nINTERRUPTED");
-			}
-			else
-			{
-				fprintf(D2VFile, "\nFINISHED");
-			}
+			fprintf(D2VFile, "\nFINISHED");
+			// Prevent divide by 0.
+			if (FILM_Purity+NTSC_Purity == 0) NTSC_Purity = 1;
 			fprintf(D2VFile, "  %.2f%% FILM\n", (FILM_Purity*100.0)/(FILM_Purity+NTSC_Purity));
 		}
 
@@ -2050,7 +2187,7 @@ void ThreadKill()
 	{
 		SetForegroundWindow(hWnd);
 
-		if (!Stop_Flag)
+//		if (!Stop_Flag)
 		{
 			MessageBeep(MB_OK);	
 			SetDlgItemText(hDlg, IDC_REMAIN, "FINISH");
@@ -2329,7 +2466,7 @@ LRESULT CALLBACK SetPids(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPara
 		case WM_INITDIALOG:
 			sprintf(szTemp, "%x", MPEG2_Transport_VideoPID);
 			SetDlgItemText(hDialog, IDC_VIDEO_PID, szTemp);
-			sprintf(szTemp, "%02x", MPEG2_Transport_AudioPID);
+			sprintf(szTemp, "%x", MPEG2_Transport_AudioPID);
 			SetDlgItemText(hDialog, IDC_AUDIO_PID, szTemp);
 			ShowWindow(hDialog, SW_SHOW);
 			return true;
@@ -2452,7 +2589,12 @@ bool PopFileDlg(PTSTR pstrFileName, HWND hOwner, int Status)
 	switch (Status)
 	{
 		case OPEN_VOB:
-			szFilter = TEXT ("MPEG-2 Stream\0*.tp;*.trp;*.ts;*.m2t;*.vob;*.mpg;*.m2p;*.m2v;*.mpv\0")  \
+			ofn.nFilterIndex = 4;
+			szFilter = \
+				TEXT ("*.vob\0*.vob\0") \
+				TEXT ("*.mpg, *.mpeg, *.m2v\0*.mpg;*.mpeg;*.m2v\0") \
+				TEXT ("*.tp, *.ts, *.trp\0*.tp;*.ts;*.trp\0") \
+				TEXT ("*.vob, *.mpg, *.mpeg, *.m2v, *.tp, *.ts, *.trp\0*.vob;*.mpg;*.mpeg;*.m2v;*.tp;*.ts;*.trp\0") \
 				TEXT ("All Files (*.*)\0*.*\0");
 			break;
 
@@ -2482,9 +2624,11 @@ bool PopFileDlg(PTSTR pstrFileName, HWND hOwner, int Status)
 	ofn.hwndOwner         = hOwner ;
 	ofn.hInstance         = hInst ;
 	ofn.lpstrFilter       = szFilter ;
-	ofn.nMaxFile          = _MAX_PATH ;
+	ofn.nMaxFile          = 100 * _MAX_PATH ;
 	ofn.nMaxFileTitle     = _MAX_PATH ;
 	ofn.lpstrFile         = pstrFileName ;
+	*ofn.lpstrFile        = 0;
+	ofn.lpstrInitialDir   = szSave;
 
 	switch (Status)
 	{
@@ -2492,7 +2636,7 @@ bool PopFileDlg(PTSTR pstrFileName, HWND hOwner, int Status)
 		case OPEN_D2V:
 		case OPEN_WAV:
 			gop_warned = false;
-			ofn.Flags = OFN_HIDEREADONLY | OFN_FILEMUSTEXIST;
+			ofn.Flags = OFN_HIDEREADONLY | OFN_FILEMUSTEXIST | OFN_ALLOWMULTISELECT | OFN_EXPLORER;
 			return GetOpenFileName(&ofn);
 
 		case SAVE_BMP:
@@ -3022,8 +3166,8 @@ static void SaveBMP()
 	{
 		char line[255];
 		sprintf(line, "%s already exists.\nDo you want to replace it?", szTemp);
-		if (MessageBox(hWnd, line, "Save As",
-			MB_YESNO | MB_SYSTEMMODAL | MB_ICONWARNING) != IDYES)
+		if (MessageBox(hWnd, line, "Save BMP",
+			MB_YESNO | MB_ICONWARNING) != IDYES)
 		return;
 	}
 	if ((BMPFile = fopen(szTemp, "wb")) == NULL)

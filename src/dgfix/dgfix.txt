@@ -1,4 +1,4 @@
-DGFix 1.0.0
+DGFix 1.1.0
 -----------
 
 by Donald Graft
@@ -9,7 +9,7 @@ possible to encounter D2V files that have illegal flag
 sequences, such that a request is made for two consecutive
 top or bottom fields. Top and bottom fields must strictly
 alternate! When such an illegal transition occurs, the
-Avisynth mpeg2source() filter (and other decoders that read
+Avisynth DGDecode() filter (and other decoders that read
 the D2V file) will generate field inverted video from the point
 of error (and until a subsequent illegal transition cancels
 the first one!). When you view the clip, the field order appears
@@ -18,9 +18,9 @@ to change at the illegal transition.
 Standalone and some software players are able to ignore/correct
 the illegal requests on the fly, but currently DGMPGDec
 cannot. Therefore, this program can be used to fix the D2V file
-before it is sourced into mpeg2source().
+before it is sourced into DGDecode().
 
-This program works with DGMPGDec version 1.0.0.
+This program works with DGMPGDec version 1.1.0.
 
 Usage: To use the program, type:
 
@@ -30,4 +30,4 @@ The program will create a fixed D2V file called file.d2v.fixed.
 The program will report the errors and corrections to the
 command window.
 
-(C) Donald A. Graft 2004
+(C) Donald A. Graft 2004,2005

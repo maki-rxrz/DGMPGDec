@@ -171,7 +171,7 @@ struct YV12PICT
 	int pf;
 };
 
-extern "C" YV12PICT* create_YV12PICT(int height, int width);
+extern "C" YV12PICT* create_YV12PICT(int height, int width, int chroma_format);
 extern "C" void destroy_YV12PICT(YV12PICT * pict);
 
 class MPEG2DEC_API CMPEG2Decoder
@@ -407,6 +407,7 @@ protected:
 public:
   FILE		*VF_File;
   int		VF_FrameRate;
+  int		Matrix;
   DWORD		VF_FrameLimit;
   DWORD		VF_GOPLimit;
   DWORD		prev_frame;
@@ -423,12 +424,29 @@ public:
   bool dstRGB24() const { return m_dstFormat == RGB24; }
   bool dstYUV422() const { return m_dstFormat == YUV422; }
 
-  bool iPP;
+  int iPP;
   bool fastMC;
   bool showQ;
   int* QP;
+  bool upConv;
 
-  
+  // info option stuff
+  bool info;
+  int track_frame;
+  typedef struct {
+	int frame;
+	int tref_start;
+	bool closed_gop;
+	char info_ps;
+	int minq[MAX_GOP_SIZE];
+	int maxq[MAX_GOP_SIZE];
+	int avgq[MAX_GOP_SIZE];
+	char info_pf[MAX_GOP_SIZE];
+	char ftype[MAX_GOP_SIZE];
+  }	INFO_STORE;
+  INFO_STORE Info_Store, Info_StoreP;
+
+
 	// Luminance Code
     bool Luminance_Flag;
 

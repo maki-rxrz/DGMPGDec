@@ -39,7 +39,11 @@ int PATParser::DumpPAT(char *filename)
 	int read;
 
 	// Open the input file for reading.
-	if ((fin = fopen(filename, "rb")) == NULL) return 1;
+	if ((fin = fopen(filename, "rb")) == NULL)
+	{
+		printf("Could not open input file!\n");
+		return 1;
+	}
 
 	// Find a sync byte.
 	for (i = 0; i < LIMIT; i++)
@@ -47,6 +51,7 @@ int PATParser::DumpPAT(char *filename)
 		if (fread(&byte, 1, 1, fin) == 0)
 		{
 			fclose(fin);
+			printf("Could not find packet sync!\n");
 			return 1;
 		}
 		if (byte == TS_SYNC_BYTE)
@@ -54,6 +59,7 @@ int PATParser::DumpPAT(char *filename)
 			fseek(fin, 187, SEEK_CUR);
 			if (fread(&byte, 1, 1, fin) == 0)
 			{
+				printf("Could not find packet sync!\n");
 				fclose(fin);
 				return 1;
 			}
@@ -138,6 +144,7 @@ int PATParser::DumpPAT(char *filename)
 	if (read != 188)
 	{
 		fclose(fin);
+		printf("Could not find packet sync!\n");
 		return 1;
 	}
 
@@ -151,6 +158,7 @@ int PATParser::DumpPAT(char *filename)
 			if (fread(&byte, 1, 1, fin) == 0)
 			{
 				fclose(fin);
+				printf("Could not find packet sync!\n");
 				return 1;
 			}
 			if (byte == TS_SYNC_BYTE)
@@ -159,6 +167,7 @@ int PATParser::DumpPAT(char *filename)
 				if (fread(&byte, 1, 1, fin) == 0)
 				{
 					fclose(fin);
+					printf("Could not find packet sync!\n");
 					return 1;
 				}
 				if (byte == TS_SYNC_BYTE)
@@ -283,6 +292,7 @@ int PATParser::DumpPAT(char *filename)
 		if (read != 188)
 		{
 			fclose(fin);
+			printf("Could not find packet sync!\n");
 			return 1;
 		}
 	}
@@ -295,18 +305,15 @@ int main(int argc, char *argv[])
 {
 	PATParser parser;
 
-	printf("------------------------------------------------\n");
-	printf("DGTable 1.0.0 -- PAT/PMT Parser by Donald A. Graft\n");
-	printf("------------------------------------------------\n\n");
+	printf("--------------------------------------------------\n");
+	printf("DGTable 1.1.0 -- PAT/PMT Parser by Donald A. Graft\n");
+	printf("--------------------------------------------------\n\n");
 	if (argc < 2)
 	{
 		printf("Usage: dgtable filename\n");
 		return 1;
 	}
-	if (parser.DumpPAT(argv[1]) == 1)
-	{
-		printf("Could not find PAT/PMT tables!\n");
-	}
+	parser.DumpPAT(argv[1]);
 	return 0;
 }
 

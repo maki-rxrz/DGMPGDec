@@ -1,5 +1,6 @@
-DGVfapi Frameserving with the New Decoding Functionality
---------------------------------------------------------
+DGVfapi 1.1.0
+Frameserving with the New Decoding Functionality
+------------------------------------------------
 
 VFAPI frameserving is now supported. It uses the
 DGDecode.dll, so both DGVfapi.vfp and DGDecode.dll
@@ -25,3 +26,6 @@ The procedure is as follows:
    hit Convert again.
 
 DVD2AVI's clipping feature is not supported.
+
+Donald Graft (c) 2004,2005
+

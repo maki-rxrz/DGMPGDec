@@ -114,12 +114,8 @@ do_rip_play:
 
 			while (true)
 			{
-				if (Get_Hdr() == 0)
-				{
-					GOPBack();
-					break;
-				}
-				else if (picture_coding_type == I_TYPE)
+				Get_Hdr(0);
+				if (picture_coding_type == I_TYPE)
 				{
 					process.startloc = saveloc;
 					break;
@@ -128,52 +124,122 @@ do_rip_play:
 			break;
 	}
 
-	// search MPEG-2 Sequence Header
+	// Check validity of the input file and collect some needed information.
 	if (!Check_Flag)
 	{
 		int code;
+		int i;
+		unsigned int show;
 
+		// Position to start of the first file.
+		File_Flag = 0;
+		_lseeki64(Infile[0], 0, SEEK_SET);
+		Initialize_Buffer();
+
+		// If the file does not contain a sequence header start code, it can't be an MPEG2 file.
+		// We're already byte aligned at the start of the file.
+		while ((show = Show_Bits(32)) != 0x1b3)
+		{
+			if (Stop_Flag)
+			{
+				// We reached EOF without ever seeing a sequence header.
+				MessageBox(hWnd, "MPEG2 decoders prefer to receive MPEG2 files!", NULL, MB_OK | MB_ICONERROR);
+				return (0);
+			}
+			Flush_Buffer(8);
+		}
+
+		// Position to start of the first file.
+		File_Flag = 0;
+		_lseeki64(Infile[0], 0, SEEK_SET);
+		Initialize_Buffer();
+
+		// Auto detect transport files.
+		// Search for a sync byte. Gives some protection against emulation.
+		for(i = 0; i < 188; i++)
+		{
+			if (Get_Byte() != 0x47) continue;
+			if (Rdptr + 187 >= Rdbfr + BUFFER_SIZE && Rdptr[-189] == 0x47)
+			{
+				SystemStream_Flag = 2;
+				break;
+			}
+			else if (Rdptr + 187 < Rdbfr + BUFFER_SIZE && Rdptr[+187] == 0x47)
+			{
+				SystemStream_Flag = 2;
+				break;
+			}
+			else
+				continue;
+		}
+
+		// Position to start of the first file.
 		File_Flag = 0;
 		_lseeki64(Infile[0], 0, SEEK_SET);
 		Initialize_Buffer();
 
 		while (!Check_Flag)
 		{
-			next_start_code();
+			// Move to the next video start code.
+			// Get byte aligned.
+			Flush_Buffer(BitsLeft & 7);
+			while ((show = Show_Bits(24)) != 0x000001)
+			{
+				if (Stop_Flag)
+				{
+					// We reached EOF without ever seeing a video start code.
+					MessageBox(hWnd, "No start codes! Are you sure this is an MPEG2 video stream?",
+								   NULL, MB_OK | MB_ICONERROR);
+					return (0);
+				}
+				Flush_Buffer(8);
+			}
 			code = Get_Bits(32);
 
 			switch (code)
 			{
-				case PACK_START_CODE:
-					SystemStream_Flag = 1;
-					break;
+			case PACK_START_CODE:
+				// If we know it's a transport stream, we can't allow this.
+				// If the video pid is (erroneously) set to decode an AC3
+				// audio pid, then the private stream start code will look
+				// like a video pack start code.
+				if (SystemStream_Flag == 2)
+				{
+					MessageBox(hWnd, "Strange video data! Check your PIDs.",
+							   NULL, MB_OK | MB_ICONERROR);
+					return 0;
+				}
+				// We have a program stream.
+				SystemStream_Flag = 1;
+				break;
 
-				case SEQUENCE_HEADER_CODE:
-					// Can't currently decode MPEG1, so detect that.
-					next_start_code();
-					code = Get_Bits(32);
-					if (code == EXTENSION_START_CODE && Get_Bits(4) == 1)
+			case SEQUENCE_HEADER_CODE:
+				// Can't currently decode MPEG1, so detect that.
+				next_start_code();
+				code = Get_Bits(32);
+				if (code == EXTENSION_START_CODE && Get_Bits(4) == 1)
+				{
+					// The SEQUENCE_HEADER_CODE is real.
+					File_Flag = 0;
+					_lseeki64(Infile[0], 0, SEEK_SET);
+					Initialize_Buffer();
+					while (true)
 					{
-						// The SEQUENCE_HEADER_CODE is real.
-						File_Flag = 0;
-						_lseeki64(Infile[0], 0, SEEK_SET);
-						Initialize_Buffer();
-						while (true)
-						{
-							next_start_code();
-							code = Get_Bits(32);
-							if (code == SEQUENCE_HEADER_CODE) break;
-						}
-						sequence_header();
-						InitialDecoder();
-						Check_Flag = true;
+						next_start_code();
+						code = Get_Bits(32);
+						if (code == SEQUENCE_HEADER_CODE) break;
 					}
-					else
-					{
-						MessageBox(hWnd, "MPEG1 streams not currently supported.",
-								   NULL, MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
-						return 0;
-					}
+					sequence_header(0);
+					InitialDecoder();
+					Check_Flag = true;
+				}
+				else
+				{
+					MessageBox(hWnd, "MPEG1 streams not currently supported.",
+							   NULL, MB_OK | MB_ICONERROR);
+					return 0;
+				}
+				break;
 			}
 		}
 
@@ -184,20 +250,22 @@ do_rip_play:
 		File_Flag = 0;
 		_lseeki64(Infile[0], 0, SEEK_SET);
 		Initialize_Buffer();
-		while (Get_Hdr() && picture_coding_type != I_TYPE)
+		while (1)
 		{
-			volatile int i;
-			i = 5;
+			Get_Hdr(0);
+			if (picture_coding_type == I_TYPE) break;
 		}
 		LeadingBFrames = 0;
-		while (Get_Hdr() && picture_coding_type == B_TYPE)
+		while (1)
 		{
+			Get_Hdr(0);
+			if (picture_coding_type != B_TYPE) break;
 			LeadingBFrames++;
-			if (gop_warned == false && !closed_gop)
-			{
-				MessageBox(hWnd, "WARNING! Opening GOP is not closed.\nThe first few frames may not be decoded correctly.", NULL, MB_OK | MB_ICONERROR);
-				gop_warned = true;
-			}
+		}
+		if (LeadingBFrames > 0 && gop_warned == false && closed_gop == 0)
+		{
+			MessageBox(hWnd, "WARNING! Opening GOP is not closed.\nThe first few frames may not be decoded correctly.", NULL, MB_OK | MB_ICONERROR);
+			gop_warned = true;
 		}
 		// Position back to the first GOP.
 		process.startloc = saveloc;
@@ -210,7 +278,7 @@ do_rip_play:
 		i = File_Limit;
 
 		// The first parameter is the format version number.
-		// It must be coordinated with the test in MPEG2DEC3dg
+		// It must be coordinated with the test in DGDecode
 		// and used to reject obsolete D2V files.
 		fprintf(D2VFile, "DGIndexProjectFile%s\n%d\n", "06", i);
 		while (i)
@@ -250,7 +318,7 @@ do_rip_play:
 		fprintf(D2VFile, "Field_Operation=%d (0:None 1:ForcedFILM 2:RawFrames)\n", FO_Flag);
 		fprintf(D2VFile, "Frame_Rate=%d\n", (int)(Frame_Rate*1000));
 		fprintf(D2VFile, "Location=%d,%X,%d,%X\n\n", process.leftfile, (int)process.leftlba, 
-			process.rightfile, (int)process.rightlba);
+				process.rightfile, (int)process.rightlba);
 	}
 
 	File_Flag = process.startfile;
@@ -259,8 +327,11 @@ do_rip_play:
 
 	process.op = 0;
 
-	while (Get_Hdr() && picture_coding_type != I_TYPE);
-
+	while (1)
+	{
+		Get_Hdr(0);
+		if (picture_coding_type == I_TYPE) break;
+	}
 	Start_Flag = true;
 	process.file = d2v_current.file;
 	process.lba = d2v_current.lba;
@@ -269,15 +340,15 @@ do_rip_play:
 
 	process.op = process.mi = timeGetTime();
 
-	while (Get_Hdr())
+	while (1)
 	{
-		Decode_Picture();
-
+		Get_Hdr(0);
 		if (Stop_Flag)
 		{
-			Fault_Flag = 99;
-			Write_Frame(NULL, d2v_current, 0);
+			Write_Frame(current_frame, d2v_current, Frame_Number - 1);
+			ThreadKill();
 		}
+		Decode_Picture();
 	}
 
 	return 0;
@@ -316,7 +387,7 @@ static BOOL GOPBack()
 		{
 			curloc = _telli64(Infile[process.startfile]);
 			if (curloc >= endloc) break;
-			if (!Get_Hdr()) break;
+			Get_Hdr(0);
 			if (picture_coding_type==I_TYPE)
 			{
 				if (d2v_current.file > startfile)

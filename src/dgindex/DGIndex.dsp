@@ -151,6 +151,10 @@ SOURCE=.\store.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\strverscmp.c
+# End Source File
+# Begin Source File
+
 SOURCE=.\wavefs44.c
 # End Source File
 # End Group

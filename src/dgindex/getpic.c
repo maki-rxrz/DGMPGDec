@@ -165,7 +165,7 @@ void Decode_Picture()
 			gop_entries_ndx++;
 		else
 		{
-			MessageBox(hWnd, "Too many pictures per GOP (>= 500).\nDGIndex will terminate.", NULL, MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+			MessageBox(hWnd, "Too many pictures per GOP (>= 500).\nDGIndex will terminate.", NULL, MB_OK | MB_ICONERROR);
 			exit(1);
 		}
 	}
@@ -204,17 +204,20 @@ void Decode_Picture()
 
 		/* write or display current or previously decoded reference frame */
 		/* ISO/IEC 13818-2 section 6.1.1.11: Frame reordering */
-		if (Frame_Number && (picture_structure==FRAME_PICTURE || Second_Field))
+		if (picture_structure == FRAME_PICTURE || Second_Field)
 		{
-			if (picture_coding_type==B_TYPE)
-				Write_Frame(auxframe, d2v_current, Frame_Number-1);
-			else
-				Write_Frame(forward_reference_frame, d2v_forward, Frame_Number-1);
-		}
-		else if (process.locate!=LOCATE_RIP && (picture_structure==FRAME_PICTURE || Second_Field))
-		{
-			Write_Frame(backward_reference_frame, d2v_backward, 0);
-			ThreadKill();
+			if (process.locate != LOCATE_RIP)
+			{
+				Write_Frame(backward_reference_frame, d2v_backward, 0);
+				ThreadKill();
+			}
+			else if (Frame_Number > 0)
+			{
+				if (picture_coding_type==B_TYPE)
+					Write_Frame(auxframe, d2v_current, Frame_Number-1);
+				else
+					Write_Frame(forward_reference_frame, d2v_forward, Frame_Number-1);
+			}
 		}
 	}
 

@@ -28,14 +28,6 @@
 int _donread(int fd, void *buffer, unsigned int count)
 {
 	int bytes;
-#if 0
-	char buf[80];
-	__int64 pos;
-
-	pos = _telli64(Infile[File_Flag]);
-	sprintf(buf, "reading %x\n", pos);
-	OutputDebugString(buf);
-#endif
 	bytes = _read(fd, buffer, count);
 	return bytes;
 }
@@ -201,11 +193,8 @@ static short *ptrPCM_Buffer = (short*)PCM_Buffer;
 
 void Initialize_Buffer()
 {
-	extern unsigned char *buffer_invalid;
-
 	Rdptr = Rdbfr + BUFFER_SIZE;
 	Rdmax = Rdptr;
-	buffer_invalid = (unsigned char *) 0xffffffff;
 
 	if (SystemStream_Flag)
 	{
@@ -319,7 +308,7 @@ void Next_Transport_Packet()
 		if (time - start > 3000)
 		{
 			MessageBox(hWnd, "Cannot find audio or video data. Check your PIDs.",
-					   NULL, MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
+					   NULL, MB_OK | MB_ICONERROR);
 			ThreadKill();
 		}
 
@@ -434,13 +423,17 @@ void Next_Transport_Packet()
 				Packet_Length = Packet_Length - 5; // compensate the bytes we extracted
 	
 				// get PTS, and skip rest of PES-header
-				if (code>=0x80 && Packet_Header_Length > 4 ) // Extension_flag ?
+				if (code>=0x80 && Packet_Header_Length > 4 && !Start_Flag) // Extension_flag ?
 				{
 					code = Get_Byte();
 					PES_PTS = (code & 0x0e) << 29;
 					PES_PTS |= (Get_Short() & 0xfffe) << 14;
 					PES_PTS |= (Get_Short()>>1) & 0x7fff;
 					VideoPTS = (unsigned int) (PES_PTS & 0xffffffff);
+					if (Frame_Rate)
+					{
+						VideoPTS -= (int) ((LeadingBFrames * 90000) / Frame_Rate);
+					}
 					Packet_Length = Packet_Length - 5;
 					SKIP_TRANSPORT_PACKET_BYTES( Packet_Header_Length-5 )
 				}
@@ -632,7 +625,7 @@ void Next_Transport_Packet()
 					}
 					else if (Method_Flag==AUDIO_DECODE && AC3_Track==Track_Flag)
 					{
-						sprintf(szBuffer, "%s AC3 T%02d %sch %dKbps %s.wav", szOutput, Track_Flag+1, 
+						sprintf(szBuffer, "%s AC3 PID %03x T%02d %sch %dKbps %s.wav", szOutput, MPEG2_Transport_AudioPID, Track_Flag+1, 
 							AC3ModeDash[ac3[AC3_Track].mode], AC3Rate[ac3[AC3_Track].rate], FTType[SRC_Flag]);
 
 						strcpy(pcm.filename, szBuffer);
@@ -684,10 +677,10 @@ void Next_Transport_Packet()
 					else if (Method_Flag == AUDIO_DEMUXALL || (Method_Flag==AUDIO_DEMUX && AC3_Track==Track_Flag))
 					{
 						if (MPEG2_Transport_VideoPID == 0 || PTSDifference(AudioPTS, VideoPTS, &PTSDiff))
-							sprintf(szBuffer, "%s AC3 T%02d %sch %dKbps.ac3", szOutput, AC3_Track+1, 
+							sprintf(szBuffer, "%s AC3 PID %03x T%02d %sch %dKbps.ac3", szOutput, MPEG2_Transport_AudioPID, AC3_Track+1, 
 								AC3ModeDash[ac3[AC3_Track].mode], AC3Rate[ac3[AC3_Track].rate]);
 						else
-							sprintf(szBuffer, "%s AC3 T%02d %sch %dKbps DELAY %dms.ac3", szOutput, AC3_Track+1, 
+							sprintf(szBuffer, "%s AC3 PID %03x T%02d %sch %dKbps DELAY %dms.ac3", szOutput, MPEG2_Transport_AudioPID, AC3_Track+1, 
 								AC3ModeDash[ac3[AC3_Track].mode], AC3Rate[ac3[AC3_Track].rate], PTSDiff);
 
 						ac3[AC3_Track].file = fopen(szBuffer, "wb");
@@ -747,7 +740,7 @@ void Next_Packet()
 	for (;;)
 	{
 		code = Get_Short();
-		code = (code<<16) + Get_Short();
+		code = (code << 16) | Get_Short();
 
 		while ((code & 0xffffff00) != 0x00000100)
 			code = (code<<8) + Get_Byte();
@@ -932,7 +925,9 @@ void Next_Packet()
 							}
 						}
 						else
+						{
 							DEMUX_AC3
+						}
 					}
 				}
 				else if (AUDIO_ID>=SUB_PCM && AUDIO_ID<SUB_PCM+CHANNEL)
@@ -1155,7 +1150,9 @@ void Next_Packet()
 						// Adjust VideoPTS as required if any B frames precede the first I frame
 						// in display order.
 						if (Frame_Rate)
+						{
 							VideoPTS -= (int) ((LeadingBFrames * 90000) / Frame_Rate);
+						}
 
 						Rdptr += Packet_Header_Length-5;
 					}
@@ -1167,7 +1164,15 @@ void Next_Packet()
 				}
 				else
 				{
+#if 1
+					if (Stop_Flag == true)
+					{
+						MessageBox(hWnd, "Strange video data. Are you sure it's MPEG2?", NULL, MB_OK | MB_ICONERROR);
+						ThreadKill();
+					}
+#else
 					Rdptr += Packet_Length-1;
+#endif
 				}
 
 				break;
@@ -1219,8 +1224,6 @@ void Fill_Buffer()
 		Bitrate_Monitor += Read;
 }
 
-unsigned char *buffer_invalid;
-
 void Next_File()
 {
 	int i, bytes;
@@ -1228,30 +1231,76 @@ void Next_File()
 	if (File_Flag < File_Limit-1)
 	{
 		File_Flag++;
-		process.run = 0;
-		for (i=0; i<File_Flag; i++) process.run += process.length[i];
-		_lseeki64(Infile[File_Flag], 0, SEEK_SET);
-		bytes = _donread(Infile[File_Flag], Rdbfr + Read, BUFFER_SIZE - Read);
-		if (Read + bytes == BUFFER_SIZE)
-			// The whole buffer has valid data.
-			buffer_invalid = (unsigned char *) 0xffffffff;
-		else
-			// Point to the first invalid buffer location.
-			buffer_invalid = Rdbfr + Read + bytes;
 	}
 	else
 	{
-		buffer_invalid = Rdbfr + Read;
+		// Wrap around. We can't thread kill here so at least read some
+		// known good data.
+		Stop_Flag = true;
+		File_Flag = 0;
 	}
+	process.run = 0;
+	for (i=0; i<File_Flag; i++) process.run += process.length[i];
+	_lseeki64(Infile[File_Flag], 0, SEEK_SET);
+	bytes = _donread(Infile[File_Flag], Rdbfr + Read, BUFFER_SIZE - Read);
 }
 
 void UpdateInfo()
 {
 	static int Old_NTSC_Purity;
 	unsigned int pts;
+	int profile, level;
+	extern int Clip_Width, Clip_Height, profile_and_level_indication;
 
 	sprintf(szBuffer, "%s", AspectRatio[aspect_ratio_information]);
 	SetDlgItemText(hDlg, IDC_ASPECT_RATIO, szBuffer);
+
+	sprintf(szBuffer, "%dx%d", Clip_Width, Clip_Height);
+	SetDlgItemText(hDlg, IDC_FRAME_SIZE, szBuffer);
+
+	profile = (profile_and_level_indication >> 4) & 0x7;
+	level = profile_and_level_indication & 0xf;
+	switch (profile)
+	{
+	case 1: // high
+		strcpy(szBuffer, "high@");
+		break;
+	case 2: // spatial
+		strcpy(szBuffer, "spatial@");
+		break;
+	case 3: // SNR
+		strcpy(szBuffer, "snr@");
+		break;
+	case 4: // main
+		strcpy(szBuffer, "main@");
+		break;
+	case 5: // simple
+		strcpy(szBuffer, "simple@");
+		break;
+	default:
+		strcpy(szBuffer, "");
+		break;
+	}
+	switch (level)
+	{
+	case 4:
+		strcat(szBuffer, "high");
+		break;
+	case 6:
+		strcat(szBuffer, "high1440");
+		break;
+	case 8:
+		strcat(szBuffer, "main");
+		break;
+	case 10:
+		strcat(szBuffer, "low");
+		break;
+	default:
+		strcat(szBuffer, "");
+		break;
+	}
+	sprintf(szBuffer, "%s", szBuffer);
+	SetDlgItemText(hDlg, IDC_PROFILE, szBuffer);
 
 	sprintf(szBuffer, "%.3f fps", Frame_Rate);
 	SetDlgItemText(hDlg, IDC_FRAME_RATE, szBuffer);

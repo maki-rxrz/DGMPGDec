@@ -54,6 +54,28 @@ void CMPEG2Decoder::Decode_Picture(YV12PICT *dst)
 
 	picture_data();
 
+	if (info)
+	{
+		__asm emms;
+		int x, y, temp, minq = 50, maxq = -50, avgq = 0;
+		int height = this->mb_height;
+		int width = this->mb_width;
+		for(y=0; y<height; ++y)
+		{
+			temp = y*width;
+			for(x=0; x<width; ++x) 
+			{
+				if (this->QP[x+temp] > maxq) maxq = this->QP[x+temp];
+				else if (this->QP[x+temp] < minq) minq = this->QP[x+temp];
+				avgq += this->QP[x+temp];
+			}
+		}
+		avgq = (int)(((float)avgq/(float)(height*width)) + 0.5f);
+		Info_Store.minq[temporal_reference] = minq;
+		Info_Store.maxq[temporal_reference] = maxq;
+		Info_Store.avgq[temporal_reference] = avgq;
+	}
+
 	#ifdef PROFILING
 		stop_timer2(&tim.dec);
 	#endif
@@ -686,6 +708,7 @@ addoff:
 			sse2checkpass(2);
 		#endif
 	}
+	__asm emms;
 }
 
 
@@ -739,6 +762,7 @@ void CMPEG2Decoder::Clear_Block(int count)
 			movq		[eax+120],mm0;
 		}
 	}
+	__asm emms;
 }
 
 /* ISO/IEC 13818-2 section 7.6 */

@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
 	int D2Vformat = 0;
 	int vob, cell;
 
- 	printf("DGParse 1.0.0 by Donald A. Graft\n\n");
+ 	printf("DGParse 1.1.0 by Donald A. Graft\n\n");
 	if (argc != 2)
 	{
 		printf("Usage: dgparse file\n");

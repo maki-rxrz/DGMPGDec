@@ -195,6 +195,9 @@ void Write_Frame(unsigned char *src[], D2VData d2v, DWORD frame)
 		sprintf(szBuffer, "%s", FrameType[frame_type]);
 		SetDlgItemText(hDlg, IDC_FRAME_TYPE, szBuffer);
 
+		sprintf(szBuffer, "%s", picture_structure == 3 ? "Frame" : "Field");
+		SetDlgItemText(hDlg, IDC_FRAME_STRUCTURE, szBuffer);
+
 		sprintf(szBuffer, "%d", frame+1);
 		SetDlgItemText(hDlg, IDC_CODED_NUMBER, szBuffer);
 		sprintf(szBuffer, "%d", playback);

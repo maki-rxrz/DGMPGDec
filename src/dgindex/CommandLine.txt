@@ -1,8 +1,11 @@
-DGIndex Command Line Options
-----------------------------
+DGIndex 1.1.0 Command Line Options
+----------------------------------
 
 -Input-Files               -IF		([file1,file2,file3,...])
 -Auto-Input-Files          -AIF		([file1]) Autoloads files incrementally.
+-Batch-Files               -BF       ([filelist]) Load batch of files.
+                                     The filelist file contains the list of files to load,
+                                     one file per line with no extra white space.
 -Audio_PID				 -AP		(transport stream audio PID, hex notation, e.g., -AP=14)
 -Video_PID				 -VP		(transport stream video PID, hex notation, e.g., -AP=11)
 -iDCT-Algorithm            -IA		(1=MMX 2=SSEMMX 3=SSE2MMX 4=Floating point 5=Reference)
@@ -22,8 +25,8 @@ DGIndex -ia=2 -FO=2 -YR=2 -TN=2 -OM=1 -AIF=[D:\vobfiles\vts_02_1.vob] -DRC=1 -OF
 
 The above will save a project file named d:\MyProject.d2v
 
-If an -IF or -AIF file specification does not include a path (i.e., it does not include a \ character),
-the current directory is used. If a specified file cannot be found, it is ignored.
+If an -IF, -AIF, or -BF file specification does not include a path (i.e., it does not include
+a \ character), the current directory is used. If a specified file cannot be found, it is ignored.
 
 Options not included are controlled by DGIndex defaults and the DGIndex INI file as usual.
 

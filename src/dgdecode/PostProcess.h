@@ -58,7 +58,7 @@ void postprocess(unsigned char * src[], int src_stride,
                  unsigned char * dst[], int dst_stride, 
                  int horizontal_size,   int vertical_size, 
                  QP_STORE_T *QP_store,  int QP_stride,
-				 int mode, int moderate_h, int moderate_v);
+				 int mode, int moderate_h, int moderate_v, bool is422);
 int __cdecl dprintf(char* fmt, ...);
 void do_emms();
 
