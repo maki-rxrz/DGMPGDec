@@ -1,0 +1,92 @@
+changes.doc (Sept 11, 2003)
+--------------------------
+
+Modified the decoding and random access code so that it never has
+to skip B frames. This was the cause of the frame dropping problem.
+This version must be used with an appropriately modified DVD2AVI
+version, for example, DVD2AVIdg. If these two are used together,
+frames will never be dropped. Refer to the DVD2AVI forum at doom9.org
+for a discussion of this problem. Search for the thread "does dvd2avi
+chop off frames?". Also fixes several bugs in MPEG2 decoding.
+
+Note: This version is derived from Nic's MPEG2DEC3 1.10.
+
+Donald A. Graft
+
+changes.doc (08 dec 2002)
+-------------------------
+
+here's the code of MPEG2Dec3
+it's based on MPEG2Dec2, some parts of the code are intact, others heavily modified.
+you'll need both nasm & masm to compile it.
+it should compile flawlessly under M$ VC++ 6 SP4 (the compiler i use)
+you can use the profiling define (commented out in global.h) to test optimisations.
+BTW, if you don't have nasm, i added mcsse.obj to the sources.
+
+MarcFD
+
+changes.doc (05/10/2002)
+-----------------
+
+Removed Dividee filters from the sources.
+
+Vlad59 (babas.lucas@laposte.net)
+
+
+changes.doc (03/30/2002)
+-----------------
+
+In addition to pcdvdguy's changes below this version also is optimized for P4/SSE2 code. This will be used whenever the machine supports it and "iDCT_Algorithm=5" is specified int the .d2v file. That can be put there with an editor or by using the newer version of DVD2AVI that also supports this. See the save-oe project on Sourceforge.
+
+This version also has other minor optimizations and something of a fix for crashing on garbage data such as ATSC HDTV captures.
+
+If cropping has been specified in DVD2AVI then it will now work, without messing up the color. If resizing was specified it will still be ignored, so you'll have to do that in your .Avisynth script or elsewhere.
+
+Tom Barry <trbarry@trbarry.com>
+
+
+
+changes.doc (03/29/2002, late at night...)
+-----------------
+This document explains the changes made to the DVD2AVI/MPEG2DEC.DLL source-code, for the purpose of decoding MPEG-2 transport streams.
+
+Special thanks to Ben Cooley, for writing HDTVtoMPEG2, a great source of inspiration!
+
+MPEG-2 transport stream demuxing
+
+	This feature allows MPEG2DEC.DLL to parse MPEG2 transport streams (*.trp, *.ts), and decode MPEG-1/2 video elementary streams.  It has been successfully tested with several ATSC/DTV broadcasters in the Southern California area.  The code to support this feature is still considered 'preliminary', and suffers from the following limitations:
+
+1) When opened in DVD2AVI, the input-filename extension *.trp and *.ts are unconditionally treated as transport-streams.  Otherwise, other input-filenames are briefly checked (first 2048 bytes) for an MPEG-2 transport sync-byte sequence.  If this sequence is found, the entire stream is treated as an MPEG-2 transport stream.
+
+2) There is currently *NO* GUI to select the video-ID and audio-ID.  These variables are stored in the DVD2AVI.ini file, and the user (that's YOU) must manually edit the ini file to set the video-ID and audio-ID.
+
+2) If you want to use avisynth with DVD2AVI, you will need the updated MPEG2DEC.DLL.  The updated DLL has added support for transport-stream demuxing.  If you want to use DVD2AVI as a VFAPI frameserver, you will need the updated DVD2AVI.VFP (for the same reason.)
+
+3) Do NOT mix MPEG-2 program streams (*.vob, *.mpg) and MPEG-2 transport streams (*.trp, *.ts) in the same d2v project-file!  
+
+4) DVD2AVI is sensitive to bitstream errors.  Your broadcast DTV recordings may contain errors, which will manifest as distortion, image breakup, and other visual artifacts.  At worst, mpeg2dec.dll can crash.  Unfortunately, there is no way to guard against this except to routinely check your DTV-receiver's quality-monitor and adjust accordingly.
+
+mpeg2dec.dll relies on the variable "SystemStream_Flag==2" to identify transport-streams.  (In the d2v-project file, the following line indicates the video_stream_id and audio_stream_id, but only the video_stream_id is used.)
+
+5) The ATSC DTV standard allows many different formats. To work with the highest-resolution mode (1920x1080 30i), a fast CPU and lots of memory is recommended!
+
+Source code-changes
+----------------------------
+SystemStream_Flag == 2 ; // MPEG-2 transport stream (calls to Next_Packet() are redirected to Next_Transport_Packet() )
+
+global.h - add declaration for function "Next_Transport_Packet()"
+  int MPEG2_Transport_VideoPID;  // VideoID for MPEG-2 transport streams
+  int MPEG2_Transport_AudioPID;// AudioID for MPEG-2 transport streams
+
+getbit.c - add function Next_Transport_Packet(), this does the bulk of the work!
+
+gui.cpp - initializes the variables (MPEG2_Transport_VideoPID, MPEG2_Transport_AudioPID), first by reading from dvd2avi.ini, and then by re-reading those values from the D2V project file (if one is opened, and the SystemStream_Flag==2.)  Also modify the 'open' dialog-box, to add an entry for file-filter ("*.trp, *.ts")
+
+mpeg2dec.c - scans the first 2048 bytes of the MPEG-bitstream (to check if it's an MPEG-2 transport-stream.)
+
+---
+These source-files are changes to the mpeg2dec_dll.zip file from www.davetech.org/software2.htm
+
+liaor@iname.com
+http://members.tripod.com/~liaor
+

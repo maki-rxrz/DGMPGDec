@@ -1,0 +1,12 @@
+DGTable 1.0.0 -- PAT/PMT Table Parser by Donald A. Graft
+------------------------------------------------------
+
+This command line program parses the transport stream's
+PAT/PMT tables and returns a list of the programs and
+their PIDs.
+
+Usage is:
+
+	dgtable filename
+
+[Donald Graft, May 2004]

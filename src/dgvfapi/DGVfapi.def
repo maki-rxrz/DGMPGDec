@@ -1,0 +1,3 @@
+EXPORTS
+	vfGetPluginInfo @1
+	vfGetPluginFunc @2

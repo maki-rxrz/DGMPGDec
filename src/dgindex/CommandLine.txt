@@ -1,0 +1,30 @@
+DGIndex Command Line Options
+----------------------------
+
+-Input-Files               -IF		([file1,file2,file3,...])
+-Auto-Input-Files          -AIF		([file1]) Autoloads files incrementally.
+-Audio_PID				 -AP		(transport stream audio PID, hex notation, e.g., -AP=14)
+-Video_PID				 -VP		(transport stream video PID, hex notation, e.g., -AP=11)
+-iDCT-Algorithm            -IA		(1=MMX 2=SSEMMX 3=SSE2MMX 4=Floating point 5=Reference)
+-Field-Operation           -FO		(0=None  1=Force Film  2=Raw Encoded Frames)
+-YUV->RGB                  -YR		(1=PC Scale  2=TV Scale)
+-Track-Number              -TN		(1-8=Track 1 to 8)
+-Output-Method             -OM       (0=None  1=Demux  2=Demux all  3=Decode) 
+-Dynamic-Range-Control     -DRC		(0=Off  1=Light  2=Normal  3=Heavy)
+-Dolby-Surround-Downmix    -DSD		(0=Off  1=On)
+-Downsample-Audio          -DSA		(0=None  1=Low  2=Mid  3=High  4=Ultrahigh) 48->44.1 kHz downsample.
+-Output-File               -OF		([project file name]) No Extension!
+-Exit                      		Exits when Project has been saved.
+
+Example:
+
+DGIndex -ia=2 -FO=2 -YR=2 -TN=2 -OM=1 -AIF=[D:\vobfiles\vts_02_1.vob] -DRC=1 -OF=[d:\MyProject] -exit
+
+The above will save a project file named d:\MyProject.d2v
+
+If an -IF or -AIF file specification does not include a path (i.e., it does not include a \ character),
+the current directory is used. If a specified file cannot be found, it is ignored.
+
+Options not included are controlled by DGIndex defaults and the DGIndex INI file as usual.
+
+[Original command line support by 'dvd2svcd'. Modified for DGIndex by Donald A Graft.]
