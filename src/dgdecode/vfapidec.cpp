@@ -62,24 +62,24 @@ CMPEG2Decoder::CMPEG2Decoder()
   alternate_scan =
   quantizer_scale = 0;
   upConv = false;
+  i420 = false;
   AVSenv = NULL;
   u422 = v422 = u444 = v444 = lum = NULL;
   for (int i=0; i<MAX_FRAME_NUMBER; ++i)
   {
     GOPList[i] = NULL;
-    FrameList[i] = NULL;
   }
 }
 
 // Open function modified by Donald Graft as part of fix for dropped frames and random frame access.
 int CMPEG2Decoder::Open(const char *path, DstFormat dstFormat)
 {
-	char buf[1024], *buf_p;
+	char buf[2048], *buf_p;
 
 	Choose_Prediction(this->fastMC);
 
 	m_dstFormat = dstFormat;
-	char ID[80], PASS[80] = "DGIndexProjectFile06";
+	char ID[80], PASS[80] = "DGIndexProjectFile08";
 	DWORD i, j, size, code, type, tff, rff, film, ntsc, gop, top, bottom, mapping;
 	int repeat_on, repeat_off, repeat_init;
 	int vob_id, cell_id;
@@ -320,17 +320,19 @@ int CMPEG2Decoder::Open(const char *path, DstFormat dstFormat)
 	ntsc = film = top = bottom = gop = mapping = repeat_on = repeat_off = repeat_init = 0;
 	HaveRFFs = false;
 
-	fgets(buf, 1023, out->VF_File);
+	fgets(buf, 2047, out->VF_File);
 	buf_p = buf;
 	while (true)
 	{
 		sscanf(buf_p, "%x", &type);
-		if (type & 0x8)
+		if (type == 0xff)
 			break;
-		if (type & 0x4)	// I frame
+		if (type & 0x800)	// GOP line start.
 		{
 			GOPList[gop] = reinterpret_cast<GOPLIST*>(calloc(1, sizeof(GOPLIST)));
 			GOPList[gop]->number = film;
+			while (*buf_p++ != ' ');
+			sscanf(buf_p, "%d", &(GOPList[gop]->matrix));
 			while (*buf_p++ != ' ');
 			sscanf(buf_p, "%d", &(GOPList[gop]->file));
 			while (*buf_p++ != ' ');
@@ -340,6 +342,8 @@ int CMPEG2Decoder::Open(const char *path, DstFormat dstFormat)
 			while (*buf_p++ != ' ');
 			while (*buf_p++ != ' ');
 			GOPList[gop]->position = position;
+			GOPList[gop]->closed = (type & 0x400) ? 1 : 0;
+			GOPList[gop]->progressive = (type & 0x200) ? 1 : 0;
 			gop++;
 
 			sscanf(buf_p, "%x", &type);
@@ -382,16 +386,14 @@ int CMPEG2Decoder::Open(const char *path, DstFormat dstFormat)
 				}
 				else
 				{
-					FrameList[mapping] = reinterpret_cast<FRAMELIST*>(calloc(1, sizeof(FRAMELIST)));
-					FrameList[mapping]->top = FrameList[mapping]->bottom = film;
+					FrameList[mapping].top = FrameList[mapping].bottom = film;
 					mapping ++;
 				}
 
 				if (repeat_on-repeat_off == 5)
 				{
 					repeat_on = repeat_off = 0;
-					FrameList[mapping] = reinterpret_cast<FRAMELIST*>(calloc(1, sizeof(FRAMELIST)));
-					FrameList[mapping]->top = FrameList[mapping]->bottom = film;
+					FrameList[mapping].top = FrameList[mapping].bottom = film;
 					mapping ++;
 				}
 			}
@@ -404,8 +406,7 @@ int CMPEG2Decoder::Open(const char *path, DstFormat dstFormat)
 				}
 				else
 				{
-					FrameList[mapping] = reinterpret_cast<FRAMELIST*>(calloc(1, sizeof(FRAMELIST)));
-					FrameList[mapping]->top = FrameList[mapping]->bottom = film;
+					FrameList[mapping].top = FrameList[mapping].bottom = film;
 					mapping ++;
 				}
 
@@ -414,8 +415,7 @@ int CMPEG2Decoder::Open(const char *path, DstFormat dstFormat)
 					repeat_on = repeat_off = 0;
 					repeat_init = 1;
 
-					FrameList[mapping] = reinterpret_cast<FRAMELIST*>(calloc(1, sizeof(FRAMELIST)));
-					FrameList[mapping]->top = FrameList[mapping]->bottom = film;
+					FrameList[mapping].top = FrameList[mapping].bottom = film;
 					mapping ++;
 				}
 			}
@@ -424,39 +424,33 @@ int CMPEG2Decoder::Open(const char *path, DstFormat dstFormat)
 		{
 			if (top)
 			{
-				FrameList[ntsc]->bottom = film;
+				FrameList[ntsc].bottom = film;
 				ntsc ++;
-				FrameList[ntsc] = reinterpret_cast<FRAMELIST*>(calloc(1, sizeof(FRAMELIST)));
-				FrameList[ntsc]->top = film;
+				FrameList[ntsc].top = film;
 			}
 			else if (bottom)
 			{
-				FrameList[ntsc]->top = film;
+				FrameList[ntsc].top = film;
 				ntsc ++;
-				FrameList[ntsc] = reinterpret_cast<FRAMELIST*>(calloc(1, sizeof(FRAMELIST)));
-				FrameList[ntsc]->bottom = film;
+				FrameList[ntsc].bottom = film;
 			}
 			else
 			{
-				FrameList[ntsc] = reinterpret_cast<FRAMELIST*>(calloc(1, sizeof(FRAMELIST)));
-				FrameList[ntsc]->top = film;
-				FrameList[ntsc]->bottom = film;
+				FrameList[ntsc].top = film;
+				FrameList[ntsc].bottom = film;
 				ntsc ++;
 			}
 
 			if (rff)
 			{
-				if (!top && !bottom)
-					FrameList[ntsc] = reinterpret_cast<FRAMELIST*>(calloc(1, sizeof(FRAMELIST)));
-
 				if (tff)
 				{
-					FrameList[ntsc]->top = film;
+					FrameList[ntsc].top = film;
 					top = 1;
 				}
 				else
 				{
-					FrameList[ntsc]->bottom = film;
+					FrameList[ntsc].bottom = film;
 					bottom = 1;
 				}
 
@@ -468,9 +462,12 @@ int CMPEG2Decoder::Open(const char *path, DstFormat dstFormat)
 			}
 		}
 
+		FrameList[film].pct = (unsigned char)((type & 0x30) >> 4);
+		FrameList[film].pf = (unsigned char)((type & 0x40) >> 6);
+
 		// Remember if this encoded frame requires the previous GOP to be decoded.
 		// The previous GOP is required if DVD2AVI has marked it as such.
-		if (!(type & 0x10))
+		if (!(type & 0x80))
 			DirectAccess[film] = 0;
 		else
 			DirectAccess[film] = 1;
@@ -481,7 +478,7 @@ int CMPEG2Decoder::Open(const char *path, DstFormat dstFormat)
 		while (*buf_p != '\n' && *buf_p != ' ') buf_p++;
 		if (*buf_p == '\n')
 		{
-			fgets(buf, 1023, out->VF_File);
+			fgets(buf, 2047, out->VF_File);
 			buf_p = buf;
 		}
 		else buf_p++;
@@ -491,14 +488,14 @@ int CMPEG2Decoder::Open(const char *path, DstFormat dstFormat)
 
 	if (FO_Flag==FO_FILM)
 	{
-		while (FrameList[mapping-1]->top >= film)
+		while (FrameList[mapping-1].top >= film)
 			mapping--;
 
 		out->VF_FrameLimit = mapping;
 	}
 	else
 	{
-		while ((FrameList[ntsc-1]->top >= film) || (FrameList[ntsc-1]->bottom >= film))
+		while ((FrameList[ntsc-1].top >= film) || (FrameList[ntsc-1].bottom >= film))
 			ntsc--;
 
 		out->VF_FrameLimit = ntsc;
@@ -511,9 +508,13 @@ int CMPEG2Decoder::Open(const char *path, DstFormat dstFormat)
 	_lseeki64(Infile[File_Flag], GOPList[0]->position, SEEK_SET);
 	Initialize_Buffer();
 
-	BadStartingFrames = 0;
 	closed_gop = -1;
-	Get_Hdr();
+	BadStartingFrames = 0;
+	while (true)
+	{
+		Get_Hdr();
+		if (picture_coding_type == I_TYPE) break;
+	}
 	if (closed_gop != 1)
 	{
 		// Leading B frames are non-decodable.
@@ -521,8 +522,6 @@ int CMPEG2Decoder::Open(const char *path, DstFormat dstFormat)
 		{
 			Get_Hdr();
 			if (picture_coding_type != B_TYPE) break;
-			if (picture_structure != FRAME_PICTURE)
-				Get_Hdr();
 			BadStartingFrames++;
 		}
 		// Frames pulled down from non-decodable frames are non-decodable.
@@ -531,15 +530,14 @@ int CMPEG2Decoder::Open(const char *path, DstFormat dstFormat)
 			i = 0;
 			while (true)
 			{
-				if ((FrameList[i]->top > BadStartingFrames - 1) &&
-					(FrameList[i]->bottom > BadStartingFrames - 1))
+				if ((FrameList[i].top > BadStartingFrames - 1) &&
+					(FrameList[i].bottom > BadStartingFrames - 1))
 					break;
 				i++;
 			}
 			BadStartingFrames = i;
 		}
 	}
-
 	return 1;
 }
 
@@ -552,11 +550,12 @@ void CMPEG2Decoder::Decode(DWORD frame, YV12PICT *dst)
 	YV12PICT *tmp;
 
 	Fault_Flag = 0;
+	Second_Field = 0;
 
 //	dprintf("MPEG2DEC3: %d: top = %d, bot = %d\n", frame, FrameList[frame]->top, FrameList[frame]->bottom);
 
 	// Skip initial non-decodable frames.
-	if (frame < BadStartingFrames) frame = track_frame = BadStartingFrames;
+	if (frame < BadStartingFrames) frame = BadStartingFrames;
 	requested_frame = frame;
 
 	// Decide whether to use random access or linear play to reach the
@@ -572,8 +571,8 @@ void CMPEG2Decoder::Decode(DWORD frame, YV12PICT *dst)
 			// If doing force film, we have to skip or repeat a frame as needed.
 			// This handles skipping. Repeating is handled below.
 			if ((FO_Flag==FO_FILM) &&
-				(FrameList[frame]->bottom == FrameList[frame-1]->bottom + 2) &&
-				(FrameList[frame]->top == FrameList[frame-1]->top + 2))
+				(FrameList[frame].bottom == FrameList[frame-1].bottom + 2) &&
+				(FrameList[frame].top == FrameList[frame-1].top + 2))
 			{
 				if (!Get_Hdr())
 				{
@@ -596,8 +595,8 @@ void CMPEG2Decoder::Decode(DWORD frame, YV12PICT *dst)
 
 			/* When RFFs are present or we are doing FORCE FILM, we may have already decoded
 			   the frame that we need. So decode the next frame only when we need to. */
-			if (((Field_Order == 1) && (FrameList[frame]->bottom != FrameList[frame-1]->bottom)) ||
-				((Field_Order == 0) && (FrameList[frame]->top != FrameList[frame-1]->top)))
+			if (((Field_Order == 1) && (FrameList[frame].bottom != FrameList[frame-1].bottom)) ||
+				((Field_Order == 0) && (FrameList[frame].top != FrameList[frame-1].top)))
 			{			
 				if (!Get_Hdr())
 				{
@@ -638,11 +637,11 @@ void CMPEG2Decoder::Decode(DWORD frame, YV12PICT *dst)
 			// Perform pulldown if required.
 			if (HaveRFFs == true)
 			{
-				if (FrameList[frame]->top > FrameList[frame]->bottom)
+				if (FrameList[frame].top > FrameList[frame].bottom)
 				{
 					Copyeven(saved_active, dst);
 				}	
-				else if (FrameList[frame]->top < FrameList[frame]->bottom)
+				else if (FrameList[frame].top < FrameList[frame].bottom)
 				{
 					Copyodd(saved_active, dst);
 				}
@@ -654,10 +653,10 @@ void CMPEG2Decoder::Decode(DWORD frame, YV12PICT *dst)
 	else prev_frame = requested_frame;
 
 	// Have to do random access.
-	f = FrameList[frame]->top;
-	if (FrameList[frame]->top < FrameList[frame]->bottom)
+	f = FrameList[frame].top;
+	if (FrameList[frame].top < FrameList[frame].bottom)
 	{
-		f = FrameList[frame]->bottom;
+		f = FrameList[frame].bottom;
 	}
 
 	// Determine the GOP that the requested frame is in.
@@ -678,8 +677,6 @@ void CMPEG2Decoder::Decode(DWORD frame, YV12PICT *dst)
 	// previous frame will be pulled down.
 	if (gop && (DirectAccess[f] == 0 || (f && DirectAccess[f-1] == 0)))
 		gop--;
-
-	track_frame = GOPList[gop]->number;
 
 	// Calculate how many frames to decode.
 	count = f - GOPList[gop]->number;
@@ -769,11 +766,11 @@ void CMPEG2Decoder::Decode(DWORD frame, YV12PICT *dst)
 		Copyall(dst, saved_store);
 
 		// Pull down a field if needed.
-		if (FrameList[frame]->top > FrameList[frame]->bottom)
+		if (FrameList[frame].top > FrameList[frame].bottom)
 		{
 			Copyeven(saved_active, dst);
 		}	
-		else if (FrameList[frame]->top < FrameList[frame]->bottom)
+		else if (FrameList[frame].top < FrameList[frame].bottom)
 		{
 			Copyodd(saved_active, dst);
 		}
@@ -825,7 +822,6 @@ void CMPEG2Decoder::Close()
 	for (i=0; i<MAX_FRAME_NUMBER; ++i)
 	{
 		if (GOPList[i] != NULL) { free(GOPList[i]); GOPList[i] = NULL; }
-		if (FrameList[i] != NULL) { free(FrameList[i]); FrameList[i] = NULL; }
 	}
 }
 

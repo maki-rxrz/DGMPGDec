@@ -147,6 +147,7 @@
 #define FORMAT_MPA			2
 #define FORMAT_LPCM			3
 #define FORMAT_DTS			4
+#define FORMAT_AAC			5
 
 #define AUDIO_NONE			0
 #define AUDIO_DEMUX			1
@@ -168,7 +169,7 @@
 #define SRC_HIGH		3
 #define SRC_UHIGH		4
 
-#define TRACK_PITCH		2000
+#define TRACK_PITCH		30000
 
 #define CRITICAL_ERROR_LEVEL	50
 
@@ -207,13 +208,11 @@ struct PCMStream {
 }	pcm;
 
 struct PROCESS {
-	__int64					length[MAX_FILE_NUMBER];
-	__int64					total;
 	__int64					run;
 	__int64					start;
 	__int64					end;
-	int						trackleft;
-	int						trackright;
+	__int64					trackleft;
+	__int64					trackright;
 	int						locate;
 	int						startfile;
 	__int64					startloc;
@@ -225,13 +224,13 @@ struct PROCESS {
 	__int64					leftlba;
 	int						rightfile;
 	__int64					rightlba;
+}	process;
+
+struct TIMING {
 	unsigned int			op;
 	unsigned int			mi;
 	unsigned int			ed;
-	unsigned int			elapsed;
-	unsigned int			remain;
-	float					percent;
-}	process;
+} timing;
 
 struct CPU {
 	bool					mmx;
@@ -247,8 +246,8 @@ bool D2V_Flag;
 bool DDOverlay_Flag;
 bool Display_Flag;
 int Fault_Flag;
-int File_Flag;
-int File_Limit;
+int CurrentFile;
+int NumLoadedFiles;
 int FO_Flag;
 int iDCT_Flag;
 bool Info_Flag;
@@ -309,8 +308,10 @@ int FILM_Purity, NTSC_Purity, Bitrate_Monitor;
 int Clip_Left, Clip_Right, Clip_Top, Clip_Bottom;
 
 int Infile[MAX_FILE_NUMBER];
- __int64 InfileLBA[MAX_FILE_NUMBER];
 char *Infilename[MAX_FILE_NUMBER];
+__int64 InfileLBA[MAX_FILE_NUMBER];
+__int64 Infilelength[MAX_FILE_NUMBER];
+__int64	Infiletotal;
 
 int intra_quantizer_matrix[64];
 int non_intra_quantizer_matrix[64];
@@ -331,7 +332,15 @@ int progressive_sequence;
 int chroma_format;
 
 /* ISO/IEC 13818-2 section 6.2.3: picture_header() */
+int temporal_reference;
 int picture_coding_type;
+int progressive_frame;
+int StartTemporalReference;
+int PTSAdjustDone;
+// Default to ITU-709.
+int matrix_coefficients;
+int closed_gop_prev;
+int progressive_sequence_prev;
 
 /* ISO/IEC 13818-2 section 6.2.3.1: picture_coding_extension() header */
 int f_code[2][2];
@@ -349,7 +358,7 @@ int strverscmp(const char *s1, const char *s2);
 void UpdateInfo(void);
 
 /* gethdr.c */
-void Get_Hdr(int);
+int Get_Hdr(int);
 void sequence_header(__int64 start);
 int slice_header(void);
 

@@ -56,7 +56,7 @@ static double frame_rate_Table[16] =
 };
 
 __forceinline static void group_of_pictures_header(void);
-__forceinline static void picture_header(__int64, boolean);
+__forceinline static void picture_header(__int64, boolean, boolean);
 
 static void sequence_extension(void);
 static void sequence_display_extension(void);
@@ -68,47 +68,54 @@ static int  extra_bit_information(void);
 static void extension_and_user_data(void);
 
 // Decode headers up to a picture header and then return.
-// If the start parameter is true, require the picture header to
-// follow a sequence header.
-void Get_Hdr(int start)
+// There are two modes of operation. Normally, we return only
+// when we get a picture header and if we hit EOF file, we
+// thread kill ourselves in here. But when checking for leading
+// B frames we don't want to kill in order to properly handle
+// files with only one I frame. So in the second mode, we detect
+// the sequence end code and return with an indication.
+int Get_Hdr(int mode)
 {
 	int code;
-	__int64 position;
+	__int64 position = 0;
 	boolean HadSequenceHeader = false;
+	boolean HadGopHeader = false;
 
 	for (;;)
 	{
-		// Pick up the index location to use for the picture header.
-		// Do it before executing next_start_code() because that may
-		// force Fill_Next(), which could encounter a new transport
-		// packet and thus invalidate our index location.
-		position = PackHeaderPosition;
-
 		// Look for next_start_code.
 		next_start_code();
 
-		code = Get_Bits(32);
+		code = Show_Bits(32);
 		switch (code)
 		{
 			case SEQUENCE_HEADER_CODE:
+				position = PackHeaderPosition;
+				Get_Bits(32);
 				sequence_header(position);
 				HadSequenceHeader = true;
 				break;
 
+			case SEQUENCE_END_CODE:
+				if (mode == 1)
+					return 1;
+
 			case GROUP_START_CODE:
-				if (!start || HadSequenceHeader)
-					group_of_pictures_header();
+				Get_Bits(32);
+				group_of_pictures_header();
+				HadGopHeader = true;
+//				Second_Field = 0;
 				break;
 
 			case PICTURE_START_CODE:
-				if (!start || HadSequenceHeader)
-				{
-					picture_header(position, HadSequenceHeader);
-					return;
-				}
+				position = PackHeaderPosition;
+				Get_Bits(32);
+				picture_header(position, HadSequenceHeader, HadGopHeader);
+				return 0;
 				break;
 
 			default:
+				Get_Bits(32);
 				break;
 		}
 	}
@@ -124,10 +131,12 @@ void sequence_header(__int64 start)
 
 	// Index the location of the sequence header for the D2V file.
 	if (SystemStream_Flag)
+	{
 		d2v_current.position = start;
+	}
 	else
 	{
-		d2v_current.position = _telli64(Infile[File_Flag])
+		d2v_current.position = _telli64(Infile[CurrentFile])
 				- (__int64)BUFFER_SIZE  + (__int64)Rdptr - (__int64)Rdbfr - 12 + ((32 - (__int64)BitsLeft) / 8);
 	}
 
@@ -181,9 +190,9 @@ static void group_of_pictures_header()
 	int gop_minute;
 	int gop_sec;
 	int gop_frame;
-
 	int drop_flag;
 	int broken_link;
+	static cgop_prev = 0;
 
 	drop_flag   = Get_Bits(1);
 	gop_hour    = Get_Bits(5);
@@ -192,6 +201,8 @@ static void group_of_pictures_header()
 	gop_sec     = Get_Bits(6);
 	gop_frame	= Get_Bits(6);
 	closed_gop  = Get_Bits(1);
+	closed_gop_prev = cgop_prev;
+	cgop_prev = closed_gop;
 	broken_link = Get_Bits(1);
 
 //	extension_and_user_data();
@@ -199,9 +210,8 @@ static void group_of_pictures_header()
 
 /* decode picture header */
 /* ISO/IEC 13818-2 section 6.2.3 */
-static void picture_header(__int64 start, boolean HadSequenceHeader)
+static void picture_header(__int64 start, boolean HadSequenceHeader, boolean HadGopHeader)
 {
-	int temporal_reference;
 	int vbv_delay;
 	int full_pel_forward_vector;
 	int forward_f_code;
@@ -210,6 +220,7 @@ static void picture_header(__int64 start, boolean HadSequenceHeader)
 	int Extra_Information_Byte_Count;
 	int trackpos;
 	__int64 position = 0;
+	double track;
 
     // We prefer to index the sequence header, but if one doesn't exist,
 	// we index the picture header of the first I frame of the GOP.
@@ -219,7 +230,7 @@ static void picture_header(__int64 start, boolean HadSequenceHeader)
 			position = start;
 		else
 		{
-			position = _telli64(Infile[File_Flag])
+			position = _telli64(Infile[CurrentFile])
 				- (__int64)BUFFER_SIZE  + (__int64)Rdptr - (__int64)Rdbfr - 12 + ((32 - (__int64)BitsLeft) / 8);
 		}
 	}
@@ -227,22 +238,47 @@ static void picture_header(__int64 start, boolean HadSequenceHeader)
 	temporal_reference  = Get_Bits(10);
 	picture_coding_type = Get_Bits(3);
 
+	if (StartTemporalReference == -1 && HadGopHeader == true && picture_coding_type == I_TYPE)
+	{
+		StartTemporalReference = temporal_reference;
+		HadGopHeader = false;
+//		dprintf("DGIndex: StartTemporalReference = %d\n", StartTemporalReference);
+	}
+
 	d2v_current.type = picture_coding_type;
 
 	if (d2v_current.type == I_TYPE)
 	{
-		d2v_current.file = process.startfile = File_Flag;
-		process.startloc = _telli64(Infile[File_Flag]);
+		d2v_current.file = process.startfile = CurrentFile;
+		process.startloc = _telli64(Infile[CurrentFile]);
 		d2v_current.lba = process.startloc/BUFFER_SIZE - 1;
 		if (d2v_current.lba < 0)
 		{
 			d2v_current.lba = 0;
 		}
-		else
+		track = (double) d2v_current.lba;
+		track *= BUFFER_SIZE;
+		track += process.run;
+		track *= TRACK_PITCH;
+		track /= Infiletotal;
+		trackpos = (int) track;
+		SendMessage(hTrack, TBM_SETPOS, (WPARAM)true, trackpos);
+#if 0
 		{
-			trackpos = (int)((process.run+d2v_current.lba*BUFFER_SIZE)*TRACK_PITCH/process.total);
-			SendMessage(hTrack, TBM_SETPOS, (WPARAM)true, trackpos);
+			char buf[80];
+			char total[80], run[80];
+			_i64toa(Infiletotal, total, 10);
+			_i64toa(process.run, run, 10);
+			sprintf(buf, "DGIndex: d2v_current.lba = %x\n", d2v_current.lba);
+			OutputDebugString(buf);
+			sprintf(buf, "DGIndex: trackpos = %d\n", trackpos);
+			OutputDebugString(buf);
+			sprintf(buf, "DGIndex: process.run = %s\n", run);
+			OutputDebugString(buf);
+			sprintf(buf, "DGIndex: Infiletotal = %s\n", total);
+			OutputDebugString(buf);
 		}
+#endif
 
 		if (process.locate==LOCATE_RIP)
 		{
@@ -251,7 +287,7 @@ static void picture_header(__int64 start, boolean HadSequenceHeader)
 		}
 
 		// This triggers if we reach the right marker position.
-		if (File_Flag==process.endfile && process.startloc>=process.endloc)		// D2V END
+		if (CurrentFile==process.endfile && process.startloc>=process.endloc)		// D2V END
 		{
 			Fault_Flag = 97;
 			Write_Frame(NULL, d2v_current, 0);
@@ -368,14 +404,16 @@ static void sequence_extension()
 	int low_delay;
 	int frame_rate_extension_n;
 	int frame_rate_extension_d;
-
 	int horizontal_size_extension;
 	int vertical_size_extension;
 	int bit_rate_extension;
 	int vbv_buffer_size_extension;
+	static int pseq_prev = 0;
 
 	profile_and_level_indication = Get_Bits(8);
 	progressive_sequence         = Get_Bits(1);
+	progressive_sequence_prev = pseq_prev;
+	pseq_prev = progressive_sequence;
 	chroma_format                = Get_Bits(2);
 	horizontal_size_extension    = Get_Bits(2);
 	vertical_size_extension      = Get_Bits(2);
@@ -399,7 +437,6 @@ static void sequence_display_extension()
 	int color_description;
 	int color_primaries;
 	int transfer_characteristics;
-	int matrix_coefficients;
 	int display_horizontal_size;
 	int display_vertical_size;
 
@@ -497,7 +534,6 @@ static void picture_display_extension()
 static void picture_coding_extension()
 {
 	int chroma_420_type;
-	int progressive_frame;
 	int composite_display_flag;
 	int v_axis;
 	int field_sequence;

@@ -187,6 +187,7 @@ protected:
   void Initialize_Buffer(void);
   void Fill_Buffer(void);
   void Next_Transport_Packet(void);
+  void Next_PVA_Packet(void);
   void Next_Packet(void);
   void Flush_Buffer_All(unsigned int N);
   unsigned int Get_Bits_All(unsigned int N);
@@ -301,7 +302,7 @@ protected:
   int File_Limit;
   int FO_Flag;
   int IDCT_Flag;
-  int SystemStream_Flag;	// 0 = none, 1=program, 2=Transport
+  int SystemStream_Flag;	// 0 = none, 1=program, 2=Transport 3=PVA
   void (__fastcall *idctFunc)(short *block);
 
   int MPEG2_Transport_AudioPID;  // used only for transport streams
@@ -382,15 +383,19 @@ protected:
 	DWORD		number;
 	int			file;
 	__int64		position;
+	int			closed;
+	int			progressive;
+	int			matrix;
   }	GOPLIST;
   GOPLIST *GOPList[MAX_FRAME_NUMBER];
 
   typedef struct {
-	DWORD		top;
-	DWORD		bottom;
-	bool		direct;
+	DWORD top;
+	DWORD bottom;
+	unsigned char pf;
+	unsigned char pct;
   }	FRAMELIST;
-  FRAMELIST *FrameList[MAX_FRAME_NUMBER];
+  FRAMELIST FrameList[MAX_FRAME_NUMBER];
 
   char DirectAccess[MAX_FRAME_NUMBER];
 
@@ -429,23 +434,11 @@ public:
   bool showQ;
   int* QP;
   bool upConv;
+  bool i420;
 
   // info option stuff
-  bool info;
-  int track_frame;
-  typedef struct {
-	int frame;
-	int tref_start;
-	bool closed_gop;
-	char info_ps;
-	int minq[MAX_GOP_SIZE];
-	int maxq[MAX_GOP_SIZE];
-	int avgq[MAX_GOP_SIZE];
-	char info_pf[MAX_GOP_SIZE];
-	char ftype[MAX_GOP_SIZE];
-  }	INFO_STORE;
-  INFO_STORE Info_Store, Info_StoreP;
-
+  int info;
+  int minquant, maxquant, avgquant;
 
 	// Luminance Code
     bool Luminance_Flag;

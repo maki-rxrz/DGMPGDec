@@ -53,7 +53,9 @@ void Write_Frame(unsigned char *src[], D2VData d2v, DWORD frame)
 	{
 		if (Fault_Flag < CRITICAL_ERROR_LEVEL)
 		{
-			SetDlgItemText(hDlg, IDC_INFO, "V.E.!");
+			char fault[10];
+			sprintf(fault, "video error %d", Fault_Flag);
+			SetDlgItemText(hDlg, IDC_INFO, fault);
 			Fault_Flag = 0;		// fault tolerance
 		}
 		else
@@ -113,8 +115,8 @@ void Write_Frame(unsigned char *src[], D2VData d2v, DWORD frame)
 		RGB_DOWN1 = Clip_Width * (Clip_Height - 1) * 3;
 		RGB_DOWN2 = Clip_Width * (Clip_Height - 2) * 3;
 
-		sprintf(szBuffer, "DGIndex - [%d / %d] ", File_Flag+1, File_Limit);
-		ext = strrchr(Infilename[File_Flag], '\\');
+		sprintf(szBuffer, "DGIndex - [%d / %d] ", CurrentFile+1, NumLoadedFiles);
+		ext = strrchr(Infilename[CurrentFile], '\\');
 		strncat(szBuffer, ext+1, strlen(Infilename[0])-(int)(ext-Infilename[0]));
 
 		sprintf(szTemp, " %d x %d", Clip_Width, Clip_Height);
@@ -172,9 +174,9 @@ void Write_Frame(unsigned char *src[], D2VData d2v, DWORD frame)
 		if (FO_Flag!=FO_FILM)
 		{
 			if (TFF)
-				SetDlgItemText(hDlg, IDC_INFO, "T");
+				SetDlgItemText(hDlg, IDC_FIELD_ORDER, "Top");
 			else
-				SetDlgItemText(hDlg, IDC_INFO, "B");
+				SetDlgItemText(hDlg, IDC_FIELD_ORDER, "Bottom");
 		}
 	}
 
@@ -205,14 +207,16 @@ void Write_Frame(unsigned char *src[], D2VData d2v, DWORD frame)
 
 		if ((frame & 63) == 63)
 		{
-			process.ed = timeGetTime();
+			double rate;
+			timing.ed = timeGetTime();
 
-			sprintf(szBuffer, "%.1f", 1000.0*(playback-Old_Playback)/(process.ed-process.mi+1));
+			sprintf(szBuffer, "%.1f", 1000.0*(playback-Old_Playback)/(timing.ed-timing.mi+1));
 			SetDlgItemText(hDlg, IDC_FPS, szBuffer);
-			sprintf(szBuffer, "%u", (unsigned int) (Bitrate_Monitor * 8 * Frame_Rate) / (playback-Old_Playback));
+			rate = ((double) (Bitrate_Monitor * 8 * Frame_Rate) / (playback-Old_Playback)) / 1000000.0;
+			sprintf(szBuffer, "%.3f Mbps", rate);
 			SetDlgItemText(hDlg, IDC_BITRATE, szBuffer);
 			Bitrate_Monitor = 0;
-			process.mi = process.ed;
+			timing.mi = timing.ed;
 			Old_Playback = playback;
 		}
 	}

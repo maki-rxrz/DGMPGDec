@@ -68,9 +68,17 @@ int _donread(int fd, void *buffer, unsigned int count);
 
 __forceinline static unsigned int Get_Byte()
 {
+	extern unsigned char *buffer_invalid;
+
+	if (Rdptr >= buffer_invalid)
+	{
+		// Ran out of good data.
+		ThreadKill();
+	}
+
 	while (Rdptr >= Rdbfr+BUFFER_SIZE)
 	{
-		Read = _donread(Infile[File_Flag], Rdbfr, BUFFER_SIZE);
+		Read = _donread(Infile[CurrentFile], Rdbfr, BUFFER_SIZE);
 		if (Read < BUFFER_SIZE)	Next_File();
 
 		Rdptr -= BUFFER_SIZE;
@@ -82,6 +90,14 @@ __forceinline static unsigned int Get_Byte()
 
 __forceinline static void Fill_Next()
 {
+	extern unsigned char *buffer_invalid;
+
+	if (Rdptr >= buffer_invalid)
+	{
+		// Ran out of good data.
+		ThreadKill();
+	}
+
 	if (SystemStream_Flag && Rdptr > Rdmax - 4)
 	{
 		if (Rdptr >= Rdmax)
@@ -132,14 +148,16 @@ __forceinline static void next_start_code()
 	Flush_Buffer(BitsLeft & 7);
 
 	while ((show = Show_Bits(24)) != 1)
+	{
 		Flush_Buffer(8);
+	}
 }
 
 __forceinline static unsigned int Get_Short()
 {
-	unsigned int i;
+	unsigned int i, j;
 	
-	i = Get_Byte() << 8;
-	i |= Get_Byte();
-	return (i);
+	i = Get_Byte();
+	j = Get_Byte();
+	return ((i << 8) | j);
 }

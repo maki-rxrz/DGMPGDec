@@ -37,6 +37,8 @@ int dcount = 0;
 
 void CMPEG2Decoder::Decode_Picture(YV12PICT *dst)
 {
+	static int minqref, maxqref, avgqref;
+
 	if (picture_structure == FRAME_PICTURE && Second_Field)
 		Second_Field = 0;
 
@@ -54,26 +56,51 @@ void CMPEG2Decoder::Decode_Picture(YV12PICT *dst)
 
 	picture_data();
 
-	if (info)
+	if (info == 1 || info == 2)
 	{
 		__asm emms;
-		int x, y, temp, minq = 50, maxq = -50, avgq = 0;
-		int height = this->mb_height;
+		int x, y, temp;
+		int minq, maxq;
+		int avgq = 0;
+		int height = picture_structure == FRAME_PICTURE ? this->mb_height : this->mb_height / 2;
 		int width = this->mb_width;
+		int quant;
+
+		minq = maxq = this->QP[0];
 		for(y=0; y<height; ++y)
 		{
 			temp = y*width;
 			for(x=0; x<width; ++x) 
 			{
-				if (this->QP[x+temp] > maxq) maxq = this->QP[x+temp];
-				else if (this->QP[x+temp] < minq) minq = this->QP[x+temp];
-				avgq += this->QP[x+temp];
+				quant = this->QP[x+temp];
+				if (quant > maxq) maxq = quant;
+				if (quant < minq) minq = quant;
+				avgq += quant;
 			}
 		}
 		avgq = (int)(((float)avgq/(float)(height*width)) + 0.5f);
-		Info_Store.minq[temporal_reference] = minq;
-		Info_Store.maxq[temporal_reference] = maxq;
-		Info_Store.avgq[temporal_reference] = avgq;
+		// Reorder for display in info screen.
+		if (picture_coding_type == I_TYPE)
+		{
+			minqref = minq;
+			maxqref = maxq;
+			avgqref = avgq;
+		}
+		else if (picture_coding_type == P_TYPE)
+		{
+			minquant = minqref;
+			maxquant = maxqref;
+			avgquant = avgqref;
+			minqref = minq;
+			maxqref = maxq;
+			avgqref = avgq;
+		}
+		else
+		{
+			minquant = minq;
+			maxquant = maxq;
+			avgquant = avgq;
+		}
 	}
 
 	#ifdef PROFILING
@@ -171,6 +198,7 @@ int CMPEG2Decoder::slice(int MBAmax)
 			if (!Show_Bits(23) || Fault_Flag)	// next_start_code or fault
 			{
 resync:
+				if (Fault_Flag) return -1;
 				Fault_Flag = 0;
 				return 0;	// trigger: go to next slice
 			}
@@ -203,8 +231,6 @@ resync:
 
 		/* advance to next macroblock */
 		MBA++; MBAinc--;
-
-		if (MBA>=MBAmax) return -1;		// all macroblocks decoded
 	}
 }
 

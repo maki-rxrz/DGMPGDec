@@ -3,16 +3,12 @@
 <head>
 <title>DGDecode - Users Manual</title>
 </head>
-<body BGCOLOR="#FFFFFF">
+<body>
 <font face=verdana>
-<center><u><h1>DGDecode 1.1.0 : MPEG2 Decoder<br>for Avisynth 2.5+<br></u>
-<small>
-
-<!-- Version -->
-(based on MPEG2Dec3 v1.10)
-
-</small><br><br></h1></center>
-<h2>Warning - YV12 inside !!</h2>
+<hr><p>
+<center><h1>DGDecode 1.2.1 MPEG2 Decoder<br>for Avisynth 2.5+
+</h1></center><p><hr><p>
+<h2>Warning: YV12 inside!</h2>
 <ul>
 This filter is designed for Avisynth 2.5 and above.<br>
 It's able to output in RGB24, YUY2 and YV12 colorspaces.
@@ -31,13 +27,13 @@ This version is a modified version of MPEG2Dec2 from save-oe (smart audio video 
 The additional features are, for example, YV12, YUY2 and RGB32 output, interlacing control,<br>
 integrated PostProcessing, Luminance Filtering, etc.<br>
 </ul>
-<h2>Examples Usage of DGDecode package filters:</h3>
+<h2>DGDecode filter usage examples :</h3>
 <ul>
-	(all the avisynth script lines here are only exemples)<br>
-	First, add the following line in your .avs script :<br>
+	All the avisynth script lines here are only examples.<br>
+	First, add the following line in your .avs script:<br>
 	<code><br>
-	LoadPlugin("DGDecode.dll") # because Avisynth 2.5 didn't support Autoloading yet<br>
-	</code><br>
+	LoadPlugin("DGDecode.dll")<br>
+	</code>
 	
 	<h3>Basic DGDecode usage :</h3>
 	<ul>
@@ -64,9 +60,9 @@ integrated PostProcessing, Luminance Filtering, etc.<br>
 	</ul>
 	<h3>Colorspace conversions :</h3>
 	<ul>
-		<B>The following built-in colorspace conversions may cause problems. Please 
-		use the AviSynth functions where possible:<br><br>
-		<u>DGDecode's Colorspace routines:<br><br></u></b>
+		The following built-in colorspace conversions may cause problems. Please 
+		use the AviSynth functions where possible.<br><br>
+		<u>DGDecode's Colorspace routines:<br><br></u>
 		To convert to YUY2.<br>
 		<code><br>
 		MPEG2Source("dvd.d2v")<br>
@@ -90,7 +86,7 @@ integrated PostProcessing, Luminance Filtering, etc.<br>
 		FlipVertical() #YV12->BGR24 convertion natively flips image<br>
 		</code><br>
 	</ul>
-	<h3>Useful additional YV12 Filters :</h3>
+	<h3>Useful additional YV12 filters :</h3>
 	<ul>
 		To Darken Luminosity.<br>
 		<code><br>
@@ -107,7 +103,7 @@ integrated PostProcessing, Luminance Filtering, etc.<br>
 </ul>
 <h2>Syntax of DGDecode package filters :</h2>
 <ul>
-	<h3>MPEG2Source :</h3><br><ul>
+	<h3>MPEG2Source :</h3><ul>
 	<code>
 	MPEG2Source(str "d2v", int "cpu" int "idct" bool "iPP", int "moderate_h", int "moderate_v", bool "showQ", bool "fastMC", str "cpu2")<br>
 	</code><br>
@@ -134,12 +130,14 @@ integrated PostProcessing, Luminance Filtering, etc.<br>
 	smaller values are stronger. use with care.<br>
 	default : moderate_h=20, moderate_v=40<br>
 	</ul><br>
-	<u>info</u> : true/false.
+	<u>info</u> : 0-3.
 	<ul>
-	Overlay decode information on the video.<br>
-	true  : Overlay decode information<br>
-	false : Do not overlay decode information<br>
-	default : false
+	Debug information.<br>
+	0 : Do not generate debug information<br>
+	1 : Overlay debug information on the video<br>
+	2 : Output debug information via OutputDebugString()<br>
+	3 : Output hints in the video (as defined in utilities.cpp/utilities.h)<br>
+	default : 0
 	</ul><br>
 	<u>idct</u> : 1 to 5.
 	<ul>
@@ -205,8 +203,17 @@ integrated PostProcessing, Luminance Filtering, etc.<br>
 	Use YV12toYUY2(interlaced=true) to upsample always interlaced.
 	Use YV12toYUY2(interlaced=false) to upsample always progressive.
 	</ul><br>
+
+	<u>i420</u> : true/false<br>
+	<ul>
+     Deliver I420 color space instead of the default YV12<br>
+     (ignored if the input is not 4:2:0, or if upConv=true).<br>
+	true  : Deliver I420<br>
+	false : Deliver YV12<br>
+	default : false<br>
+	</ul><br>
 	
-	</ul><h3>LumaFilter :</h3><br><ul>
+	</ul><h3>LumaFilter :</h3><ul>
 	<code>
 	LumaFilter(clip, integer "lumoff", float "lumgain")<br>
 	</code><br>
@@ -222,10 +229,11 @@ integrated PostProcessing, Luminance Filtering, etc.<br>
 	Luminosity gain.<br>
 	default = 1<br>
 	</ul><br>
-	</ul><h3>YV12toRGB24 :</h3><br><ul>
+
+	</ul><h3>YV12toRGB24 :</h3><ul>
 	<code>
-  YV12toRGB24(clip, bool "interlaced" bool "TVscale")<br>
-	</code><br>
+	YV12toRGB24(clip, bool "interlaced" bool "TVscale")<br>
+	</code>
 	YV12->BGR24 convertion natively flips image<br>
 	Use FilpVertical() after<br>
 	<br>
@@ -243,10 +251,11 @@ integrated PostProcessing, Luminance Filtering, etc.<br>
 	it may be inversed. try with and without and keep your favorite<br>
 	default : false<br>
 	</ul><br>
-	</ul><h3>YV12toYUY2 :</h3><br><ul>
+
+	</ul><h3>YV12toYUY2 :</h3><ul>
 	<code>
 	YV12toYUY2(clip, bool "interlaced")<br>
-	</code><br>
+	</code>
 	<u>interlaced</u> : <br>
 	<ul>
 	set this to true if your source is interlaced,<br>
@@ -262,14 +271,14 @@ integrated PostProcessing, Luminance Filtering, etc.<br>
 	set this to false if you have Bottom Field First.<br>
 	default : true<br>
 	</ul><br>
-	<br>
-	</ul><h3>BlindPP :</h3><br><ul>
+
+	</ul><h3>BlindPP :</h3><ul>
 	<code>
 	BlindPP(clip, int "quant", int "cpu", str "cpu2", bool "iPP", int "moderate_h", int "moderate_v")<br>
-	</code><br>
+	</code>
 	To Deblock and Dering on any kind of DCT-encoded source.<br>
 	Of course, it's less accurate than the decoder-integrated PP, but still very useful.<br>
-	Supports YUY2 and YV12 input.<br>
+	Supports YUY2 and YV12 input. Please see APPENDIX A for usage notes.<br>
 	<br>
 	<u>quant</u> : <br>
 	<ul>
@@ -283,8 +292,13 @@ integrated PostProcessing, Luminance Filtering, etc.<br>
 	same settings as MPEG2Source's PP.
 	defaults : cpu=6,cpu2="",iPP=false,moderate_h=20,moderate_v=40
 	</ul><br>
+
+	</ul><h3>Deblock :</h3><ul>
+	<code>
+	Deblock()<br>
+	</code><br>
+	H.264 deblocking filter by "Manao". Please see <a href=deblock.html>here</a> for usage details.
 	</ul>
-	<br>
 </ul>
 
 <h2>History :</h2>
@@ -417,7 +431,7 @@ Nic: Damn! There was a problem with the Luminance filter and 1.77.3 D2V files. F
 <h2>Credits :</h2>
 <ul>
 Mathias Born, author of MPEG2Dec<br>
-Donald Graft, for frame loss fix, accurate indexing, and more<br>
+Donald Graft, for frame loss fix, accurate indexing, PVA support, and more<br>
 Peter Gubanov, author of the MMX/SSEMMX iDCT<br>
 Chia-chen Kuo, author of DVD2AVI<br>
 "MarcFD", for YV12 support and more<br>
@@ -428,6 +442,7 @@ Dmitry Rozhdestvensky, author of the SSE2 iDCT<br>
 "Skal", for the use of his iDCT<br>
 "trbarry", transport parsing, and code optimizations<br>
 "tritical", for upsampling, info overlay, and lots of bug fixes<br>
+"Manao", Deblock() filter<br>
 </ul>
 
 <h2>Code Distribution :</h2>
@@ -437,8 +452,33 @@ To get the source code, there's a separate archive available at the site below.<
 </ul>
 <BR>
 Latest versions hosted at <a href="http://neuron2.net/">http://neuron2.net</a><br>
-<br>
-<br>
-<p align="Right">
+<p><hr><p>
+<h2>APPENDIX A. Notes on BlindPP() Usage by Didée</h2>
+<p>
+Blocks result from the 8x8-pixel DCT used by the MPEG2 encoder.
+So first off, you must be sure that the blocks that you want to deblock are still aligned at 8-pixel boundaries. That means no cropping and no resizing before you apply BlindPP(). If your source is
+encoded interlaced, set iPP=true, if it's progressive then the default is already correct (iPP=false).
+<p>
+The parameters are: quant, cpu2, moderate_h, and moderate_v.
+<p>
+"quant" specifies the overall <i>strength</i> at which the deblocking process is to perform.
+<p>
+Set "cpu2" to "xxxxoo" for horizontal and vertical deblocking on luma and chroma, to "xooxoo" for horizontal luma and vertical chroma deblocking, etc. You get the idea.
+<p>
+"moderate_h" and "moderate_v" specify the horizontal and vertical sensitivities, that is, <i>where</i> to perform deblocking, and where not to. They control the sensitivity for recognizing that a block is present.
+<p>
+While "cpu2" and "quant" are pretty clear, the "moderate_X" settings are a little like a black box:
+<p>
+quant=2, moderate_h=35-45, moderate_v=45-55 will give you a very gentle softening on strong, clearly visible blocks only. It will retain very much detail and sharpness, but will also leave intact weaker blocks, and not totally kill stronger ones.
+<p>
+quant=16, moderate_h=15-20, moderate_v=20-30 will perform rather strong deblocking on almost anything that perhaps could be a block, but will also smooth away a lot of detail and sharpness.
+<p>
+The rest is up to you, your taste, and your source material.
+<p>
+One other example: Since the excellent denoiser PixieDust may sometimes cause blocking by itself in moving areas, I sometimes do this:
+<p>
+&nbsp;&nbsp;&nbsp;&nbsp;PixieDust(2).BlindPP(quant=8,cpu2="xxxxoo",moderate_h=45,moderate_v=55)
+<p>
+This takes away a good amount of the most visible blocking, if and only if PixieDust has produced some. On the remaining 99.8% where PixieDust didn't block, this will do almost nothing, as desired.
 </body>
 </html>

@@ -39,7 +39,7 @@ protected:
 
 public:
   MPEG2Source(const char* d2v);
-  MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int moderate_h, int moderate_v, bool showQ, bool fastMC, const char* _cpu2, bool _info, bool _upConv, IScriptEnvironment* env);
+  MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int moderate_h, int moderate_v, bool showQ, bool fastMC, const char* _cpu2, int _info, bool _upConv, bool _i420, IScriptEnvironment* env);
   ~MPEG2Source();
 
   PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
@@ -109,3 +109,40 @@ public:
 };
 
 void conv420to422(const unsigned char *src, unsigned char *dst, int frame_type, int width, int height);
+
+/* Macros for accessing easily frame pointers and pitch */
+#define YRPLAN(a) (a)->GetReadPtr(PLANAR_Y)
+#define YWPLAN(a) (a)->GetWritePtr(PLANAR_Y)
+#define URPLAN(a) (a)->GetReadPtr(PLANAR_U)
+#define UWPLAN(a) (a)->GetWritePtr(PLANAR_U)
+#define VRPLAN(a) (a)->GetReadPtr(PLANAR_V)
+#define VWPLAN(a) (a)->GetWritePtr(PLANAR_V)
+#define YPITCH(a) (a)->GetPitch(PLANAR_Y)
+#define UPITCH(a) (a)->GetPitch(PLANAR_U)
+#define VPITCH(a) (a)->GetPitch(PLANAR_V)
+
+class Deblock : public GenericVideoFilter {
+private:
+   bool mmx, isse;
+   int nQuant;
+   int nAOffset, nBOffset;
+   int nWidth, nHeight;
+
+   static inline int sat(int x, int min, int max)
+   { return (x < min) ? min : ((x > max) ? max : x); }
+
+   static inline int abs(int x)
+   { return ( x < 0 ) ? -x : x; }
+
+   static void DeblockHorEdge(unsigned char *srcp, int srcPitch, int ia, int ib);
+
+   static void DeblockVerEdge(unsigned char *srcp, int srcPitch, int ia, int ib);
+public:
+   static void DeblockPicture(unsigned char *srcp, int srcPitch, int w, int h,
+                              int q, int aOff, int bOff);
+
+	Deblock(PClip _child, int q, int aOff, int bOff, bool _mmx, bool _isse, 
+           IScriptEnvironment* env);
+   ~Deblock();
+	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
+};

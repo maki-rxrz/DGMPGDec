@@ -50,6 +50,7 @@
 #define IDC_INFO                        1032
 #define IDC_BITRATE                     1033
 #define IDC_DELAY                       1034
+#define IDC_FIELD_ORDER                 1034
 #define IDC_OFFSET_SLIDER               1035
 #define IDC_GAMMA_SLIDER                1036
 #define IDC_LUM_CHECK                   1037
@@ -160,7 +161,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        143
-#define _APS_NEXT_COMMAND_VALUE         32869
+#define _APS_NEXT_COMMAND_VALUE         32870
 #define _APS_NEXT_CONTROL_VALUE         1067
 #define _APS_NEXT_SYMED_VALUE           107
 #endif

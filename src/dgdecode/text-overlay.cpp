@@ -385,7 +385,7 @@ void Antialiaser::GetAlphaRect() {
 void ApplyMessage( PVideoFrame* frame, const VideoInfo& vi, const char* message, int size, 
                    int textcolor, int halocolor, int bgcolor, IScriptEnvironment* env ) 
 {
-  Antialiaser antialiaser(vi.width, vi.height, "Arial", size);
+  Antialiaser antialiaser(vi.width, vi.height, "Courier New", size);
   HDC hdcAntialias = antialiaser.GetDC();
   RECT r = { 4*8, 4*8, (vi.width-4)*8, (vi.height-4)*8 };
   DrawText(hdcAntialias, message, lstrlen(message), &r, DT_NOPREFIX|DT_LEFT|DT_WORDBREAK);

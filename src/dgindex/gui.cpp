@@ -29,7 +29,7 @@ extern "C"
 #include "pat.h"
 }
 
-static char Version[] = "DGIndex 1.1.0";
+static char Version[] = "DGIndex 1.2.1";
 
 #define TRACK_HEIGHT	30
 #define INIT_WIDTH		480
@@ -278,7 +278,7 @@ TEST_END:
 		int tmp;
 		char cwd[1024];
 
-		File_Limit = 0;
+		NumLoadedFiles = 0;
 		SystemStream_Flag = 0;
 		if ((ptr = strstr(ucCmdLine,"-AUTO-INPUT-FILES")) || (ptr = strstr(ucCmdLine,"-AIF")))
 		{
@@ -303,9 +303,9 @@ TEST_END:
 					strcpy(cwd, aFName);
 				}
 				if ((tmp = _open(cwd, _O_RDONLY | _O_BINARY | _O_SEQUENTIAL)) == -1) break;
-				strcpy(Infilename[File_Limit], cwd);
-				Infile[File_Limit] = tmp;
-				File_Limit++;
+				strcpy(Infilename[NumLoadedFiles], cwd);
+				Infile[NumLoadedFiles] = tmp;
+				NumLoadedFiles++;
 
 				// First scan back from the end of the name for an _ character.
 				p = aFName+strlen(aFName);
@@ -366,9 +366,9 @@ TEST_END:
 			}
 			if ((tmp = _open(cwd, _O_RDONLY | _O_BINARY)) != -1)
 			{
-				strcpy(Infilename[File_Limit], cwd);
-				Infile[File_Limit] = tmp;
-				File_Limit++;
+				strcpy(Infilename[NumLoadedFiles], cwd);
+				Infile[NumLoadedFiles] = tmp;
+				NumLoadedFiles++;
 			}
 		  }
 		  while (ptr < ende);
@@ -417,9 +417,9 @@ TEST_END:
 					}
 					if ((tmp = _open(cwd, _O_RDONLY | _O_BINARY)) != -1)
 					{
-						strcpy(Infilename[File_Limit], cwd);
-						Infile[File_Limit] = tmp;
-						File_Limit++;
+						strcpy(Infilename[NumLoadedFiles], cwd);
+						Infile[NumLoadedFiles] = tmp;
+						NumLoadedFiles++;
 					}
 				}
 			}
@@ -677,15 +677,15 @@ TEST_END:
 		strcpy(szOutput, ptr);
 	}
 
-    if (File_Limit)
+    if (NumLoadedFiles)
     {
 		// Start a LOCATE_INIT thread. When it kills itself, it will start a
 		// LOCATE_RIP thread by sending a WM_USER message to the main window.
-		process.rightfile = File_Limit-1;
-		process.rightlba = (int)(process.length[File_Limit-1]/BUFFER_SIZE);
-		process.end = process.total - BUFFER_SIZE;
-		process.endfile = File_Limit - 1;
-		process.endloc = (process.length[File_Limit-1]/BUFFER_SIZE - 1)*BUFFER_SIZE;
+		process.rightfile = NumLoadedFiles-1;
+		process.rightlba = (int)(Infilelength[NumLoadedFiles-1]/BUFFER_SIZE);
+		process.end = Infiletotal - BUFFER_SIZE;
+		process.endfile = NumLoadedFiles - 1;
+		process.endloc = (Infilelength[NumLoadedFiles-1]/BUFFER_SIZE - 1)*BUFFER_SIZE;
 		process.locate = LOCATE_INIT;
 		if (!threadId || WaitForSingleObject(hThread, INFINITE)==WAIT_OBJECT_0)
 		  hThread = CreateThread(NULL, 0, MPEG2Dec, 0, 0, &threadId);
@@ -923,29 +923,29 @@ D2V_PROCESS:
 
 						D2VFile = fopen(szInput, "r");
 
-						while (File_Limit)
+						while (NumLoadedFiles)
 						{
-							File_Limit--;
-							_close(Infile[File_Limit]);
+							NumLoadedFiles--;
+							_close(Infile[NumLoadedFiles]);
 						}
 
-						fscanf(D2VFile, "DGIndexProjectFile%d\n", &File_Limit); // dummy read
-						fscanf(D2VFile, "%d\n", &File_Limit);
+						fscanf(D2VFile, "DGIndexProjectFile%d\n", &NumLoadedFiles); // dummy read
+						fscanf(D2VFile, "%d\n", &NumLoadedFiles);
 
-						i = File_Limit;
+						i = NumLoadedFiles;
 						while (i)
 						{
 							fscanf(D2VFile, "%d ", &j);
-							fgets(Infilename[File_Limit-i], j+1, D2VFile);
-							if ((Infile[File_Limit-i] = _open(Infilename[File_Limit-i], _O_RDONLY | _O_BINARY | _O_SEQUENTIAL))==-1)
+							fgets(Infilename[NumLoadedFiles-i], j+1, D2VFile);
+							if ((Infile[NumLoadedFiles-i] = _open(Infilename[NumLoadedFiles-i], _O_RDONLY | _O_BINARY | _O_SEQUENTIAL))==-1)
 							{
-								while (i<File_Limit)
+								while (i<NumLoadedFiles)
 								{
-									_close(Infile[File_Limit-i-1]);
+									_close(Infile[NumLoadedFiles-i-1]);
 									i++;
 								}
 
-								File_Limit = 0;
+								NumLoadedFiles = 0;
 								break;
 							}
 
@@ -993,7 +993,7 @@ D2V_PROCESS:
 
 						CheckFlag();
 
-						if (File_Limit)
+						if (NumLoadedFiles)
 						{
 							fscanf(D2VFile, "Location=%d,%X,%d,%X\n", &process.leftfile, 
 								&process.leftlba, &process.rightfile, &process.rightlba);
@@ -1005,16 +1005,16 @@ D2V_PROCESS:
 
 							process.run = 0;
 							for (i=0; i<process.startfile; i++)
-								process.run += process.length[i];
+								process.run += Infilelength[i];
 							process.start = process.run + process.startloc;
 
 							process.end = 0;
 							for (i=0; i<process.endfile; i++)
-								process.end += process.length[i];
+								process.end += Infilelength[i];
 							process.end += process.endloc;
 
-							process.trackleft = (int)(process.start*TRACK_PITCH/process.total);
-							process.trackright = (int)(process.end*TRACK_PITCH/process.total);
+							process.trackleft = (process.start*TRACK_PITCH/Infiletotal);
+							process.trackright = (process.end*TRACK_PITCH/Infiletotal);
 
 							process.locate = LOCATE_INIT;
 
@@ -1407,10 +1407,10 @@ D2V_PROCESS:
 
 							process.run = 0;
 							for (i=0; i<process.leftfile; i++)
-								process.run += process.length[i];
-							process.trackleft = (int)((process.run + process.leftlba * BUFFER_SIZE) * TRACK_PITCH / process.total);
+								process.run += Infilelength[i];
+							process.trackleft = ((process.run + process.leftlba * BUFFER_SIZE) * TRACK_PITCH / Infiletotal);
 
-							SendMessage(hTrack, TBM_SETPOS, (WPARAM) true, process.trackleft);
+							SendMessage(hTrack, TBM_SETPOS, (WPARAM) true, (LONG) process.trackleft);
 							SendMessage(hTrack, TBM_SETSEL, (WPARAM) true, (LPARAM) MAKELONG(process.trackleft, process.trackright));
 						}
 					}
@@ -1452,10 +1452,10 @@ D2V_PROCESS:
 
 							process.run = 0;
 							for (i=0; i<process.rightfile; i++)
-								process.run += process.length[i];
-							process.trackright = (int)((process.run + (__int64)process.rightlba*BUFFER_SIZE)*TRACK_PITCH/process.total);
+								process.run += Infilelength[i];
+							process.trackright = ((process.run + (__int64)process.rightlba*BUFFER_SIZE)*TRACK_PITCH/Infiletotal);
 
-							SendMessage(hTrack, TBM_SETPOS, (WPARAM) true, process.trackright);
+							SendMessage(hTrack, TBM_SETPOS, (WPARAM) true, (LONG) process.trackright);
 							SendMessage(hTrack, TBM_SETSEL, (WPARAM) true, (LPARAM) MAKELONG(process.trackleft, process.trackright));
 						}
 					}
@@ -1476,19 +1476,20 @@ D2V_PROCESS:
 				Display_Flag = true;
 
 				trackpos = SendMessage(hTrack, TBM_GETPOS, 0, 0);
-				process.startloc = process.start = process.total*trackpos/TRACK_PITCH;
+				process.startloc = process.start = Infiletotal*trackpos/TRACK_PITCH;
 
-				process.startfile = 0; process.run = 0;
-				while (process.startloc > process.length[process.startfile])
+				process.startfile = 0;
+				process.run = 0;
+				while (process.startloc > Infilelength[process.startfile])
 				{
-					process.startloc -= process.length[process.startfile];
-					process.run += process.length[process.startfile];
+					process.startloc -= Infilelength[process.startfile];
+					process.run += Infilelength[process.startfile];
 					process.startfile++;
 				}
 
-				process.end = process.total - BUFFER_SIZE;
-				process.endfile = File_Limit - 1;
-				process.endloc = (process.length[File_Limit-1]/BUFFER_SIZE-1)*BUFFER_SIZE;
+				process.end = Infiletotal - BUFFER_SIZE;
+				process.endfile = NumLoadedFiles - 1;
+				process.endloc = (Infilelength[NumLoadedFiles-1]/BUFFER_SIZE-1)*BUFFER_SIZE;
 
 				process.locate = LOCATE_SCROLL;
 
@@ -1612,10 +1613,10 @@ D2V_PROCESS:
 				}
 			}
 
-			while (File_Limit)
+			while (NumLoadedFiles)
 			{
-				File_Limit--;
-				_close(Infile[File_Limit]);
+				NumLoadedFiles--;
+				_close(Infile[NumLoadedFiles]);
 			}
 
 			drop_count = DragQueryFile((HDROP)wParam, 0xffffffff, szInput, sizeof(szInput));
@@ -1625,8 +1626,8 @@ D2V_PROCESS:
 				struct _finddata_t seqfile;
 				if (_findfirst(szInput, &seqfile) != -1L)
 				{
-					strcpy(Infilename[File_Limit], szInput);
-					File_Limit++;
+					strcpy(Infilename[NumLoadedFiles], szInput);
+					NumLoadedFiles++;
 					SystemStream_Flag = 0;
 				}
 			}
@@ -1635,7 +1636,7 @@ D2V_PROCESS:
 			// This is a special sort designed to do things intelligently
 			// for typical sequentially numbered filenames.
 			// Sorry, just a bubble sort. No need for performance here. KISS.
-			n = File_Limit;
+			n = NumLoadedFiles;
 			for (i = 0; i < n - 1; i++)
 			{
 				for (j = 0; j < n - 1 - i; j++)
@@ -1649,30 +1650,11 @@ D2V_PROCESS:
 				}
 			}
 			// Open the files.
-			for (i = 0; i < File_Limit; i++)
+			for (i = 0; i < NumLoadedFiles; i++)
 			{
 				Infile[i] = _open(Infilename[i], _O_RDONLY | _O_BINARY | _O_SEQUENTIAL);
 			}
 			DialogBox(hInst, (LPCTSTR)IDD_FILELIST, hWnd, (DLGPROC)VideoList);
-#if 0
-			// The old way. Don't pop up file list and just start decoding.
-			Recovery();
-
-			if (File_Limit)
-			{
-				process.rightfile = File_Limit-1;
-				process.rightlba = (int)(process.length[File_Limit-1]/BUFFER_SIZE);
-
-				process.end = process.total - BUFFER_SIZE;
-				process.endfile = File_Limit - 1;
-				process.endloc = (process.length[File_Limit-1]/BUFFER_SIZE - 1)*BUFFER_SIZE;
-
-				process.locate = LOCATE_INIT;
-
-				if (!threadId || WaitForSingleObject(hThread, INFINITE)==WAIT_OBJECT_0)
-					hThread = CreateThread(NULL, 0, MPEG2Dec, 0, 0, &threadId);
-			}
-#endif
 			break;
 
 		case WM_DESTROY:
@@ -1698,10 +1680,10 @@ D2V_PROCESS:
 				fclose(INIFile);
 			}
 
-			while (File_Limit)
+			while (NumLoadedFiles)
 			{
-				File_Limit--;
-				_close(Infile[File_Limit]);
+				NumLoadedFiles--;
+				_close(Infile[NumLoadedFiles]);
 			}
 
 			Recovery();
@@ -1767,15 +1749,15 @@ LRESULT CALLBACK DetectPids(HWND hDialog, UINT message, WPARAM wParam, LPARAM lP
 					}
 					if (LOWORD(wParam) == IDC_SET_AUDIO) break;
 					Recovery();
-					if (File_Limit)
+					if (NumLoadedFiles)
 					{
 						FileLoadedEnables();
-						process.rightfile = File_Limit-1;
-						process.rightlba = (int)(process.length[File_Limit-1]/BUFFER_SIZE);
+						process.rightfile = NumLoadedFiles-1;
+						process.rightlba = (int)(Infilelength[NumLoadedFiles-1]/BUFFER_SIZE);
 
-						process.end = process.total - BUFFER_SIZE;
-						process.endfile = File_Limit - 1;
-						process.endloc = (process.length[File_Limit-1]/BUFFER_SIZE - 1)*BUFFER_SIZE;
+						process.end = Infiletotal - BUFFER_SIZE;
+						process.endfile = NumLoadedFiles - 1;
+						process.endloc = (Infilelength[NumLoadedFiles-1]/BUFFER_SIZE - 1)*BUFFER_SIZE;
 
 						process.locate = LOCATE_INIT;
 
@@ -1803,14 +1785,14 @@ LRESULT CALLBACK VideoList(HWND hVideoListDlg, UINT message, WPARAM wParam, LPAR
 	{
 		case WM_INITDIALOG:
 			SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_SETHORIZONTALEXTENT, (WPARAM) 1024, 0);  
-			if (File_Limit)
-				for (i=0; i<File_Limit; i++)
+			if (NumLoadedFiles)
+				for (i=0; i<NumLoadedFiles; i++)
 					SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_ADDSTRING, 0, (LPARAM)Infilename[i]);
 			else
 				OpenVideoFile(hVideoListDlg);
 
-			if (File_Limit)
-				SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_SETCURSEL, File_Limit-1, 0);
+			if (NumLoadedFiles)
+				SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_SETCURSEL, NumLoadedFiles-1, 0);
 			return true;
 
 		case WM_COMMAND:
@@ -1819,8 +1801,8 @@ LRESULT CALLBACK VideoList(HWND hVideoListDlg, UINT message, WPARAM wParam, LPAR
 				case ID_ADD:
 					OpenVideoFile(hVideoListDlg);
 
-					if (File_Limit)
-						SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_SETCURSEL, File_Limit-1, 0);
+					if (NumLoadedFiles)
+						SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_SETCURSEL, NumLoadedFiles-1, 0);
 					break;
 
 				case ID_UP:
@@ -1859,20 +1841,20 @@ LRESULT CALLBACK VideoList(HWND hVideoListDlg, UINT message, WPARAM wParam, LPAR
 					break;
 
 				case ID_DEL:
-					if (File_Limit)
+					if (NumLoadedFiles)
 					{
 						i= SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_GETCURSEL, 0, 0);
 						SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_DELETESTRING, i, 0);
-						File_Limit--;
+						NumLoadedFiles--;
 						_close(Infile[i]);
-						for (j=i; j<File_Limit; j++)
+						for (j=i; j<NumLoadedFiles; j++)
 						{
 							Infile[j] = Infile[j+1];
 							strcpy(Infilename[j], Infilename[j+1]);
 						}
-						SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_SETCURSEL, i>=File_Limit ? File_Limit-1 : i, 0);
+						SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_SETCURSEL, i>=NumLoadedFiles ? NumLoadedFiles-1 : i, 0);
 					}
-					if (!File_Limit)
+					if (!NumLoadedFiles)
 					{
 						Recovery();
 						SystemStream_Flag = 0;
@@ -1880,13 +1862,13 @@ LRESULT CALLBACK VideoList(HWND hVideoListDlg, UINT message, WPARAM wParam, LPAR
 					break;
 
 				case ID_DELALL:
-					while (File_Limit)
+					while (NumLoadedFiles)
 					{
-						File_Limit--;
+						NumLoadedFiles--;
 						i= SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_GETCURSEL, 0, 0);
 						SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_DELETESTRING, i, 0);
 						_close(Infile[i]);
-						SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_SETCURSEL, i>=File_Limit ? File_Limit-1 : i, 0);
+						SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_SETCURSEL, i>=NumLoadedFiles ? NumLoadedFiles-1 : i, 0);
 					}
 					Recovery();
 					SystemStream_Flag = 0;
@@ -1897,15 +1879,15 @@ LRESULT CALLBACK VideoList(HWND hVideoListDlg, UINT message, WPARAM wParam, LPAR
 					EndDialog(hVideoListDlg, 0);
 					Recovery();
 
-					if (File_Limit)
+					if (NumLoadedFiles)
 					{
 						FileLoadedEnables();
-						process.rightfile = File_Limit-1;
-						process.rightlba = (int)(process.length[File_Limit-1]/BUFFER_SIZE);
+						process.rightfile = NumLoadedFiles-1;
+						process.rightlba = (int)(Infilelength[NumLoadedFiles-1]/BUFFER_SIZE);
 
-						process.end = process.total - BUFFER_SIZE;
-						process.endfile = File_Limit - 1;
-						process.endloc = (process.length[File_Limit-1]/BUFFER_SIZE - 1)*BUFFER_SIZE;
+						process.end = Infiletotal - BUFFER_SIZE;
+						process.endfile = NumLoadedFiles - 1;
+						process.endloc = (Infilelength[NumLoadedFiles-1]/BUFFER_SIZE - 1)*BUFFER_SIZE;
 
 						process.locate = LOCATE_INIT;
 
@@ -1942,9 +1924,9 @@ static void OpenVideoFile(HWND hVideoListDlg)
 			// Only one file specified.
 			if (_findfirst(szInput, &seqfile) == -1L) return;
 			SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_ADDSTRING, 0, (LPARAM) szInput);
-			strcpy(Infilename[File_Limit], szInput);
-			Infile[File_Limit] = _open(szInput, _O_RDONLY | _O_BINARY | _O_SEQUENTIAL);
-			File_Limit++;
+			strcpy(Infilename[NumLoadedFiles], szInput);
+			Infile[NumLoadedFiles] = _open(szInput, _O_RDONLY | _O_BINARY | _O_SEQUENTIAL);
+			NumLoadedFiles++;
 			// Set the output directory for a Save D2V operation to the
 			// same path as this input files.
 			strcpy(path, szInput);
@@ -1956,7 +1938,7 @@ static void OpenVideoFile(HWND hVideoListDlg)
 		}
 		// Multi-select handling.
 		// First clear existing file list box.
-		n = File_Limit;
+		n = NumLoadedFiles;
 		while (n)
 		{
 			n--;
@@ -1984,8 +1966,8 @@ static void OpenVideoFile(HWND hVideoListDlg)
 			strcpy(filename, path);
 			strcat(filename, p);
 			if (_findfirst(filename, &seqfile) == -1L) break;
-			strcpy(Infilename[File_Limit], filename);
-			File_Limit++;
+			strcpy(Infilename[NumLoadedFiles], filename);
+			NumLoadedFiles++;
 			// Skip to next filename.
 			while (*p++ != 0);
 			// A double zero is the end of the file list.
@@ -1995,7 +1977,7 @@ static void OpenVideoFile(HWND hVideoListDlg)
 		// This is a special sort designed to do things intelligently
 		// for typical sequentially numbered filenames.
 		// Sorry, just a bubble sort. No need for performance here. KISS.
-		n = File_Limit;
+		n = NumLoadedFiles;
 		for (i = 0; i < n - 1; i++)
 		{
 			for (j = 0; j < n - 1 - i; j++)
@@ -2009,7 +1991,7 @@ static void OpenVideoFile(HWND hVideoListDlg)
 			}
 		}
 		// Load up the file open dialog list box and open the files.
-		for (i = 0; i < File_Limit; i++)
+		for (i = 0; i < NumLoadedFiles; i++)
 		{
 			SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_ADDSTRING, 0, (LPARAM) Infilename[i]);
 			Infile[i] = _open(Infilename[i], _O_RDONLY | _O_BINARY | _O_SEQUENTIAL);
@@ -2024,7 +2006,7 @@ LRESULT CALLBACK AudioList(HWND hAudioListDlg, UINT message, WPARAM wParam, LPAR
 	switch (message)
 	{
 		case WM_INITDIALOG:
-			File_Limit = 0;
+			NumLoadedFiles = 0;
 			OpenAudioFile(hAudioListDlg);
 			return true;
 
@@ -2036,21 +2018,21 @@ LRESULT CALLBACK AudioList(HWND hAudioListDlg, UINT message, WPARAM wParam, LPAR
 					break;
 
 				case ID_DEL:
-					if (File_Limit)
+					if (NumLoadedFiles)
 					{
 						i= SendDlgItemMessage(hAudioListDlg, IDC_LIST, LB_GETCURSEL, 0, 0);
 						SendDlgItemMessage(hAudioListDlg, IDC_LIST, LB_DELETESTRING, i, 0);
 
-						File_Limit--;
+						NumLoadedFiles--;
 
-						for (j=i; j<File_Limit; j++)
+						for (j=i; j<NumLoadedFiles; j++)
 						{
 							strcpy(Infilename[j], Infilename[j+1]);
 							strcpy(Outfilename[j], Outfilename[j+1]);
 							SoundDelay[j] = SoundDelay[j+1];
 						}
 
-						SendDlgItemMessage(hAudioListDlg, IDC_LIST, LB_SETCURSEL, i>=File_Limit ? File_Limit-1 : i, 0);
+						SendDlgItemMessage(hAudioListDlg, IDC_LIST, LB_SETCURSEL, i>=NumLoadedFiles ? NumLoadedFiles-1 : i, 0);
 					}
 					break;
 
@@ -2058,12 +2040,12 @@ LRESULT CALLBACK AudioList(HWND hAudioListDlg, UINT message, WPARAM wParam, LPAR
 				case IDCANCEL:
 					EndDialog(hAudioListDlg, 0);
 
-					if (File_Limit)
+					if (NumLoadedFiles)
 					{
 						ShowInfo(true);
 
 						if (!threadId || WaitForSingleObject(hThread, INFINITE)==WAIT_OBJECT_0)
-							hThread = CreateThread(NULL, 0, ProcessWAV, (void *)File_Limit, 0, &threadId);
+							hThread = CreateThread(NULL, 0, ProcessWAV, (void *)NumLoadedFiles, 0, &threadId);
 					}
 					return true;
 			}
@@ -2085,17 +2067,17 @@ static void OpenAudioFile(HWND hAudioListDlg)
 
 		if (PopFileDlg(szOutput, hAudioListDlg, SAVE_WAV))
 		{
-			strcpy(Infilename[File_Limit], szInput);
-			strcpy(Outfilename[File_Limit], szOutput);
+			strcpy(Infilename[NumLoadedFiles], szInput);
+			strcpy(Outfilename[NumLoadedFiles], szOutput);
 			DialogBox(hInst, (LPCTSTR)IDD_DELAY, hWnd, (DLGPROC)Delay);
-			sprintf(szBuffer, "%s %dms", szInput, SoundDelay[File_Limit]);
+			sprintf(szBuffer, "%s %dms", szInput, SoundDelay[NumLoadedFiles]);
 			SendDlgItemMessage(hAudioListDlg, IDC_LIST, LB_ADDSTRING, 0, (LPARAM)szBuffer);
-			File_Limit++;
+			NumLoadedFiles++;
 		}
 	}
 
-	if (File_Limit)
-		SendDlgItemMessage(hAudioListDlg, IDC_LIST, LB_SETCURSEL, File_Limit-1, 0);
+	if (NumLoadedFiles)
+		SendDlgItemMessage(hAudioListDlg, IDC_LIST, LB_SETCURSEL, NumLoadedFiles-1, 0);
 }
 
 DWORD WINAPI ProcessWAV(LPVOID n)
@@ -2108,14 +2090,14 @@ DWORD WINAPI ProcessWAV(LPVOID n)
 	if (!n)
 		Wavefs44File(SoundDelay[0]);
 	else
-		for (i=0; i<File_Limit && !Stop_Flag; i++)
+		for (i=0; i<NumLoadedFiles && !Stop_Flag; i++)
 		{
 			strcpy(szInput, Infilename[i]);
 			strcpy(szOutput, Outfilename[i]);
 			Wavefs44File(SoundDelay[i]);
 		}
 
-	File_Limit = 0;
+	NumLoadedFiles = 0;
 
 	if (!Stop_Flag)
 	{
@@ -2174,7 +2156,7 @@ void ThreadKill()
 			}
 			else
 			{
-				SetDlgItemText(hDlg, IDC_INFO, "N.A.");
+				SetDlgItemText(hDlg, IDC_INFO, "n/a");
 				CheckMenuItem(hMenu, IDM_PRESCALE, MF_UNCHECKED);
 			}
 		}
@@ -2187,16 +2169,13 @@ void ThreadKill()
 	{
 		SetForegroundWindow(hWnd);
 
-//		if (!Stop_Flag)
-		{
-			MessageBeep(MB_OK);	
-			SetDlgItemText(hDlg, IDC_REMAIN, "FINISH");
-			if (ExitOnEnd) exit(0);
-			if (D2V_Flag)
-				SendMessage(hWnd, WM_USER, 0xa5a5a5a5, 0);
-			else
-				SendMessage(hWnd, WM_USER, 0x5a5a5a5a, 0);
-		}
+		MessageBeep(MB_OK);	
+		SetDlgItemText(hDlg, IDC_REMAIN, "FINISH");
+		if (ExitOnEnd) exit(0);
+		if (D2V_Flag)
+			SendMessage(hWnd, WM_USER, 0xa5a5a5a5, 0);
+		else
+			SendMessage(hWnd, WM_USER, 0x5a5a5a5a, 0);
 	}
 
 	if (process.locate==LOCATE_INIT || process.locate==LOCATE_RIP)
@@ -2239,9 +2218,9 @@ LRESULT CALLBACK Delay(HWND hDelayDlg, UINT message, WPARAM wParam, LPARAM lPara
 		case WM_COMMAND:
 			if (LOWORD(wParam)==IDOK || LOWORD(wParam)==IDCANCEL) 
 			{
-				SoundDelay[File_Limit] = GetDlgItemInt(hDelayDlg, IDC_DELAY, NULL, true);
-				if (abs(SoundDelay[File_Limit]) > 10000000)
-					SoundDelay[File_Limit] = 0;
+				SoundDelay[NumLoadedFiles] = GetDlgItemInt(hDelayDlg, IDC_DELAY, NULL, true);
+				if (abs(SoundDelay[NumLoadedFiles]) > 10000000)
+					SoundDelay[NumLoadedFiles] = 0;
 
 				EndDialog(hDelayDlg, 0);
 				return true;
@@ -2481,15 +2460,15 @@ LRESULT CALLBACK SetPids(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPara
 					sscanf(buf, "%x", &MPEG2_Transport_AudioPID);
 					EndDialog(hDialog, 0);
 					Recovery();
-					if (File_Limit)
+					if (NumLoadedFiles)
 					{
 						FileLoadedEnables();
-						process.rightfile = File_Limit-1;
-						process.rightlba = (int)(process.length[File_Limit-1]/BUFFER_SIZE);
+						process.rightfile = NumLoadedFiles-1;
+						process.rightlba = (int)(Infilelength[NumLoadedFiles-1]/BUFFER_SIZE);
 
-						process.end = process.total - BUFFER_SIZE;
-						process.endfile = File_Limit - 1;
-						process.endloc = (process.length[File_Limit-1]/BUFFER_SIZE - 1)*BUFFER_SIZE;
+						process.end = Infiletotal - BUFFER_SIZE;
+						process.endfile = NumLoadedFiles - 1;
+						process.endloc = (Infilelength[NumLoadedFiles-1]/BUFFER_SIZE - 1)*BUFFER_SIZE;
 
 						process.locate = LOCATE_INIT;
 
@@ -2591,10 +2570,10 @@ bool PopFileDlg(PTSTR pstrFileName, HWND hOwner, int Status)
 		case OPEN_VOB:
 			ofn.nFilterIndex = 4;
 			szFilter = \
-				TEXT ("*.vob\0*.vob\0") \
-				TEXT ("*.mpg, *.mpeg, *.m2v\0*.mpg;*.mpeg;*.m2v\0") \
-				TEXT ("*.tp, *.ts, *.trp\0*.tp;*.ts;*.trp\0") \
-				TEXT ("*.vob, *.mpg, *.mpeg, *.m2v, *.tp, *.ts, *.trp\0*.vob;*.mpg;*.mpeg;*.m2v;*.tp;*.ts;*.trp\0") \
+				TEXT ("vob\0*.vob\0") \
+				TEXT ("mpg, mpeg, m2v\0*.mpg;*.mpeg;*.m2v\0") \
+				TEXT ("tp, ts, trp, pva\0*.tp;*.ts;*.trp;*.pva\0") \
+				TEXT ("vob, mpg, mpeg, m2v, tp, ts, trp, pva\0*.vob;*.mpg;*.mpeg;*.m2v;*.tp;*.ts;*.trp;*.pva\0") \
 				TEXT ("All Files (*.*)\0*.*\0");
 			break;
 
@@ -2992,17 +2971,17 @@ static void Recovery()
 
 	SetWindowText(hWnd, "DGIndex");
 
-	if (File_Limit)
+	if (NumLoadedFiles)
 	{
 		ZeroMemory(&process, sizeof(PROCESS));
 		process.trackright = TRACK_PITCH;
 
 		Display_Flag = true;
 
-		for (i=0; i<File_Limit; i++)
+		for (i=0, Infiletotal = 0; i<NumLoadedFiles; i++)
 		{
-			process.length[i] = _filelengthi64(Infile[i]);
-			process.total += process.length[i];
+			Infilelength[i] = _filelengthi64(Infile[i]);
+			Infiletotal += Infilelength[i];
 		}
 	}
 
@@ -3251,7 +3230,10 @@ static void FileLoadedEnables(void)
 {
 	// Main menu.
 	EnableMenuItem(hMenu, 0, MF_BYPOSITION | MF_ENABLED);
-	EnableMenuItem(hMenu, 1, MF_BYPOSITION | MF_ENABLED);
+	if (SystemStream_Flag == 2)
+		EnableMenuItem(hMenu, 1, MF_BYPOSITION | MF_ENABLED);
+	else
+		EnableMenuItem(hMenu, 1, MF_BYPOSITION | MF_GRAYED);
 	EnableMenuItem(hMenu, 2, MF_BYPOSITION | MF_ENABLED);
 	EnableMenuItem(hMenu, 3, MF_BYPOSITION | MF_ENABLED);
 	EnableMenuItem(hMenu, 4, MF_BYPOSITION | MF_ENABLED);

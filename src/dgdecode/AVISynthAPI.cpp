@@ -8,14 +8,14 @@
  *
  *	based of the intial MPEG2Dec Avisytnh API Copyright (C) Mathias Born - May 2001
  *
- *  This file is part of MPEG2Dec3, a free MPEG-2 decoder
+ *  This file is part of DGMPGDec, a free MPEG-2 decoder
  *	
- *  MPEG2Dec3 is free software; you can redistribute it and/or modify
+ *  DGMPGDec is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
  *   
- *  MPEG2Dec3 is distributed in the hope that it will be useful,
+ *  DGMPGDec is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
@@ -28,11 +28,12 @@
 
 #include "postprocess.h"
 #include "AvisynthAPI.h"
-
-//#include <memory.h>
+#include "utilities.h"
 #include <string.h>
 
-MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int moderate_h, int moderate_v, bool showQ, bool fastMC, const char* _cpu2, bool _info, bool _upConv, IScriptEnvironment* env)
+#define VERSION "DGDecode 1.2.1"
+
+MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int moderate_h, int moderate_v, bool showQ, bool fastMC, const char* _cpu2, int _info, bool _upConv, bool _i420, IScriptEnvironment* env)
 {
 	CheckCPU();
 
@@ -54,8 +55,10 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
 	m_decoder.showQ = showQ;
 	m_decoder.fastMC = fastMC;
 	m_decoder.upConv = _upConv;
+	m_decoder.i420 = _i420;
 	m_decoder.moderate_h = moderate_h;
 	m_decoder.moderate_v = moderate_v;
+	m_decoder.maxquant = m_decoder.minquant = m_decoder.avgquant = 0;
 
 	if (ovr_idct > 7) 
 	{
@@ -76,7 +79,13 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
 	memset(&vi, 0, sizeof(vi));
 	vi.width = m_decoder.Clip_Width;
 	vi.height = m_decoder.Clip_Height;
-	if (m_decoder.chroma_format == 1 && !_upConv) vi.pixel_type = VideoInfo::CS_I420;
+	if (m_decoder.chroma_format == 1 && !_upConv)
+	{
+		if (m_decoder.i420 == true)
+			vi.pixel_type = VideoInfo::CS_I420;
+		else
+			vi.pixel_type = VideoInfo::CS_YV12;
+	}
 	else if (m_decoder.chroma_format == 1 && _upConv) vi.pixel_type = VideoInfo::CS_YUY2;
 	else if (m_decoder.chroma_format == 2) vi.pixel_type = VideoInfo::CS_YUY2;
 	else env->ThrowError("MPEG2Source:  currently unsupported input color format (4:4:4)");
@@ -129,8 +138,6 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
 		if (bufY == NULL || bufU == NULL || bufV == NULL)
 			env->ThrowError("MPEG2Source:  malloc failure (bufY, bufU, bufV)!");
 	}
-
-	if (m_decoder.info) m_decoder.Info_Store.frame = m_decoder.Info_Store.tref_start = -1;
 }
 
 MPEG2Source::~MPEG2Source()
@@ -221,6 +228,11 @@ void MPEG2Source::override(int ovr_idct)
 
 PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
 {
+	int gop, pct;
+	char Matrix_s[40];
+	unsigned int raw;
+	unsigned int hint;
+
     PVideoFrame frame = env->NewVideoFrame(vi);
 
 	if (m_decoder.chroma_format == 1 && !m_decoder.upConv) // YV12
@@ -266,46 +278,21 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
 			frame->GetPitch(),vi.width,vi.height);
 	}
 
-	if (m_decoder.info) // info output, just uses ApplyMessage() from AviSynth
+	if (m_decoder.info != 0)
 	{
-		int gop, gframe, avg, min, max, tframe, adjust;
-		char ftype_out;
-		bool ps, pf, cgop;
-		char Matrix_s[40];
-		int f1 = max(m_decoder.FrameList[n]->bottom, m_decoder.FrameList[n]->top);
+		raw = max(m_decoder.FrameList[n].bottom, m_decoder.FrameList[n].top);
+		if (raw < (int)m_decoder.BadStartingFrames) raw = m_decoder.BadStartingFrames;
 
-		if (f1 < (int)m_decoder.BadStartingFrames) f1 = m_decoder.BadStartingFrames;
-		for (gop=0; gop<(int)m_decoder.VF_GOPLimit-1; gop++)
+		for (gop = 0; gop < (int) m_decoder.VF_GOPLimit - 1; gop++)
 		{
-			if (f1 >= (int)m_decoder.GOPList[gop]->number && f1 < (int)m_decoder.GOPList[gop+1]->number)
+			if (raw >= (int)m_decoder.GOPList[gop]->number && raw < (int)m_decoder.GOPList[gop+1]->number)
+			{
 				break;
+			}
 		}
-		gframe = m_decoder.GOPList[gop]->number;
-		if (f1 < m_decoder.Info_Store.frame) 
-		{
-			adjust = m_decoder.Info_StoreP.tref_start;
-			avg = m_decoder.Info_StoreP.avgq[f1-gframe+adjust];
-			min = m_decoder.Info_StoreP.minq[f1-gframe+adjust];
-			max = m_decoder.Info_StoreP.maxq[f1-gframe+adjust];
-			ftype_out = m_decoder.Info_StoreP.ftype[f1-gframe+adjust] == I_TYPE ? 'I' : m_decoder.Info_StoreP.ftype[f1-gframe+adjust] == B_TYPE ? 'B' : 'P';
-			ps = m_decoder.Info_StoreP.info_ps == 1 ? true : false;
-			pf = m_decoder.Info_StoreP.info_pf[f1-gframe+adjust] == 1 ? true : false;
-			cgop = m_decoder.Info_StoreP.closed_gop;
-			tframe = m_decoder.Info_StoreP.frame;
-		}
-		else 
-		{
-			adjust = m_decoder.Info_Store.tref_start;
-			avg = m_decoder.Info_Store.avgq[f1-gframe+adjust];
-			min = m_decoder.Info_Store.minq[f1-gframe+adjust];
-			max = m_decoder.Info_Store.maxq[f1-gframe+adjust];
-			ftype_out = m_decoder.Info_Store.ftype[f1-gframe+adjust] == I_TYPE ? 'I' : m_decoder.Info_Store.ftype[f1-gframe+adjust] == B_TYPE ? 'B' : 'P';
-			ps = m_decoder.Info_Store.info_ps == 1 ? true : false;
-			pf = m_decoder.Info_Store.info_pf[f1-gframe+adjust] == 1 ? true : false;
-			cgop = m_decoder.Info_Store.closed_gop;
-			tframe = m_decoder.Info_Store.frame;
-		}
-		switch (m_decoder.Matrix)
+		pct = m_decoder.FrameList[raw].pct == I_TYPE ? 'I' : m_decoder.FrameList[raw].pct == B_TYPE ? 'B' : 'P';
+
+		switch (m_decoder.GOPList[gop]->matrix)
 		{
 		case 0:
 			strcpy(Matrix_s, "Forbidden");
@@ -335,38 +322,68 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
 			strcpy(Matrix_s, "Reserved");
 			break;
 		}
+	}
+
+	if (m_decoder.info == 1)
+	{
 		char msg1[1024];
-		sprintf(msg1,"Version = %s\n"  \
-					 "Source = %s\n"  \
-					 "Video Type = %s  (fps = %4.3f)\n"  \
-			         "Display Frame = %d\n"  \
-					 "Encoded Frame = %d (top) %d (bottom)\n"  \
- 					 "Frame Type = %c (%d)\n"  \
- 					 "Colorimetry = %s (%d)\n"  \
- 					 "Quant = %d/%d/%d (avg/min/max)\n"  \
-					 "GOP Num = %d (%d)  GOP Pos = %I64d\n",
-		"DGDecode 1.1.0",
+		sprintf(msg1,"%s (c) 2005 Donald A. Graft\n" \
+					 "---------------------------------------\n" \
+					 "Source:        %s\n" \
+					 "Frame Rate:    %3.3f fps %s\n" \
+			         "Field Order:   %s\n" \
+			         "Picture Size:  %d x %d\n" \
+ 					 "Aspect Ratio:  %s\n"  \
+					 "Progr Seq:     %s\n" \
+					 "GOP Number:    %d (%d)  GOP Pos = %I64d\n" \
+					 "Closed GOP:    %s\n" \
+					 "Display Frame: %d\n" \
+					 "Encoded Frame: %d (top) %d (bottom)\n" \
+ 					 "Frame Type:    %c (%d)\n" \
+					 "Progr Frame:   %s\n" \
+ 					 "Colorimetry:   %s (%d)\n" \
+ 					 "Quants:        %d/%d/%d (avg/min/max)\n",
+		VERSION,
  		m_decoder.Infilename[m_decoder.GOPList[gop]->file],
-		m_decoder.VF_FrameRate == 25000 ? "PAL" : "NTSC", m_decoder.VF_FrameRate / 1000.0f,
-		n,
-		m_decoder.FrameList[n]->top, m_decoder.FrameList[n]->bottom,
-		ftype_out, f1,
-		Matrix_s, m_decoder.Matrix,
-		avg, min, max,
-		gop, tframe, m_decoder.GOPList[gop]->position);
-		char msg2[1024];
-		sprintf(msg2,"Closed GOP = %s\n"  \
- 					 "Aspect Ratio = %s\n"  \
-					 "Progressive Frame =  %s\n"  \
-					 "Progressive Seq = %s\n"  \
-			         "Field Order = %s\n",
-		cgop ? "TRUE" : "FALSE",
+		m_decoder.VF_FrameRate / 1000.0f, m_decoder.VF_FrameRate == 25000 ? "(PAL)" : m_decoder.VF_FrameRate == 29970 ? "(NTSC)" : "", 
+		m_decoder.Field_Order == 1 ? "Top Field First" : "Bottom Field First",
+		m_decoder.Coded_Picture_Width, m_decoder.Coded_Picture_Height,
 		m_decoder.Aspect_Ratio,
-		pf ? "TRUE" : "FALSE",
-		ps ? "TRUE" : "FALSE",
-		m_decoder.Field_Order == 1 ? "TFF" : "BFF");
-		strcat(msg1,msg2);
-		ApplyMessage(&frame, vi, msg1, 170, 0xFFFF00, 0x0, 0x0, env);
+		m_decoder.GOPList[gop]->progressive ? "True" : "False",
+		gop, m_decoder.GOPList[gop]->number, m_decoder.GOPList[gop]->position,
+		m_decoder.GOPList[gop]->closed ? "True" : "False",
+		n,
+		m_decoder.FrameList[n].top, m_decoder.FrameList[n].bottom,
+		pct, raw,
+		m_decoder.FrameList[raw].pf ? "True" : "False",
+		Matrix_s, m_decoder.GOPList[gop]->matrix,
+		m_decoder.avgquant, m_decoder.minquant, m_decoder.maxquant);
+		ApplyMessage(&frame, vi, msg1, 150, 0xdfffbf, 0x0, 0x0, env);
+	}
+	else if (m_decoder.info == 2)
+	{
+		dprintf("DGDecode: DGDecode %s (c) 2005 Donald A. Graft\n", VERSION);
+		dprintf("DGDecode: Source:            %s\n", m_decoder.Infilename[m_decoder.GOPList[gop]->file]);
+		dprintf("DGDecode: Frame Rate:        %3.3f fps %s\n", m_decoder.VF_FrameRate / 1000.0f, m_decoder.VF_FrameRate == 25000 ? "(PAL)" : m_decoder.VF_FrameRate == 29970 ? "(NTSC)" : "");
+		dprintf("DGDecode: Field Order:       %s\n", m_decoder.Field_Order == 1 ? "Top Field First" : "Bottom Field First");
+		dprintf("DGDecode: Picture Size:      %d x %d\n", m_decoder.Coded_Picture_Width, m_decoder.Coded_Picture_Height);
+		dprintf("DGDecode: Aspect Ratio:      %s\n", m_decoder.Aspect_Ratio);
+		dprintf("DGDecode: Progressive Seq:   %s\n", m_decoder.GOPList[gop]->progressive ? "True" : "False");
+		dprintf("DGDecode: GOP Number:        %d (%d)  GOP Pos = %I64d\n", gop, m_decoder.GOPList[gop]->number, m_decoder.GOPList[gop]->position);
+		dprintf("DGDecode: Closed GOP:        %s\n", m_decoder.GOPList[gop]->closed ? "True" : "False");
+		dprintf("DGDecode: Display Frame:     %d\n", n);
+		dprintf("DGDecode: Encoded Frame:     %d (top) %d (bottom)\n", m_decoder.FrameList[n].top, m_decoder.FrameList[n].bottom);
+		dprintf("DGDecode: Frame Type:        %c (%d)\n", pct, raw);
+		dprintf("DGDecode: Progressive Frame: %s\n", m_decoder.FrameList[raw].pf ? "True" : "False");
+		dprintf("DGDecode: Colorimetry:       %s (%d)\n", Matrix_s, m_decoder.GOPList[gop]->matrix);
+		dprintf("DGDecode: Quants:            %d/%d/%d (avg/min/max)\n", m_decoder.avgquant, m_decoder.minquant, m_decoder.maxquant);
+	}
+	else if (m_decoder.info == 3)
+	{
+		hint = 0;
+		if (m_decoder.FrameList[raw].pf == 1) hint |= PROGRESSIVE;
+		hint |= ((m_decoder.GOPList[gop]->matrix & 7) << COLORIMETRY_SHIFT);
+		PutHintingData(frame->GetWritePtr(PLANAR_Y), hint);
 	}
 
 	return frame;
@@ -1238,9 +1255,9 @@ PVideoFrame __stdcall BlindPP::GetFrame(int n, IScriptEnvironment* env)
 	{
 		uc* src[3];
 		uc* dst[3];
-		src[0] = cf->GetWritePtr(PLANAR_Y);
-		src[1] = cf->GetWritePtr(PLANAR_U);
-		src[2] = cf->GetWritePtr(PLANAR_V);
+		src[0] = (uc*) cf->GetReadPtr(PLANAR_Y);
+		src[1] = (uc*) cf->GetReadPtr(PLANAR_U);
+		src[2] = (uc*) cf->GetReadPtr(PLANAR_V);
 		dst[0] = dstf->GetWritePtr(PLANAR_Y);
 		dst[1] = dstf->GetWritePtr(PLANAR_U);
 		dst[2] = dstf->GetWritePtr(PLANAR_V);
@@ -1359,6 +1376,169 @@ xloop:
 	}
 }
 
+Deblock::Deblock(PClip _child, int q, int aOff, int bOff, bool _mmx, bool _isse,
+                 IScriptEnvironment* env) :
+GenericVideoFilter(_child)
+{
+    nQuant = sat(q, 0, 51);
+    nAOffset = sat(aOff, -nQuant, 51 - nQuant);
+    nBOffset = sat(bOff, -nQuant, 51 - nQuant);
+    nWidth = vi.width;
+    nHeight = vi.height;
+
+    if ( !vi.IsYV12() )
+        env->ThrowError("Deblock : need YV12 input");
+    if (( nWidth & 7 ) || ( nHeight & 7 ))
+        env->ThrowError("Deblock : width and height must be mod 8");
+}
+
+Deblock::~Deblock()
+{
+}
+
+const int alphas[52] = {
+    0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 4, 4,
+    5, 6, 7, 8, 9, 10,
+    12, 13, 15, 17, 20,
+    22, 25, 28, 32, 36,
+    40, 45, 50, 56, 63, 
+    71, 80, 90, 101, 113,
+    127, 144, 162, 182,
+    203, 226, 255, 255
+};
+
+const int betas[52] = {
+    0, 0, 0, 0, 0, 0, 
+    0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 2, 2,
+    2, 3, 3, 3, 3, 4,
+    4, 4, 6, 6, 
+    7, 7, 8, 8, 9, 9,
+    10, 10, 11, 11, 12,
+    12, 13, 13, 14, 14, 
+    15, 15, 16, 16, 17, 
+    17, 18, 18
+};
+
+const int cs[52] = {
+    0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 
+    0, 0, 0, 0, 0, 0,
+    0, 0, 0, 1, 1, 1, 
+    1, 1, 1, 1, 1, 1, 
+    1, 2, 2, 2, 2, 3, 
+    3, 3, 4, 4, 5, 5,
+    6, 7, 8, 8, 10, 
+    11, 12, 13, 15, 17
+};
+
+
+
+void Deblock::DeblockPicture(unsigned char *srcp, int srcPitch, int w, int h,
+                             int q, int aOff, int bOff)
+{
+    int indexa, indexb;
+    for ( int j = 0; j < h; j += 4 )
+    {
+        for ( int i = 0; i < w; i += 4 )
+        {
+            indexa = sat(q + aOff, 0, 51);
+            indexb = sat(q + bOff, 0, 51);
+            if ( j > 0 )
+                DeblockHorEdge(srcp + i, srcPitch, indexa, indexb);
+            if ( i > 0 )
+                DeblockVerEdge(srcp + i, srcPitch, indexa, indexb);
+        }
+        srcp += 4 * srcPitch;
+    }
+}
+
+void Deblock::DeblockHorEdge(unsigned char *srcp, int srcPitch, int ia, int ib)
+{
+    int alpha = alphas[ia];
+    int beta = betas[ib];
+    int c, c0 = cs[ia];
+    unsigned char *sq0 = srcp;
+    unsigned char *sq1 = srcp + srcPitch;
+    unsigned char *sq2 = srcp + 2 * srcPitch;
+    unsigned char *sp0 = srcp - srcPitch;
+    unsigned char *sp1 = srcp - 2 * srcPitch;
+    unsigned char *sp2 = srcp - 3 * srcPitch;
+    int delta, ap, aq, deltap1, deltaq1;
+
+    for ( int i = 0; i < 4; i ++ )
+    {
+        if (( abs(sp0[i] - sq0[i]) < alpha ) && ( abs(sp1[i] - sp0[i]) < beta ) && ( abs(sq0[i] - sq1[i]) < beta ))
+        {
+            ap = abs(sp2[i] - sp0[i]);
+            aq = abs(sq2[i] - sq0[i]);
+            c = c0;
+            if ( aq < beta ) c++;
+            if ( ap < beta ) c++;
+            delta = sat((((sq0[i] - sp0[i]) << 2) + (sp1[i] - sq1[i]) + 4) >> 3, -c, c);
+            deltap1 = sat((sp2[i] + ((sp0[i] + sq0[i] + 1) >> 1) - (sp1[i] << 1)) >> 1, -c0, c0);
+            deltaq1 = sat((sq2[i] + ((sp0[i] + sq0[i] + 1) >> 1) - (sq1[i] << 1)) >> 1, -c0, c0);
+            sp0[i] = (unsigned char)sat(sp0[i] + delta, 0, 255);
+            sq0[i] = (unsigned char)sat(sq0[i] - delta, 0, 255);
+            if ( ap < beta )
+                sp1[i] = (unsigned char)(sp1[i] + deltap1);
+            if ( aq < beta )
+                sq1[i] = (unsigned char)(sq1[i] + deltaq1);
+        }
+    }
+}
+
+void Deblock::DeblockVerEdge(unsigned char *srcp, int srcPitch, int ia, int ib)
+{
+    int alpha = alphas[ia];
+    int beta = betas[ib];
+    int c, c0 = cs[ia];
+    unsigned char *s = srcp;
+
+    int delta, ap, aq, deltap1, deltaq1;
+
+    for ( int i = 0; i < 4; i ++ )
+    {
+        if (( abs(s[0] - s[-1]) < alpha ) && ( abs(s[1] - s[0]) < beta ) && ( abs(s[-1] - s[-2]) < beta ))
+        {
+            ap = abs(s[2] - s[0]);
+            aq = abs(s[-3] - s[-1]);
+            c = c0;
+            if ( aq < beta ) c++;
+            if ( ap < beta ) c++;
+            delta = sat((((s[0] - s[-1]) << 2) + (s[-2] - s[1]) + 4) >> 3, -c, c);
+            deltaq1 = sat((s[2] + ((s[0] + s[-1] + 1) >> 1) - (s[1] << 1)) >> 1, -c0, c0);
+            deltap1 = sat((s[-3] + ((s[0] + s[-1] + 1) >> 1) - (s[-2] << 1)) >> 1, -c0, c0);
+            s[0] = (unsigned char)sat(s[0] - delta, 0, 255);
+            s[-1] = (unsigned char)sat(s[-1] + delta, 0, 255);
+            if ( ap < beta )
+                s[1] = (unsigned char)(s[1] + deltaq1);
+            if ( aq < beta )
+                s[-2] = (unsigned char)(s[-2] + deltap1);
+        }
+        s += srcPitch;
+    }
+}
+
+
+
+PVideoFrame __stdcall Deblock::GetFrame(int n, IScriptEnvironment *env)
+{
+    PVideoFrame src = child->GetFrame(n, env);
+    env->MakeWritable(&src);
+
+    DeblockPicture(YWPLAN(src), YPITCH(src), nWidth, nHeight,
+                   nQuant, nAOffset, nBOffset);
+    DeblockPicture(UWPLAN(src), UPITCH(src), nWidth / 2, nHeight / 2,
+                   nQuant, nAOffset, nBOffset);
+    DeblockPicture(VWPLAN(src), VPITCH(src), nWidth / 2, nHeight / 2,
+                   nQuant, nAOffset, nBOffset);
+
+    return src;
+}
+
 AVSValue __cdecl Create_MPEG2Source(AVSValue args, void*, IScriptEnvironment* env) 
 {
 //	char path[1024];
@@ -1373,8 +1553,9 @@ AVSValue __cdecl Create_MPEG2Source(AVSValue args, void*, IScriptEnvironment* en
 	bool showQ = false;
 	bool fastMC = false;
 	char cpu2[255];
-	bool info = false;
+	int info = 0;
 	bool upConv = false;
+	bool i420 = false;
 
 	/* Based on D.Graft Msharpen default files code */
 	/* Load user defaults if they exist. */ 
@@ -1430,8 +1611,9 @@ if (strncmp(buf, name, len) == 0) \
 				LOADBOOL(showQ,"showQ=",6)
 				LOADBOOL(fastMC,"fastMC=",7)
 				LOADSTR(cpu2,"cpu2=",5)
-				LOADBOOL(info,"info=",5);
+				LOADINT(info,"info=",5);
 				LOADBOOL(upConv,"upConv=",7);
+				LOADBOOL(i420,"i420=",5);
 			}
 		}
 	}
@@ -1455,8 +1637,9 @@ if (strncmp(buf, name, len) == 0) \
 										args[6].AsBool(showQ),
 										args[7].AsBool(fastMC),
 										args[8].AsString(cpu2),
-										args[9].AsBool(info),
+										args[9].AsInt(info),
 										args[10].AsBool(upConv),
+										args[11].AsBool(i420),
 										env );
 	// Only bother invokeing crop if we have to
 	if ( dec->m_decoder.Clip_Top    || 
@@ -1497,12 +1680,25 @@ AVSValue __cdecl Create_BlindPP(AVSValue args, void* user_data, IScriptEnvironme
 	return new BlindPP(args,env);	
 }
 
+AVSValue __cdecl Create_Deblock(AVSValue args, void* user_data, IScriptEnvironment* env)
+{
+	return new Deblock(
+		args[0].AsClip(),
+      args[1].AsInt(25),
+      args[2].AsInt(0),
+      args[3].AsInt(0),
+		args[4].AsBool(true),
+      args[5].AsBool(true),
+    	env);
+}
+
 extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit2(IScriptEnvironment* env) {
-	env->AddFunction("MPEG2Source", "[d2v]s[cpu]i[idct]i[iPP]b[moderate_h]i[moderate_v]i[showQ]b[fastMC]b[cpu2]s[info]b[upConv]b", Create_MPEG2Source, 0);
+	env->AddFunction("MPEG2Source", "[d2v]s[cpu]i[idct]i[iPP]b[moderate_h]i[moderate_v]i[showQ]b[fastMC]b[cpu2]s[info]i[upConv]b[i420]b", Create_MPEG2Source, 0);
     env->AddFunction("LumaFilter", "c[lumoff]i[lumgain]f", Create_LumaFilter, 0);
     env->AddFunction("YV12toRGB24", "c[interlaced]b[TVscale]b", Create_YV12toRGB24, 0);
     env->AddFunction("YV12toYUY2", "c[interlaced]b", Create_YV12toYUY2, 0);
     env->AddFunction("BlindPP", "c[quant]i[cpu]i[cpu2]s[iPP]b[moderate_h]i[moderate_v]i", Create_BlindPP, 0);
+    env->AddFunction("Deblock", "c[quant]i[aOffset]i[bOffset]i[mmx]b[isse]b", Create_Deblock, 0);
     return 0;
 }
 
@@ -1528,7 +1724,7 @@ MPEG2Source::MPEG2Source(const char* d2v)
 	int moderate_v = 40;
 	bool showQ = false;
 	bool fastMC = false;
-	bool info = false;
+	int info = 0;
 
 	unsigned char* buffer = NULL;
 	unsigned char* picture = NULL;
@@ -1548,10 +1744,11 @@ MPEG2Source::MPEG2Source(const char* d2v)
 
 	ovr_idct = idct;
 	m_decoder.iPP = iPP;
-	m_decoder.info = false;
+	m_decoder.info = 0;
 	m_decoder.showQ = showQ;
 	m_decoder.fastMC = fastMC;
 	m_decoder.upConv = false;
+	m_decoder.i420 = false;
 
 	if (ovr_idct > 7) 
 	{
@@ -1579,7 +1776,7 @@ MPEG2Source::MPEG2Source(const char* d2v)
 	memset(&vi, 0, sizeof(vi));
 	vi.width = m_decoder.Clip_Width;
 	vi.height = m_decoder.Clip_Height;
-	vi.pixel_type = VideoInfo::CS_I420;
+	vi.pixel_type = VideoInfo::CS_YV12;
 	vi.fps_numerator = m_decoder.VF_FrameRate;
 	vi.fps_denominator = 1000;
 	vi.num_frames = m_decoder.VF_FrameLimit;

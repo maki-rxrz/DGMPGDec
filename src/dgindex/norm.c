@@ -88,10 +88,13 @@ static void TwoPass(FILE *WaveIn, int WaveInPos, FILE *WaveOut, int WaveOutPos, 
 	if (pass)
 		fseek(WaveOut, WaveOutPos, SEEK_SET);
 
-	process.op = timeGetTime();
+	timing.op = timeGetTime();
 	
 	while (size > 0)
 	{
+		unsigned int elapsed, remain;
+		float percent;
+
 		rsize = (size >= NORM_SIZE ? NORM_SIZE : size);
 
 		fread(Norm_Buffer, rsize, 1, WaveIn);
@@ -110,20 +113,20 @@ static void TwoPass(FILE *WaveIn, int WaveInPos, FILE *WaveOut, int WaveOutPos, 
 
 		size -= rsize;
 
-		process.ed = timeGetTime();
-		process.elapsed = (process.ed-process.op)/1000;
-		process.percent = (float)(100.0*(maxsize-size)/maxsize);
-		process.remain = (int)((process.ed-process.op)*(100.0-process.percent)/process.percent)/1000;
+		timing.ed = timeGetTime();
+		elapsed = (timing.ed-timing.op)/1000;
+		percent = (float)(100.0*(maxsize-size)/maxsize);
+		remain = (int)((timing.ed-timing.op)*(100.0-percent)/percent)/1000;
 
 		if (Info_Flag)
 		{
-			sprintf(szBuffer, "%d:%02d:%02d", process.elapsed/3600, (process.elapsed%3600)/60, process.elapsed%60);
+			sprintf(szBuffer, "%d:%02d:%02d", elapsed/3600, (elapsed%3600)/60, elapsed%60);
 			SetDlgItemText(hDlg, IDC_ELAPSED, szBuffer);
 
-			sprintf(szBuffer, "%d:%02d:%02d", process.remain/3600, (process.remain%3600)/60, process.remain%60);
+			sprintf(szBuffer, "%d:%02d:%02d", remain/3600, (remain%3600)/60, remain%60);
 			SetDlgItemText(hDlg, IDC_REMAIN, szBuffer);
 		}
 
-		SendMessage(hTrack, TBM_SETPOS, (WPARAM)true, (int)(process.percent*TRACK_PITCH/100));
+		SendMessage(hTrack, TBM_SETPOS, (WPARAM)true, (int)(percent*TRACK_PITCH/100));
 	}
 }

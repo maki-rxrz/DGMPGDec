@@ -8,7 +8,7 @@
 // Usage: dgfix file.d2v
 // The corrected file will be file.d2v.fixed
 //
-// This works with DGMPGDec 1.0.0.
+// This works with DGMPGDec 1.2.1.
 
 #include <windows.h>
 #include <stdio.h>
@@ -17,12 +17,12 @@
 int main(int argc, char *argv[])
 {
 	FILE *fp, *wfp;
-	char line[1024], prev_line[1024], wfile[1024], *p, *q;
+	char line[2048], prev_line[2048], wfile[2048], *p, *q;
 	int val, mval, prev_val, mprev_val, fix;
 	bool first, found;
 	int D2Vformat = 0;
 
-	printf("DGFix 1.1.0 by Donald A. Graft\n\n");
+	printf("DGFix 1.2.1 by Donald A. Graft\n\n");
 	if (argc < 2)
 	{
 		printf("Usage: DGFix d2v_file\n");
@@ -74,19 +74,18 @@ int main(int argc, char *argv[])
 		while (*p++ != ' ');
 		while (*p++ != ' ');
 		while (*p++ != ' ');
-		if (D2Vformat > 0)
-		{
-			while (*p++ != ' ');
-			while (*p++ != ' ');
-		}
+		while (*p++ != ' ');
+		while (*p++ != ' ');
+		while (*p++ != ' ');
 		first = true;
-		while (*p >= '0' && *p <= '9')
+		while ((*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f'))
 		{
 			fix = -1;
 			sscanf(p, "%x", &val);
-			// Ignore the direct access bit.
-			mval = val & ~0x10;
-			if (prev_val >= 0) mprev_val = prev_val & ~0x10;
+			if (val == 0xff) break;
+			// Isolate the TFF/RFF bits.
+			mval = val & 0x3;
+			if (prev_val >= 0) mprev_val = prev_val & 0x3;
 			// Detect illegal transitions.
 			if (mval == 2 && mprev_val == 0)      fix = 1;
 			else if (mval == 3 && mprev_val == 0) fix = 1;
@@ -112,7 +111,7 @@ int main(int argc, char *argv[])
 				{
 					q = prev_line;
 					while (*q != '\n') q++;
-					while (*q < '0' || *q > '9') q--;
+					while (!((*q >= '0' && *q <= '9') || (*q >= 'a' && *q <= 'f'))) q--;
 				}
 				*q = fix + '0';
 				printf("corrected...\n");
@@ -127,10 +126,11 @@ int main(int argc, char *argv[])
 		}
 		fputs(prev_line, wfp);
 		strcpy(prev_line, line);
-	} while ((fgets(line, 1024, fp) != 0) && line[0] >= '0' && line[0] <= '9');
+	} while ((fgets(line, 2048, fp) != 0) &&
+			 ((line[0] >= '0' && line[0] <= '9') || (line[0] >= 'a' && line[0] <= 'f')));
 	fputs(prev_line, wfp);
 	fputs(line, wfp);
-	while (fgets(line, 1024, fp) != 0) fputs(line, wfp);
+	while (fgets(line, 2048, fp) != 0) fputs(line, wfp);
 	fclose(fp);
 	fclose(wfp);
 	if (found == false)

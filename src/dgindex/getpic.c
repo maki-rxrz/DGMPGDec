@@ -76,20 +76,34 @@ struct ENTRY
 	__int64 position;
 	int pct;
 	int trf;
+	int pf;
 	int closed;
 	int vob_id;
 	int cell_id;
 } gop_entries[MAX_PICTURES_PER_GOP];
 int gop_entries_ndx = 0;
 
+char GopLine[2048];
+
 void WriteGopLine(int finish)
 {
-	char buf[1024], temp[255], position[255];
-	int m, r, ref;
+	char temp[8], position[255];
+	int m, r;
 	int had_P = 0;
-	int mark = 0x10;
+	int mark = 0x80;
+    struct ENTRY ref;
+	struct ENTRY entries[MAX_PICTURES_PER_GOP];
+	unsigned int gop_marker = 0x800;
 
-	// Reorder trf's for display order.
+	// Write the first part of the GOP line to the D2V file.
+	if (closed_gop_prev == 1) gop_marker |= 0x400;
+	if (progressive_sequence_prev == 1) gop_marker |= 0x200;
+	_i64toa(gop_entries[0].position, position, 10);
+	sprintf(GopLine,"%03x %d %d %s %d %d",
+		    gop_marker, matrix_coefficients, d2v_forward.file, position,
+			gop_entries[0].vob_id, gop_entries[0].cell_id);
+
+	// Reorder frame bytes for display order.
 	for (m = 0, r = 0; m < gop_entries_ndx; m++)
 	{
 		// To speed up random access navigation, we mark frames that can
@@ -102,35 +116,33 @@ void WriteGopLine(int finish)
 		// they reference a frame in the previous GOP.
 		if (gop_entries[m].pct == I_TYPE)
 		{
-			ref = gop_entries[m].trf | mark;
+			gop_entries[m].trf |= mark;
+			ref = gop_entries[m];
 		}
 		else if (gop_entries[m].pct == P_TYPE)
 		{
-			gop_entries[r++].trf = ref;
-			ref = gop_entries[m].trf | mark;
+			entries[r++] = ref;
+			gop_entries[m].trf |= mark;
+			ref = gop_entries[m];
 			had_P = 1;
 		}
 		else if (gop_entries[m].pct == B_TYPE)
 		{
 			if (had_P || gop_entries[m].closed)
-				gop_entries[r++].trf = gop_entries[m].trf | mark;
-			else
-				gop_entries[r++].trf = gop_entries[m].trf;
+				gop_entries[m].trf |= mark;
+			entries[r++] = gop_entries[m];
 		}
 	}
-	gop_entries[r++].trf = ref;
+	entries[r++] = ref;
 
-	// Write the GOP line to the D2V file.
-	_i64toa(gop_entries[0].position, position, 10);
-	sprintf(buf,"7 %d %s %d %d", d2v_forward.file, position, gop_entries[0].vob_id, gop_entries[0].cell_id);
 	for (m = 0; m < gop_entries_ndx; m++)
 	{
-		sprintf(temp," %x", gop_entries[m].trf);
-		strcat(buf, temp);
+		sprintf(temp," %02x", entries[m].trf | (entries[m].pct << 4) | (entries[m].pf << 6));
+		strcat(GopLine, temp);
 	}
-	if (finish) strcat(buf, " 9\n");
-	else strcat(buf, "\n");
-	fprintf(D2VFile, "%s", buf);
+	if (finish) strcat(GopLine, " ff\n");
+	else strcat(GopLine, "\n");
+	fprintf(D2VFile, "%s", GopLine);
 	gop_entries_ndx = 0;
 }
 
@@ -156,6 +168,7 @@ void Decode_Picture()
 		}
 		gop_entries[gop_entries_ndx].lba = (int) d2v_current.lba;
 		gop_entries[gop_entries_ndx].position = d2v_current.position;
+		gop_entries[gop_entries_ndx].pf = progressive_frame;
 		gop_entries[gop_entries_ndx].pct = picture_coding_type;
 		gop_entries[gop_entries_ndx].trf = d2v_current.trf;
 		gop_entries[gop_entries_ndx].closed = closed_gop;
@@ -189,7 +202,7 @@ void Decode_Picture()
 						break;
 
 					default:
-						SetDlgItemText(hDlg, IDC_INFO, "P.E.!");
+						SetDlgItemText(hDlg, IDC_INFO, "picture error");
 						break;
 				}
 		}
@@ -308,7 +321,12 @@ static int slice(int MBAmax)
 			{
 resync:
 				if (Fault_Flag)
-					SetDlgItemText(hDlg, IDC_INFO, "V.E.!");
+				{
+					char fault[10];
+					sprintf(fault, "video error %d", Fault_Flag);
+					SetDlgItemText(hDlg, IDC_INFO, fault);
+					return -1;
+				}
 
 				Fault_Flag = 0;
 				return 0;	// trigger: go to next slice
@@ -337,8 +355,6 @@ resync:
 
 		/* advance to next macroblock */
 		MBA++; MBAinc--;
-
-		if (MBA>=MBAmax) return -1;		// all macroblocks decoded
 	}
 }
 

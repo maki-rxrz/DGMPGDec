@@ -1,0 +1,36 @@
+<html>
+<head>
+<title>Deblock</title>
+<link rel="stylesheet" type="text/css" href="avisynth.css">
+<!--
+Automatically generated, don't change:
+$Id: masktools.htm,v 1.1.1.1 2004/02/18 20:54:58 warpenterprises Exp $ 
+-->
+</head>
+<body>
+<h2>Deblock</h2>
+<b>author:</b> Manao
+<br><b>version:</b>     0.9.5
+<br><b>download:</b>  <a href="http://jourdan.madism.org/~manao/">http:/
+/jourdan.madism.org/~manao/</a><br>
+<b>category:</b>  Avisynth Plugin<br>
+<b>requirements:</b> YV12 Colorspace<br>
+<b>license:</b> This plugin is released under the GPL license. You must agree to the terms of 'Copying.txt' before using the plugin or its source code. 
+
+<h3>Function syntax</h3>
+
+<p><code>Deblock</code> (<var>clip, int quant, int aOffset, int bOffset</var>)</p>
+<p>It does a deblocking of the picture, using the deblocking filter of h264.</p>
+<p><var>quant</var> : the higher the quant, the stronger the deblocking. It can range from 0 to 51.</p>
+<p><var>aOffset</var> : quant modifier to the blocking detector threshold. Setting it higher means that more
+edges will be deblocked.</p>
+<p><var>bOffset</var> : another quant modifier, for block detecting and for deblocking's strength.
+There again, the higher, the stronger.</p>
+<p>Defaults are <var>quant</var> = 25, <var>aOffset</var> = <var>bOffset</var> = 0. If <var>quant</var> + 
+<var>aOffset</var> is less than 16, the filter does nothing at all. The same goes for <var>quant</var> +
+<var>bOffset</var>.</p>
+<p><var>bool mmx</var> : flag which allows you to disable mmx optimizations if set to false.
+Default is true. If your computer doesn't support mmx optimizations, it will be
+disabled by default anyway (and you won't be able to activate them).</p>
+<p><var>bool isse </var> : flag which allows you to disable isse optimizations. Default is
+true, and it behaves just like <var>mmx</var>.

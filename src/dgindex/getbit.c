@@ -39,13 +39,13 @@ int PTSDifference(unsigned int apts, unsigned int vpts, int *result)
 	if (apts > vpts)
 	{
 		diff = (apts - vpts) / 90;
-		if (diff > 5000) return 1;
+//		if (diff > 5000) return 1;
 		*result = diff;
 	}
 	else
 	{
 		diff = (vpts - apts) / 90;
-		if (diff > 5000) return 1;
+//		if (diff > 5000) return 1;
 		*result = -diff;
 	}
 	return 0;
@@ -54,7 +54,7 @@ int PTSDifference(unsigned int apts, unsigned int vpts, int *result)
 #define LOCATE												\
 while (Rdptr >= (Rdbfr + BUFFER_SIZE))						\
 {															\
-	Read = _donread(Infile[File_Flag], Rdbfr, BUFFER_SIZE);	\
+	Read = _donread(Infile[CurrentFile], Rdbfr, BUFFER_SIZE);	\
 	if (Read < BUFFER_SIZE) Next_File();					\
 	Rdptr -= BUFFER_SIZE;									\
 }
@@ -68,7 +68,7 @@ while (Rdptr >= (Rdbfr + BUFFER_SIZE))						\
 		{																		\
 			size = ac3_decode_data(Rdptr, BUFFER_SIZE+Rdbfr-Rdptr, size);		\
 			Packet_Length -= BUFFER_SIZE+Rdbfr-Rdptr;							\
-			Read = _donread(Infile[File_Flag], Rdbfr, BUFFER_SIZE);				\
+			Read = _donread(Infile[CurrentFile], Rdbfr, BUFFER_SIZE);				\
 			if (Read < BUFFER_SIZE) Next_File();								\
 			Rdptr = Rdbfr;														\
 		}																		\
@@ -88,7 +88,7 @@ while (Packet_Length > 0)													\
 	{																		\
 		fwrite(Rdptr, BUFFER_SIZE+Rdbfr-Rdptr, 1, ac3[This_Track].file);	\
 		Packet_Length -= BUFFER_SIZE+Rdbfr-Rdptr;							\
-		Read = _donread(Infile[File_Flag], Rdbfr, BUFFER_SIZE);				\
+		Read = _donread(Infile[CurrentFile], Rdbfr, BUFFER_SIZE);				\
 		if (Read < BUFFER_SIZE) Next_File();								\
 		Rdptr = Rdbfr;														\
 	}																		\
@@ -111,7 +111,7 @@ while (Packet_Length > 0)													\
 			memcpy(PCM_Buffer+size, Rdptr, BUFFER_SIZE+Rdbfr-Rdptr);	\
 			size += BUFFER_SIZE+Rdbfr-Rdptr;							\
 			Packet_Length -= BUFFER_SIZE+Rdbfr-Rdptr;					\
-			Read = _donread(Infile[File_Flag], Rdbfr, BUFFER_SIZE);		\
+			Read = _donread(Infile[CurrentFile], Rdbfr, BUFFER_SIZE);		\
 			if (Read < BUFFER_SIZE) Next_File();						\
 			Rdptr = Rdbfr;												\
 		}																\
@@ -131,14 +131,14 @@ while (Packet_Length > 0)													\
 	}																	\
 }
 
-#define DEMUX_MPA(fp)														\
+#define DEMUX_MPA_AAC(fp)														\
 while (Packet_Length > 0)													\
 {																			\
 	if (Packet_Length+Rdptr > BUFFER_SIZE+Rdbfr)							\
 	{																		\
 		fwrite(Rdptr, BUFFER_SIZE+Rdbfr-Rdptr, 1, (fp));					\
 		Packet_Length -= BUFFER_SIZE+Rdbfr-Rdptr;							\
-		Read = _donread(Infile[File_Flag], Rdbfr, BUFFER_SIZE);				\
+		Read = _donread(Infile[CurrentFile], Rdbfr, BUFFER_SIZE);				\
 		if (Read < BUFFER_SIZE) Next_File();								\
 		Rdptr = Rdbfr;														\
 	}																		\
@@ -157,7 +157,7 @@ while (Packet_Length > 0)													\
 	{																		\
 		fwrite(Rdptr, BUFFER_SIZE+Rdbfr-Rdptr, 1, dts[This_Track].file);	\
 		Packet_Length -= BUFFER_SIZE+Rdbfr-Rdptr;							\
-		Read = _donread(Infile[File_Flag], Rdbfr, BUFFER_SIZE);				\
+		Read = _donread(Infile[CurrentFile], Rdbfr, BUFFER_SIZE);			\
 		if (Read < BUFFER_SIZE) Next_File();								\
 		Rdptr = Rdbfr;														\
 	}																		\
@@ -191,10 +191,13 @@ unsigned int VideoPTS, AudioPTS;
 static unsigned char PCM_Buffer[BUFFER_SIZE];
 static short *ptrPCM_Buffer = (short*)PCM_Buffer;
 
+unsigned char *buffer_invalid;
+
 void Initialize_Buffer()
 {
 	Rdptr = Rdbfr + BUFFER_SIZE;
 	Rdmax = Rdptr;
+	buffer_invalid = (unsigned char *) 0xffffffff;
 
 	if (SystemStream_Flag)
 	{
@@ -238,7 +241,7 @@ void Initialize_Buffer()
 		if (temp + Rdptr > BUFFER_SIZE + Rdbfr)						\
 		{ 															\
 			temp  -= BUFFER_SIZE + Rdbfr - Rdptr;					\
-			Read = _donread(Infile[File_Flag], Rdbfr, BUFFER_SIZE);	\
+			Read = _donread(Infile[CurrentFile], Rdbfr, BUFFER_SIZE);	\
 			if (Read < BUFFER_SIZE) Next_File();					\
 			Rdptr = Rdbfr;											\
 		} 															\
@@ -285,6 +288,7 @@ typedef struct
 transport_packet tp_zeroed = { 0 };
 
 FILE *mpafp = NULL;
+FILE *mpvfp = NULL;
 
 // ATSC transport stream parser.
 // We ignore the 'continuity counter' because with some DTV
@@ -292,20 +296,22 @@ FILE *mpafp = NULL;
 void Next_Transport_Packet()
 {
 	static int i, Packet_Length, Packet_Header_Length, size;
-	static unsigned int code, This_Track, VOBCELL_Count, AC3_Track, MPA_Track;
-	__int64 PES_PTS;
+	static unsigned int code, flags, This_Track, VOBCELL_Count, AC3_Track, MPA_Track;
+	__int64 PES_PTS, PES_DTS;
+	unsigned int pts_stamp = 0, dts_stamp = 0;
 	int PTSDiff;
 	unsigned int bytes_left;
 	transport_packet tp;
 	unsigned int time, start;
+	double picture_period;
 
 	start = timeGetTime();
 	for (;;)
 	{
 		// Don't loop forever. If we don't get data
-		// in a reasonable time (3 secs) we exit.
+		// in a reasonable time (2 secs) we exit.
 		time = timeGetTime();
-		if (time - start > 3000)
+		if (time - start > 2000)
 		{
 			MessageBox(hWnd, "Cannot find audio or video data. Check your PIDs.",
 					   NULL, MB_OK | MB_ICONERROR);
@@ -331,7 +337,11 @@ void Next_Transport_Packet()
 
 		// Record the location of the start of the packet. This will be used
 		// for indexing when an I frame is detected.
-		PackHeaderPosition = _telli64(Infile[File_Flag]) - (__int64)BUFFER_SIZE + (__int64)Rdptr - (__int64)Rdbfr - 1;
+		if (D2V_Flag)
+		{
+			PackHeaderPosition = _telli64(Infile[CurrentFile])
+								 - (__int64)BUFFER_SIZE + (__int64)Rdptr - (__int64)Rdbfr - 1;
+		}
 		--Packet_Length; // swallow the sync_byte
 
 		code = Get_Short();
@@ -414,35 +424,47 @@ void Next_Transport_Packet()
 			}
 			else
 			{
-				// YES, pull out PTS 
-				//Packet_Length = Get_Short();
 				Get_Short(); // MPEG2-PES total Packet_Length
 				Get_Byte(); // skip a byte
-				code = Get_Byte();
+				flags = Get_Byte();
 				Packet_Header_Length = Get_Byte();
 				Packet_Length = Packet_Length - 5; // compensate the bytes we extracted
 	
-				// get PTS, and skip rest of PES-header
-				if (code>=0x80 && Packet_Header_Length > 4 && !Start_Flag) // Extension_flag ?
+				// Get timestamp, and skip rest of PES-header.
+				if ((flags & 0x80) && (Packet_Header_Length > 4))
 				{
-					code = Get_Byte();
-					PES_PTS = (code & 0x0e) << 29;
+					PES_PTS = (Get_Byte() & 0x0e) << 29;
 					PES_PTS |= (Get_Short() & 0xfffe) << 14;
 					PES_PTS |= (Get_Short()>>1) & 0x7fff;
-					VideoPTS = (unsigned int) (PES_PTS & 0xffffffff);
-					if (Frame_Rate)
+					pts_stamp = (unsigned int) (PES_PTS & 0xffffffff);
+					Packet_Length -= 5;
+					// DTS is not used. The code is here for analysis and debugging.
+					if ((flags & 0xc0) == 0xc0)
 					{
-						VideoPTS -= (int) ((LeadingBFrames * 90000) / Frame_Rate);
+						PES_DTS = (Get_Byte() & 0x0e) << 29;
+						PES_DTS |= (Get_Short() & 0xfffe) << 14;
+						PES_DTS |= (Get_Short()>>1) & 0x7fff;
+						dts_stamp = (unsigned int) (PES_DTS & 0xffffffff);
+						Packet_Length -= 5;
+						SKIP_TRANSPORT_PACKET_BYTES(Packet_Header_Length - 10)
 					}
-					Packet_Length = Packet_Length - 5;
-					SKIP_TRANSPORT_PACKET_BYTES( Packet_Header_Length-5 )
+					else
+						SKIP_TRANSPORT_PACKET_BYTES(Packet_Header_Length - 5)
 				}
 				else
-					SKIP_TRANSPORT_PACKET_BYTES( Packet_Header_Length )
+					SKIP_TRANSPORT_PACKET_BYTES(Packet_Header_Length);
+				if (!Start_Flag)
+				{
+					// Start_Flag becomes true after the first I frame.
+					// So VideoPTS will be left at the value corresponding to
+					// the first I frame.
+					VideoPTS = pts_stamp;
+				}
 			} // if ( code != 0x000001E0 )
 
 			Rdmax = Rdptr + Packet_Length;
-			Bitrate_Monitor += (Rdmax - Rdptr) >> 1;
+
+			Bitrate_Monitor += (Rdmax - Rdptr);
 			return;
 		}  // if ( (tp.pid == MPEG2_Transport_VideoPID ) ) 
 
@@ -452,9 +474,8 @@ void Next_Transport_Packet()
 				 (D2V_Flag || Decision_Flag) &&
 				 (MPEG2_Transport_AudioType == 3 || MPEG2_Transport_AudioType == 4 || MPEG2_Transport_AudioType == 0xffffffff)) 
 		{
-			// We are demuxing MPEG audio.
-			MPA_Track = 0;
-			Channel[MPA_Track] = FORMAT_MPA;
+			// Both MPEG and AAC audio come here. The sync word will be checked to
+			// distinguish between them.
 			if (mpafp)
 			{
 				if (tp.payload_unit_start_indicator)
@@ -477,7 +498,7 @@ void Next_Transport_Packet()
 						AudioPTS = (unsigned int) (PES_PTS & 0xffffffff);
 					}
 				}
-				DEMUX_MPA(mpafp);
+				DEMUX_MPA_AAC(mpafp);
 			}
 			else if (tp.payload_unit_start_indicator)
 			{
@@ -496,19 +517,77 @@ void Next_Transport_Packet()
 					PES_PTS |= (Get_Short()>>1) & 0x7fff;
 					Packet_Length = Packet_Length - 5;
 					SKIP_TRANSPORT_PACKET_BYTES(Packet_Header_Length-5)
-					// Now we're at the start of the audio.
 					AudioPTS = (unsigned int) (PES_PTS & 0xffffffff);
-					if (MPEG2_Transport_VideoPID == 0 || PTSDifference(AudioPTS, VideoPTS, &PTSDiff))
-						sprintf(szBuffer, "%s MPA PID %03x.mpa", szOutput, MPEG2_Transport_AudioPID);
+
+					// Now we're at the start of the audio.
+					// Find the audio header.
+					code = Get_Byte();
+					code = ((code & 0xff) << 8) | Get_Byte();
+					Packet_Length -= 2;
+					while ((code & 0xfff8) != 0xfff8 && Packet_Length > 0)
+					{
+						code = ((code & 0xff) << 8) | Get_Byte();
+						Packet_Length--;
+					}
+					if ((code & 0xfff8) != 0xfff8)
+					{
+						SKIP_TRANSPORT_PACKET_BYTES(Packet_Length);
+						continue;
+					}
+					// Found the audio header. Now check the layer field.
+					// For MPEG, layer is 1, 2, or 3. For AAC, it is 0.
+					// We demux the same for both; only the filename we create is different.
+					if (((code & 6) >> 1) == 0x00)
+					{
+						// AAC audio.
+						Channel[0] = FORMAT_AAC;
+
+						// Adjust the VideoPTS to account for frame reordering.
+						if (!PTSAdjustDone && StartTemporalReference != -1 && StartTemporalReference < 18)
+						{
+							PTSAdjustDone = 1;
+							picture_period = 1.0 / frame_rate;
+							if (picture_structure != FRAME_PICTURE)
+								picture_period /= 2;
+							VideoPTS -= (int) (StartTemporalReference * picture_period * 90000);
+						}
+
+						if (MPEG2_Transport_VideoPID == 0 || PTSDifference(AudioPTS, VideoPTS, &PTSDiff))
+							sprintf(szBuffer, "%s AAC PID %03x.aac", szOutput, MPEG2_Transport_AudioPID);
+						else
+							sprintf(szBuffer, "%s AAC PID %03x DELAY %dms.aac", szOutput, MPEG2_Transport_AudioPID, PTSDiff);
+					}
 					else
-						sprintf(szBuffer, "%s MPA PID %03x DELAY %dms.mpa", szOutput, MPEG2_Transport_AudioPID, PTSDiff);
+					{
+						// MPEG audio.
+						Channel[0] = FORMAT_MPA;
+
+						// Adjust the VideoPTS to account for frame reordering.
+						if (!PTSAdjustDone && StartTemporalReference != -1 && StartTemporalReference < 18)
+						{
+							PTSAdjustDone = 1;
+							picture_period = 1.0 / frame_rate;
+							if (picture_structure != FRAME_PICTURE)
+								picture_period /= 2;
+							VideoPTS -= (int) (StartTemporalReference * picture_period * 90000);
+						}
+
+						if (MPEG2_Transport_VideoPID == 0 || PTSDifference(AudioPTS, VideoPTS, &PTSDiff))
+							sprintf(szBuffer, "%s MPA PID %03x.mpa", szOutput, MPEG2_Transport_AudioPID);
+						else
+							sprintf(szBuffer, "%s MPA PID %03x DELAY %dms.mpa", szOutput, MPEG2_Transport_AudioPID, PTSDiff);
+					}
 					mpafp = fopen(szBuffer, "wb");
 					if (mpafp == NULL)
 					{
 						// Cannot open the output file, Disable further audio processing.
 						MPEG2_Transport_AudioType = 0xff;
+						SKIP_TRANSPORT_PACKET_BYTES(Packet_Length);
+						continue;
 					}
-					else DEMUX_MPA(mpafp);
+					Packet_Length += 2;
+					Rdptr -= 2;
+					DEMUX_MPA_AAC(mpafp);
 				}
 			}
 		}
@@ -571,7 +650,7 @@ void Next_Transport_Packet()
 			if (!ac3[AC3_Track].rip &&
 				(Start_Flag || MPEG2_Transport_VideoPID == 0) &&   // User sets video pid 0 for audio only.
 				!Channel[AC3_Track] && 
-				( tp.random_access_indicator || tp.payload_unit_start_indicator) 
+				(tp.random_access_indicator || tp.payload_unit_start_indicator) 
 				&& Packet_Length > 5 )
 			{
 
@@ -632,6 +711,17 @@ void Next_Transport_Packet()
 						pcm.file = fopen(szBuffer, "wb");
 
 						StartWAV(pcm.file);
+
+						// Adjust the VideoPTS to account for frame reordering.
+						if (!PTSAdjustDone && StartTemporalReference != -1 && StartTemporalReference < 18)
+						{
+							PTSAdjustDone = 1;
+							picture_period = 1.0 / frame_rate;
+							if (picture_structure != FRAME_PICTURE)
+								picture_period /= 2;
+							VideoPTS -= (int) (StartTemporalReference * picture_period * 90000);
+						}
+
 						if (PTSDifference(AudioPTS, VideoPTS, &PTSDiff))
 							pcm.delay = 0;
 						else
@@ -676,6 +766,16 @@ void Next_Transport_Packet()
 					}
 					else if (Method_Flag == AUDIO_DEMUXALL || (Method_Flag==AUDIO_DEMUX && AC3_Track==Track_Flag))
 					{
+						// Adjust the VideoPTS to account for frame reordering.
+						if (!PTSAdjustDone && StartTemporalReference != -1 && StartTemporalReference < 18)
+						{
+							PTSAdjustDone = 1;
+							picture_period = 1.0 / frame_rate;
+							if (picture_structure != FRAME_PICTURE)
+								picture_period /= 2;
+							VideoPTS -= (int) (StartTemporalReference * picture_period * 90000);
+						}
+
 						if (MPEG2_Transport_VideoPID == 0 || PTSDifference(AudioPTS, VideoPTS, &PTSDiff))
 							sprintf(szBuffer, "%s AC3 PID %03x T%02d %sch %dKbps.ac3", szOutput, MPEG2_Transport_AudioPID, AC3_Track+1, 
 								AC3ModeDash[ac3[AC3_Track].mode], AC3Rate[ac3[AC3_Track].rate]);
@@ -724,16 +824,256 @@ void Next_Transport_Packet()
 	} // for(;;)
 } // Next_Transport_Packet()
 
+// PVA packet data structure.
+typedef struct
+{			
+	unsigned short sync_byte;
+	unsigned char stream_id;
+	unsigned char counter;
+	unsigned char reserved;
+	unsigned char flags;
+	unsigned short length;
+} pva_packet;
+
+// PVA transport stream parser.
+void Next_PVA_Packet()
+{
+	unsigned int Packet_Length;
+	unsigned int time, start;
+	pva_packet pva;
+	unsigned int code, PTS, PES_PTS, Packet_Header_Length;
+	int PTSDiff;
+	double picture_period;
+
+	start = timeGetTime();
+	for (;;)
+	{
+		// Don't loop forever. If we don't get data
+		// in a reasonable time (1 secs) we exit.
+		time = timeGetTime();
+		if (time - start > 2000)
+		{
+			MessageBox(hWnd, "Cannot find video data.", NULL, MB_OK | MB_ICONERROR);
+			ThreadKill();
+		}
+
+		// Search for a good sync.
+		while (true)
+		{
+			// Sync word is 0x4156.
+			if (Get_Byte() != 0x41) continue;
+			if (Get_Byte() != 0x56)
+			{
+				// This byte might be a 0x41, so back up by one.
+				Rdptr--;
+				continue;
+			}
+			// To protect against emulation of the sync word,
+			// also check that the stream says audio or video.
+			pva.stream_id = Get_Byte();
+			if (pva.stream_id != 0x01 && pva.stream_id != 0x02)
+			{
+				// This byte might be a 0x41, so back up by one.
+				Rdptr--;
+				continue;
+			}
+			break;
+		}
+
+		// Record the location of the start of the packet. This will be used
+		// for indexing when an I frame is detected.
+		if (D2V_Flag)
+		{
+			PackHeaderPosition = _telli64(Infile[CurrentFile])
+								 - (__int64)BUFFER_SIZE + (__int64)Rdptr - (__int64)Rdbfr - 3;
+		}
+
+		// Pick up the remaining packet header fields.
+		pva.counter = Get_Byte();
+		pva.reserved = Get_Byte();
+		pva.flags = Get_Byte();
+		pva.length = Get_Byte() << 8;
+		pva.length |= Get_Byte();
+		Packet_Length = pva.length;
+		Rdmax = Rdptr + Packet_Length;
+
+		// Any payload?
+		if (Packet_Length == 0 || pva.reserved != 0x55)
+			continue;  // No, try the next packet.
+
+		// Check stream id for video.
+		if (pva.stream_id == 1) 
+		{
+			// This is a video packet.
+			// Extract the PTS if it exists.
+			if (pva.flags & 0x10)
+			{
+				PTS = (int) ((Get_Byte() << 24) | (Get_Byte() << 16) | (Get_Byte() << 8) | Get_Byte());
+				Packet_Length -= 4;
+				if (pva.flags & 0x03)
+				{
+					// Suck up pre-bytes if any.
+					int i;
+					for (i = 0; i < (pva.flags & 0x03); i ++)
+						Get_Byte();
+					Packet_Length -= i;
+				}
+				if (!Start_Flag)
+				{
+					VideoPTS = PTS;
+				}
+			}
+
+			// Deliver the video to the ES parsing layer. 
+			Bitrate_Monitor += (Rdmax - Rdptr);
+			return;
+		}
+		
+		// Check stream id for audio.
+		else if ((Method_Flag == AUDIO_DEMUXALL || Method_Flag == AUDIO_DEMUX) &&
+				 Start_Flag &&
+				 pva.stream_id == 2 &&
+				 (D2V_Flag || Decision_Flag))
+		{
+			// This is an audio packet.
+			if (mpafp)
+			{
+				// For audio, this flag bit means an embedded audio PES packet starts
+				// immediately in this PVA packet.
+				if (pva.flags & 0x10)
+				{
+					Get_Short(); // start code and stream id
+					Get_Short();
+					Get_Short(); // packet length
+					Get_Byte(); // flags
+					code = Get_Byte(); // more flags
+					Packet_Header_Length = Get_Byte();
+					Packet_Length -= 9;
+					if (code & 0x80)
+					{
+						code = Get_Byte();
+						PES_PTS = (code & 0x0e) << 29;
+						PES_PTS |= (Get_Short() & 0xfffe) << 14;
+						PES_PTS |= (Get_Short()>>1) & 0x7fff;
+						Packet_Length = Packet_Length - 5;
+						SKIP_TRANSPORT_PACKET_BYTES(Packet_Header_Length-5)
+						AudioPTS = (unsigned int) (PES_PTS & 0xffffffff);
+					}
+				}
+				DEMUX_MPA_AAC(mpafp);
+			}
+			else if (pva.flags & 0x10)
+			{
+				Get_Short(); // start code
+				Get_Short(); // rest of start code and stream id
+				Get_Short(); // packet length
+				Get_Byte(); // flags
+				code = Get_Byte(); // more flags
+				Packet_Header_Length = Get_Byte();
+				Packet_Length -= 9;
+				if (code & 0x80)
+				{
+					code = Get_Byte();
+					PES_PTS = (code & 0x0e) << 29;
+					PES_PTS |= (Get_Short() & 0xfffe) << 14;
+					PES_PTS |= (Get_Short()>>1) & 0x7fff;
+					Packet_Length = Packet_Length - 5;
+					SKIP_TRANSPORT_PACKET_BYTES(Packet_Header_Length-5)
+					AudioPTS = (unsigned int) (PES_PTS & 0xffffffff);
+					// Now we're at the start of the audio.
+					// Find the audio header.
+					code = Get_Byte();
+					code = ((code & 0xff) << 8) | Get_Byte();
+					Packet_Length -= 2;
+					while ((code & 0xfff8) != 0xfff8 && Packet_Length > 0)
+					{
+						code = ((code & 0xff) << 8) | Get_Byte();
+						Packet_Length--;
+					}
+					if ((code & 0xfff8) != 0xfff8)
+					{
+						SKIP_TRANSPORT_PACKET_BYTES(Packet_Length);
+						continue;
+					}
+					// Found the audio header. Now check the layer field.
+					// For MPEG, layer is 1, 2, or 3. For AAC, it is 0.
+					// We demux the same for both; only the file name we create is different.
+					if (((code & 6) >> 1) == 0x00)
+					{
+						// AAC audio.
+						Channel[0] = FORMAT_AAC;
+
+						// Adjust the VideoPTS to account for frame reordering.
+						if (!PTSAdjustDone && StartTemporalReference != -1 && StartTemporalReference < 18)
+						{
+							PTSAdjustDone = 1;
+							picture_period = 1.0 / frame_rate;
+							if (picture_structure != FRAME_PICTURE)
+								picture_period /= 2;
+							VideoPTS -= (int) (StartTemporalReference * picture_period * 90000);
+						}
+
+						if (PTSDifference(AudioPTS, VideoPTS, &PTSDiff))
+							sprintf(szBuffer, "%s AAC.aac", szOutput);
+						else
+							sprintf(szBuffer, "%s AAC DELAY %dms.aac", szOutput, PTSDiff);
+					}
+					else
+					{
+						// MPEG audio.
+						Channel[0] = FORMAT_MPA;
+
+						// Adjust the VideoPTS to account for frame reordering.
+						if (!PTSAdjustDone && StartTemporalReference != -1 && StartTemporalReference < 18)
+						{
+							PTSAdjustDone = 1;
+							picture_period = 1.0 / frame_rate;
+							if (picture_structure != FRAME_PICTURE)
+								picture_period /= 2;
+							VideoPTS -= (int) (StartTemporalReference * picture_period * 90000);
+						}
+
+						if (PTSDifference(AudioPTS, VideoPTS, &PTSDiff))
+							sprintf(szBuffer, "%s MPA.mpa", szOutput);
+						else
+							sprintf(szBuffer, "%s MPA DELAY %dms.mpa", szOutput, PTSDiff);
+					}
+					mpafp = fopen(szBuffer, "wb");
+					if (mpafp == NULL)
+					{
+						// Cannot open the output file.
+						SKIP_TRANSPORT_PACKET_BYTES(Packet_Length);
+						continue;
+					}
+					// Unread the audio header bytes.
+					Packet_Length += 2;
+					Rdptr -= 2;
+					DEMUX_MPA_AAC(mpafp);
+				}
+			}	
+		}
+
+		// Not an video packet or an audio packet to be demultiplexed. Keep looking.
+		SKIP_TRANSPORT_PACKET_BYTES(Packet_Length);
+	}
+}
+
 // MPEG2 program stream parser.
 void Next_Packet()
 {
 	static int i, Packet_Length, Packet_Header_Length, size;
 	static unsigned int code, AUDIO_ID, VOBCELL_Count, This_Track, MPA_Track;
 	int PTSDiff;
+	double picture_period;
 
 	if (SystemStream_Flag == 2)
 	{
 		Next_Transport_Packet();
+		return;
+	}
+	else if (SystemStream_Flag == 3)
+	{
+		Next_PVA_Packet();
 		return;
 	}
 
@@ -748,8 +1088,11 @@ void Next_Packet()
 		switch (code)
 		{
 			case PACK_START_CODE:
-				PackHeaderPosition = _telli64(Infile[File_Flag]);
-				PackHeaderPosition = PackHeaderPosition - (__int64)BUFFER_SIZE + (__int64)Rdptr - 4 - (__int64)Rdbfr;
+				if (D2V_Flag)
+				{
+					PackHeaderPosition = _telli64(Infile[CurrentFile]);
+					PackHeaderPosition = PackHeaderPosition - (__int64)BUFFER_SIZE + (__int64)Rdptr - 4 - (__int64)Rdbfr;
+				}
 				Rdptr += 8;
 				VOBCELL_Count = 0;
 				break;
@@ -784,11 +1127,13 @@ void Next_Packet()
 
 				if (code>=0x80)
 				{
-					code = Get_Byte();
-					AudioPTS = (code & 0x0e) << 29;
+					__int64 PES_PTS;
 
-					AudioPTS |= (Get_Short() & 0xfffe) << 14;
-					AudioPTS |= (Get_Short()>>1) & 0x7fff;
+					PES_PTS = (Get_Byte() & 0x0e) << 29;
+					PES_PTS |= (Get_Short() & 0xfffe) << 14;
+					PES_PTS |= (Get_Short()>>1) & 0x7fff;
+					AudioPTS = (unsigned int) (PES_PTS & 0xffffffff);
+//					dprintf("DGIndex:   Audio PTS = %d\n", AudioPTS/90);
 
 					Rdptr += Packet_Header_Length-5;
 				}
@@ -844,6 +1189,17 @@ void Next_Packet()
 								pcm.file = fopen(szBuffer, "wb");
 
 								StartWAV(pcm.file);
+
+								// Adjust the VideoPTS to account for frame reordering.
+								if (!PTSAdjustDone && StartTemporalReference != -1 && StartTemporalReference < 18)
+								{
+									PTSAdjustDone = 1;
+									picture_period = 1.0 / frame_rate;
+									if (picture_structure != FRAME_PICTURE)
+										picture_period /= 2;
+									VideoPTS -= (int) (StartTemporalReference * picture_period * 90000);
+								}
+
 								if (PTSDifference(AudioPTS, VideoPTS, &PTSDiff))
 									pcm.delay = 0;
 								else
@@ -888,6 +1244,16 @@ void Next_Packet()
 							}
 							else if (Method_Flag==AUDIO_DEMUXALL  ||  Method_Flag==AUDIO_DEMUX && This_Track==Track_Flag)
 							{
+								// Adjust the VideoPTS to account for frame reordering.
+								if (!PTSAdjustDone && StartTemporalReference != -1 && StartTemporalReference < 18)
+								{
+									PTSAdjustDone = 1;
+									picture_period = 1.0 / frame_rate;
+									if (picture_structure != FRAME_PICTURE)
+										picture_period /= 2;
+									VideoPTS -= (int) (StartTemporalReference * picture_period * 90000);
+								}
+
 								if (PTSDifference(AudioPTS, VideoPTS, &PTSDiff))
 									sprintf(szBuffer, "%s AC3 T%02d %sch %dKbps.ac3", szOutput, This_Track+1, 
 										AC3ModeDash[ac3[This_Track].mode], AC3Rate[ac3[This_Track].rate]);
@@ -895,6 +1261,8 @@ void Next_Packet()
 									sprintf(szBuffer, "%s AC3 T%02d %sch %dKbps DELAY %dms.ac3", szOutput, This_Track+1, 
 										AC3ModeDash[ac3[This_Track].mode], AC3Rate[ac3[This_Track].rate], PTSDiff);
 
+//								dprintf("DGIndex: Using Video PTS = %d, Audio PTS = %d [%d], reference = %d, rate = %f\n",
+//										VideoPTS/90, AudioPTS/90, PTSDiff, StartTemporalReference, frame_rate);
 								ac3[This_Track].file = fopen(szBuffer, "wb");
 
 								DEMUX_AC3
@@ -944,6 +1312,16 @@ void Next_Packet()
 						{
 							if (Method_Flag==AUDIO_DECODE && This_Track==Track_Flag)
 							{
+								// Adjust the VideoPTS to account for frame reordering.
+								if (!PTSAdjustDone && StartTemporalReference != -1 && StartTemporalReference < 18)
+								{
+									PTSAdjustDone = 1;
+									picture_period = 1.0 / frame_rate;
+									if (picture_structure != FRAME_PICTURE)
+										picture_period /= 2;
+									VideoPTS -= (int) (StartTemporalReference * picture_period * 90000);
+								}
+
 								if (PTSDifference(AudioPTS, VideoPTS, &PTSDiff))
 									pcm.delay = 0;
 								else
@@ -1031,6 +1409,16 @@ void Next_Packet()
 						{
 							if (Method_Flag==AUDIO_DEMUXALL  ||  Method_Flag==AUDIO_DEMUX && This_Track==Track_Flag)
 							{
+								// Adjust the VideoPTS to account for frame reordering.
+								if (!PTSAdjustDone && StartTemporalReference != -1 && StartTemporalReference < 18)
+								{
+									PTSAdjustDone = 1;
+									picture_period = 1.0 / frame_rate;
+									if (picture_structure != FRAME_PICTURE)
+										picture_period /= 2;
+									VideoPTS -= (int) (StartTemporalReference * picture_period * 90000);
+								}
+
 								if (PTSDifference(AudioPTS, VideoPTS, &PTSDiff))
 									sprintf(szBuffer, "%s DTS T%02d.dts", szOutput, This_Track+1);
 								else
@@ -1075,11 +1463,12 @@ void Next_Packet()
 
 					if (code>=0x80)
 					{
-						code = Get_Byte();
+						__int64 PES_PTS;
 
-						AudioPTS = (code & 0x0e) << 29;
-						AudioPTS |= (Get_Short() & 0xfffe) << 14;
-						AudioPTS |= (Get_Short()>>1) & 0x7fff;
+						PES_PTS = (Get_Byte() & 0x0e) << 29;
+						PES_PTS |= (Get_Short() & 0xfffe) << 14;
+						PES_PTS |= (Get_Short()>>1) & 0x7fff;
+						AudioPTS = (unsigned int) (PES_PTS & 0xffffffff);
 
 						Rdptr += Packet_Header_Length-5;
 					}
@@ -1110,20 +1499,30 @@ void Next_Packet()
 						{
 							if (Method_Flag==AUDIO_DEMUXALL  ||  Method_Flag==AUDIO_DEMUX && MPA_Track==Track_Flag)
 							{
+								// Adjust the VideoPTS to account for frame reordering.
+								if (!PTSAdjustDone && StartTemporalReference != -1 && StartTemporalReference < 18)
+								{
+									PTSAdjustDone = 1;
+									picture_period = 1.0 / frame_rate;
+									if (picture_structure != FRAME_PICTURE)
+										picture_period /= 2;
+									VideoPTS -= (int) (StartTemporalReference * picture_period * 90000);
+								}
+
 								if (PTSDifference(AudioPTS, VideoPTS, &PTSDiff))
 									sprintf(szBuffer, "%s MPA T%02d.mpa", szOutput, MPA_Track+1);
 								else
 									sprintf(szBuffer, "%s MPA T%02d DELAY %dms.mpa", szOutput, MPA_Track+1, PTSDiff);
 								mpa[MPA_Track].file = fopen(szBuffer, "wb");
 
-								DEMUX_MPA(mpa[MPA_Track].file);
+								DEMUX_MPA_AAC(mpa[MPA_Track].file);
 
 								mpa[MPA_Track].rip = true;
 							}
 						}
 					}
 					else if (mpa[MPA_Track].rip)
-						DEMUX_MPA(mpa[MPA_Track].file);
+						DEMUX_MPA_AAC(mpa[MPA_Track].file);
 				}
 
 				Rdptr += Packet_Length;
@@ -1136,43 +1535,51 @@ void Next_Packet()
 
 				code = Get_Byte();
 
-				if ((code & 0xc0)==0x80)
+				if ((code & 0xc0) == 0x80)
 				{
+					__int64 PES_PTS, PES_DTS;
+					unsigned int pts_stamp, dts_stamp;
+
 					code = Get_Byte();
 					Packet_Header_Length = Get_Byte();
 
-					if (code>=0x80 && !Start_Flag)
+					if (code >= 0x80)
 					{
-						code = Get_Byte();
-						VideoPTS = (code & 0x0e) << 29;
-						VideoPTS |= (Get_Short() & 0xfffe) << 14;
-						VideoPTS |= (Get_Short()>>1) & 0x7fff;
-						// Adjust VideoPTS as required if any B frames precede the first I frame
-						// in display order.
-						if (Frame_Rate)
+						PES_PTS = (Get_Byte() & 0x0e) << 29;
+						PES_PTS |= (Get_Short() & 0xfffe) << 14;
+						PES_PTS |= (Get_Short()>>1) & 0x7fff;
+						pts_stamp = (unsigned int) (PES_PTS & 0xffffffff);
+						// DTS is not used. The code is here for analysis and debugging.
+						if ((code & 0xc0) == 0xc0)
 						{
-							VideoPTS -= (int) ((LeadingBFrames * 90000) / Frame_Rate);
+							PES_DTS = (Get_Byte() & 0x0e) << 29;
+							PES_DTS |= (Get_Short() & 0xfffe) << 14;
+							PES_DTS |= (Get_Short()>>1) & 0x7fff;
+							dts_stamp = (unsigned int) (PES_DTS & 0xffffffff);
+//							dprintf("DGIndex: Video PTS = %d, Video DTS = %d, [diff=%d]\n",
+//									pts_stamp/90, dts_stamp/90, (pts_stamp-dts_stamp)/90);
+							Rdptr += Packet_Header_Length - 10;
 						}
+						else
+							Rdptr += Packet_Header_Length - 5;
 
-						Rdptr += Packet_Header_Length-5;
+						if (!Start_Flag)
+						{
+							// Start_Flag becomes true after the first I frame.
+							// So VideoPTS will be left at the value corresponding to
+							// the first I frame.
+							VideoPTS = pts_stamp;
+						}
 					}
 					else
 						Rdptr += Packet_Header_Length;
 
-					Bitrate_Monitor += Rdmax-Rdptr;
+					Bitrate_Monitor += Rdmax - Rdptr;
 					return;
 				}
 				else
 				{
-#if 1
-					if (Stop_Flag == true)
-					{
-						MessageBox(hWnd, "Strange video data. Are you sure it's MPEG2?", NULL, MB_OK | MB_ICONERROR);
-						ThreadKill();
-					}
-#else
 					Rdptr += Packet_Length-1;
-#endif
 				}
 
 				break;
@@ -1212,14 +1619,16 @@ void Flush_Buffer_All(unsigned int N)
 
 void Fill_Buffer()
 {
-	Read = _donread(Infile[File_Flag], Rdbfr, BUFFER_SIZE);
+	Read = _donread(Infile[CurrentFile], Rdbfr, BUFFER_SIZE);
 
 	if (Read < BUFFER_SIZE)	Next_File();
 
 	Rdptr = Rdbfr;
 
 	if (SystemStream_Flag)
+	{
 		Rdmax -= BUFFER_SIZE;
+	}
 	else
 		Bitrate_Monitor += Read;
 }
@@ -1228,21 +1637,24 @@ void Next_File()
 {
 	int i, bytes;
 	
-	if (File_Flag < File_Limit-1)
+	if (CurrentFile < NumLoadedFiles-1)
 	{
-		File_Flag++;
+		CurrentFile++;
+		process.run = 0;
+		for (i=0; i<CurrentFile; i++) process.run += Infilelength[i];
+		_lseeki64(Infile[CurrentFile], 0, SEEK_SET);
+		bytes = _donread(Infile[CurrentFile], Rdbfr + Read, BUFFER_SIZE - Read);
+		if (Read + bytes == BUFFER_SIZE)
+			// The whole buffer has valid data.
+			buffer_invalid = (unsigned char *) 0xffffffff;
+		else
+			// Point to the first invalid buffer location.
+			buffer_invalid = Rdbfr + Read + bytes;
 	}
 	else
 	{
-		// Wrap around. We can't thread kill here so at least read some
-		// known good data.
-		Stop_Flag = true;
-		File_Flag = 0;
+		buffer_invalid = Rdbfr + Read;
 	}
-	process.run = 0;
-	for (i=0; i<File_Flag; i++) process.run += process.length[i];
-	_lseeki64(Infile[File_Flag], 0, SEEK_SET);
-	bytes = _donread(Infile[File_Flag], Rdbfr + Read, BUFFER_SIZE - Read);
 }
 
 void UpdateInfo()
@@ -1278,7 +1690,7 @@ void UpdateInfo()
 		strcpy(szBuffer, "simple@");
 		break;
 	default:
-		strcpy(szBuffer, "");
+		sprintf(szBuffer, "esc (%d@%d)", profile, level);
 		break;
 	}
 	switch (level)
@@ -1296,7 +1708,6 @@ void UpdateInfo()
 		strcat(szBuffer, "low");
 		break;
 	default:
-		strcat(szBuffer, "");
 		break;
 	}
 	sprintf(szBuffer, "%s", szBuffer);
@@ -1314,6 +1725,10 @@ void UpdateInfo()
 
 		case FORMAT_MPA:
 			SetDlgItemText(hDlg, IDC_AUDIO_TYPE, "MPEG Audio");
+			break;
+
+		case FORMAT_AAC:
+			SetDlgItemText(hDlg, IDC_AUDIO_TYPE, "AAC Audio");
 			break;
 
 		case FORMAT_LPCM:
@@ -1365,17 +1780,19 @@ void UpdateInfo()
 			SetDlgItemText(hDlg, IDC_VIDEO_TYPE, szBuffer);
 		}
 
-		if (process.op)
+		if (timing.op)
 		{
-			process.ed = timeGetTime();
-			process.elapsed = (process.ed-process.op)/1000;
-			process.percent = (float)(100.0*(process.run-process.start+_telli64(Infile[File_Flag]))/(process.end-process.start));
-			process.remain = (int)((process.ed-process.op)*(100.0-process.percent)/process.percent)/1000;
+			unsigned int elapsed, remain;
+			float percent;
+			timing.ed = timeGetTime();
+			elapsed = (timing.ed-timing.op)/1000;
+			percent = (float)(100.0*(process.run-process.start+_telli64(Infile[CurrentFile]))/(process.end-process.start));
+			remain = (int)((timing.ed-timing.op)*(100.0-percent)/percent)/1000;
 
-			sprintf(szBuffer, "%d:%02d:%02d", process.elapsed/3600, (process.elapsed%3600)/60, process.elapsed%60);
+			sprintf(szBuffer, "%d:%02d:%02d", elapsed/3600, (elapsed%3600)/60, elapsed%60);
 			SetDlgItemText(hDlg, IDC_ELAPSED, szBuffer);
 
-			sprintf(szBuffer, "%d:%02d:%02d", process.remain/3600, (process.remain%3600)/60, process.remain%60);
+			sprintf(szBuffer, "%d:%02d:%02d", remain/3600, (remain%3600)/60, remain%60);
 			SetDlgItemText(hDlg, IDC_REMAIN, szBuffer);
 		}
 	}

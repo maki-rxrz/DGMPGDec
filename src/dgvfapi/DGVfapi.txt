@@ -1,4 +1,4 @@
-DGVfapi 1.1.0
+DGVfapi 1.2.1
 Frameserving with the New Decoding Functionality
 ------------------------------------------------
 

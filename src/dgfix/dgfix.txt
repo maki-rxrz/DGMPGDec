@@ -1,4 +1,4 @@
-DGFix 1.1.0
+DGFix 1.2.0
 -----------
 
 by Donald Graft
@@ -20,7 +20,7 @@ the illegal requests on the fly, but currently DGMPGDec
 cannot. Therefore, this program can be used to fix the D2V file
 before it is sourced into DGDecode().
 
-This program works with DGMPGDec version 1.1.0.
+This program works with DGMPGDec version 1.2.0.
 
 Usage: To use the program, type:
 

@@ -98,6 +98,10 @@ SOURCE=.\alloc.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\deblock.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\getbit.cpp
 # End Source File
 # Begin Source File
@@ -138,6 +142,10 @@ SOURCE=".\text-overlay.cpp"
 # End Source File
 # Begin Source File
 
+SOURCE=.\Utilities.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\vfapidec.cpp
 # End Source File
 # End Group
@@ -159,6 +167,10 @@ SOURCE=.\skl_nasm.h
 # Begin Source File
 
 SOURCE=".\text-overlay.h"
+# End Source File
+# Begin Source File
+
+SOURCE=.\Utilities.h
 # End Source File
 # End Group
 # Begin Group "DGDecode"

@@ -105,7 +105,8 @@ void postprocess(unsigned char * src[], int src_stride,
 			if (mode & PP_DEBLOCK_C_H) 
 			{
 				puc_flt = &((dst[i])[y*dst_stride]);
-				QP_ptr  = &(QP_store[(y>>3)*QP_stride]);
+				if (is422) QP_ptr =  &(QP_store[(y>>4)*QP_stride]);
+				else QP_ptr = &(QP_store[(y>>3)*QP_stride]);
 				deblock_horiz(puc_flt, horizontal_size, dst_stride, QP_ptr, QP_stride, is422 ? 2 : 1, moderate_h);
 			}
 
@@ -115,7 +116,7 @@ void postprocess(unsigned char * src[], int src_stride,
 				{
 					puc_flt = &((dst[i])[(y-4)*dst_stride]);  
 					if (is422) QP_ptr  = &(QP_store[(y>>4)*QP_stride]);
-					else QP_ptr  = &(QP_store[(y>>3)*QP_stride]);
+					else QP_ptr = &(QP_store[(y>>3)*QP_stride]);
 					deblock_vert( puc_flt, horizontal_size,   dst_stride, QP_ptr, QP_stride, is422 ? 2 : 1, moderate_v);
 				}
 			}
@@ -2353,7 +2354,7 @@ void dering( uint8_t *image, int width, int height, int stride, QP_STORE_T *QP_s
 			mov		bh, thr
 			mov 	bl, thr
 			psubusb mm6, mm6					// all 00
-			movd 	mm7, eax
+			movd 	mm7, ebx
 			pshufw	mm7, mm7, 0					// low word to all words
 			
 			// get compare avg of row -1
@@ -3025,7 +3026,7 @@ void dering_OLD( uint8_t *image, int width, int height, int stride, QP_STORE_T *
 			mov		bh, thr
 			mov 	bl, thr
 			psubusb mm6, mm6					// all 00
-			movd 	mm7, eax
+			movd 	mm7, ebx
 			pshufw	mm7, mm7, 0					// low word to all words
 			
 			// get compare avg of row -1
@@ -3418,9 +3419,9 @@ void dering_OLD( uint8_t *image, int width, int height, int stride, QP_STORE_T *
 // Grabbed from AviH's source
 // usage is same as printf. output using OutputDebugString.
 #if 1
+char printString[1024];
 int dprintf(char* fmt, ...)
 {
-	char printString[1000];
 	va_list argp;
 
 	va_start(argp, fmt);

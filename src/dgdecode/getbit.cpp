@@ -148,30 +148,27 @@ typedef struct {
 
 void CMPEG2Decoder::Next_Transport_Packet()
 {
-	int Packet_Length;  // # bytes remaining in MPEG-2 transport packet
+	int Packet_Length;  // bytes remaining in MPEG-2 transport packet
 	int Packet_Header_Length;
 	unsigned int code;
-	int tp_previous_continuity_counter = 0; // this isn't used 
-
-	const transport_packet tp_zero ={0};  // 'ZERO'd' structure
-	transport_packet tp ={0};  // temporary holding struct, zero it out
-
-	// Packet_Length is like a 'position' index
-	// 188 = start of packet (first byte), 0 = end of packet (last byte)
+	transport_packet tp = {0};
 
 	for (;;)
 	{
 		// 0) initialize some temp variables
 		Packet_Length = 188; // total length of 1 MPEG-2 transport packet
-		tp_previous_continuity_counter = tp.continuity_counter; // update counter
-		tp = tp_zero; // erase our holding structure
 
-		// 1) search for sync-byte
-		do {
-		  tp.sync_byte = Get_Byte();
-		}	while ( tp.sync_byte != 0x47 );
-//		} while ( tp.sync_byte != 0x47 && tp.sync_byte != 0x72 &&
-//							tp.sync_byte != 0x29);
+		// 1) Search for a sync byte. Gives some protection against emulation.
+		for(;;)
+		{
+			if ((tp.sync_byte = Get_Byte()) != 0x47) continue;
+			if (Rdptr + 187 >= Rdbfr + BUFFER_SIZE && Rdptr[-189] == 0x47)
+				break;
+			if (Rdptr + 187 < Rdbfr + BUFFER_SIZE && Rdptr[+187] == 0x47)
+				break;
+			else
+				continue;
+		}
 		--Packet_Length; // decrement the sync_byte;
 
 		// 2) get pid, transport_error_indicator, payload_unit_start_indicator
@@ -272,10 +269,88 @@ void CMPEG2Decoder::Next_Transport_Packet()
 			return;
 		}
 
-		// fallthrouugh case
+		// fall through case
 		// skip the remainder of the adaptation_field
 		SKIP_TRANSPORT_PACKET_BYTES( Packet_Length )
 	} // for
+}
+
+// PVA packet data structure.
+typedef struct
+{			
+	unsigned short sync_byte;
+	unsigned char stream_id;
+	unsigned char counter;
+	unsigned char reserved;
+	unsigned char flags;
+	unsigned short length;
+} pva_packet;
+
+// PVA transport stream parser.
+void CMPEG2Decoder::Next_PVA_Packet()
+{
+	unsigned int Packet_Length;
+	pva_packet pva;
+	unsigned int PTS;
+
+	for (;;)
+	{
+		// Search for a good sync.
+		while (true)
+		{
+			// Sync word is 0x4156.
+			if (Get_Byte() != 0x41) continue;
+			if (Get_Byte() != 0x56)
+			{
+				// This byte might be a 0x41, so back up by one.
+				Rdptr--;
+				continue;
+			}
+			// To protect against emulation of the sync word,
+			// also check that the stream says audio or video.
+			pva.stream_id = Get_Byte();
+			if (pva.stream_id != 0x01 && pva.stream_id != 0x02)
+			{
+				// This byte might be a 0x41, so back up by one.
+				Rdptr--;
+				continue;
+			}
+			break;
+		}
+
+		// Pick up the remaining packet header fields.
+		pva.counter = Get_Byte();
+		pva.reserved = Get_Byte();
+		pva.flags = Get_Byte();
+		pva.length = Get_Byte() << 8;
+		pva.length |= Get_Byte();
+		Packet_Length = pva.length;
+
+		// Any payload?
+		if (Packet_Length == 0 || pva.reserved != 0x55)
+			continue;  // No, try the next packet.
+
+		// Check stream id for video.
+		if (pva.stream_id == 1) 
+		{
+			// This is a video packet.
+			// Extract the PTS if it exists.
+			if (pva.flags & 0x10)
+			{
+				// The spec is unclear about the significance of the prebytes field.
+				// It appears to be safe to ignore it.
+				PTS = (int) ((Get_Byte() << 24) | (Get_Byte() << 16) | (Get_Byte() << 8) | Get_Byte());
+				Packet_Length -= 4;
+			}
+
+			// Deliver the video to the ES parsing layer. 
+			Rdmax = Rdptr + Packet_Length;
+			return;
+		}
+
+		// Not an video packet or an audio packet to be demultiplexed. Keep looking.
+		SKIP_TRANSPORT_PACKET_BYTES(Packet_Length);
+	}
 }
 
 void CMPEG2Decoder::Next_Packet()
@@ -285,6 +360,11 @@ void CMPEG2Decoder::Next_Packet()
 	if ( SystemStream_Flag == 2 )  // MPEG-2 transport packet?
 	{
 		Next_Transport_Packet();
+		return;
+	}
+	else if ( SystemStream_Flag == 3 )  // PVA packet?
+	{
+		Next_PVA_Packet();
 		return;
 	}
 

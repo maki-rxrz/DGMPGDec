@@ -23,6 +23,7 @@
 #include "windows.h"
 #include "pat.h"
 #include "resource.h"
+#include "global.h"
 
 PATParser::PATParser()
 {
@@ -165,15 +166,20 @@ int PATParser::AnalyzeRaw(HWND hDialog, char *filename, unsigned int audio_pid, 
 			strcpy(description, "Padding Stream");
 		else if (Pids[i].stream_id == 0xbf)
 			strcpy(description, "Private Stream 2");
-		else if ((Pids[i].stream_id & 0xe0) == 0xc0)
+		else if (((Pids[i].stream_id & 0xe0) == 0xc0) ||
+				 (Pids[i].stream_id == 0xfa))
 		{
 			if (audio_type != NULL && Pids[i].pid == audio_pid)
 			{
-				*audio_type = 0x04;
+				// The demuxing code is the same for MPEG and AAC.
+				// The only difference will be the filename.
+				// The demuxing code will look at the audio sync word to
+				// decide between the two.
+				*audio_type = 0x4;
 				fclose(fin);
 				return 0;
 			}
-			strcpy(description, "MPEG Audio");
+			strcpy(description, "MPEG1/MPEG2/AAC Audio");
 		}
 		else if ((Pids[i].stream_id & 0xf0) == 0xe0)
 			strcpy(description, "MPEG Video");
@@ -467,6 +473,15 @@ int PATParser::AnalyzePAT(HWND hDialog, char *filename, unsigned int audio_pid, 
 				case 0x06:
 				case 0x07:
 					stream_type = "Teletext/Subtitling";
+					break;
+				case 0x0f:
+				case 0x11:
+					// The demuxing code is the same for MPEG and AAC.
+					// The only difference will be the filename.
+					// The demuxing code will look at the audio sync word to
+					// decide between the two.
+					type = 0x04;
+					stream_type = "AAC Audio";
 					break;
 				case 0x81:
 					stream_type = "AC3 Audio";

@@ -31,8 +31,9 @@ DWORD WINAPI MPEG2Dec(LPVOID n)
 {
 	int i;
 	extern int closed_gop, VideoPTS;
-	extern FILE *mpafp;
+	extern FILE *mpafp, *mpvfp;
 	__int64 saveloc;
+    int field;
 
 	Pause_Flag = Stop_Flag = Start_Flag = Fault_Flag = false;
 	Frame_Number = Second_Field = 0;
@@ -48,7 +49,7 @@ DWORD WINAPI MPEG2Dec(LPVOID n)
 
 	ZeroMemory(&pcm, sizeof(struct PCMStream));
 	ZeroMemory(&Channel, sizeof(Channel));
-	mpafp = NULL;
+	mpafp = mpvfp = NULL;
 
 	switch (process.locate)
 	{
@@ -56,26 +57,26 @@ DWORD WINAPI MPEG2Dec(LPVOID n)
 			process.startfile = process.file;
 			process.startloc = (process.lba + 1) * BUFFER_SIZE;
 
-			process.end = process.total - BUFFER_SIZE;
-			process.endfile = File_Limit - 1;
-			process.endloc = (process.length[File_Limit-1]/BUFFER_SIZE - 1) * BUFFER_SIZE;
+			process.end = Infiletotal - BUFFER_SIZE;
+			process.endfile = NumLoadedFiles - 1;
+			process.endloc = (Infilelength[NumLoadedFiles-1]/BUFFER_SIZE - 1) * BUFFER_SIZE;
 			break;
 
 		case LOCATE_BACKWARD:
 			process.startfile = process.file;
 			process.startloc = process.lba * BUFFER_SIZE;
-			process.end = process.total - BUFFER_SIZE;
-			process.endfile = File_Limit - 1;
-			process.endloc = (process.length[File_Limit-1]/BUFFER_SIZE - 1) * BUFFER_SIZE;
-			if (GOPBack() == false && File_Flag > 0)
+			process.end = Infiletotal - BUFFER_SIZE;
+			process.endfile = NumLoadedFiles - 1;
+			process.endloc = (Infilelength[NumLoadedFiles-1]/BUFFER_SIZE - 1) * BUFFER_SIZE;
+			if (GOPBack() == false && CurrentFile > 0)
 			{
 				// Trying to step back to previous VOB file.
 				process.startfile--;
-				File_Flag--;
-				process.startloc = process.length[process.startfile];
+				CurrentFile--;
+				process.startloc = Infilelength[process.startfile];
 				process.run = 0;
 				for (i=0; i<process.startfile; i++)
-					process.run += process.length[i];
+					process.run += Infilelength[i];
 				process.start = process.run + process.startloc;
 				GOPBack();
 			}
@@ -90,26 +91,26 @@ DWORD WINAPI MPEG2Dec(LPVOID n)
 		case LOCATE_PLAY:
 			process.startfile = process.file;
 			process.startloc = process.lba * BUFFER_SIZE;
-			process.endfile = File_Limit - 1;
+			process.endfile = NumLoadedFiles - 1;
 			process.locate = LOCATE_RIP;
 do_rip_play:
 			process.run = 0;
 			for (i=0; i<process.startfile; i++)
-				process.run += process.length[i];
+				process.run += Infilelength[i];
 			process.start = process.run + process.startloc;
 
 			process.end = 0;
 			for (i=0; i<process.endfile; i++)
-				process.end += process.length[i];
+				process.end += Infilelength[i];
 			process.end += process.endloc;
 			break;
 
 		case LOCATE_SCROLL:
-			File_Flag = process.startfile;
+			CurrentFile = process.startfile;
 			_lseeki64(Infile[process.startfile], (process.startloc/BUFFER_SIZE)*BUFFER_SIZE, SEEK_SET);
 			Initialize_Buffer();
 
-			process.op = 0;
+			timing.op = 0;
 			saveloc = process.startloc;
 
 			while (true)
@@ -132,7 +133,7 @@ do_rip_play:
 		unsigned int show;
 
 		// Position to start of the first file.
-		File_Flag = 0;
+		CurrentFile = 0;
 		_lseeki64(Infile[0], 0, SEEK_SET);
 		Initialize_Buffer();
 
@@ -144,17 +145,18 @@ do_rip_play:
 			{
 				// We reached EOF without ever seeing a sequence header.
 				MessageBox(hWnd, "MPEG2 decoders prefer to receive MPEG2 files!", NULL, MB_OK | MB_ICONERROR);
-				return (0);
+				ThreadKill();
 			}
 			Flush_Buffer(8);
 		}
 
 		// Position to start of the first file.
-		File_Flag = 0;
+		CurrentFile = 0;
 		_lseeki64(Infile[0], 0, SEEK_SET);
 		Initialize_Buffer();
 
 		// Auto detect transport files.
+		// First try for standard MPEG streams.
 		// Search for a sync byte. Gives some protection against emulation.
 		for(i = 0; i < 188; i++)
 		{
@@ -173,8 +175,25 @@ do_rip_play:
 				continue;
 		}
 
-		// Position to start of the first file.
-		File_Flag = 0;
+		// Now try for PVA streams. Look for a packet start in the first 1024 bytes.
+		if (SystemStream_Flag != 2)
+		{
+			CurrentFile = 0;
+			_lseeki64(Infile[0], 0, SEEK_SET);
+			Initialize_Buffer();
+
+			for(i = 0; i < 1024; i++)
+			{
+				if (Rdbfr[i] == 0x41 && Rdbfr[i+1] == 0x56 && (Rdbfr[i+2] == 0x01 || Rdbfr[i+2] == 0x02))
+				{
+					SystemStream_Flag = 3;
+					break;
+				}
+				Rdptr++;
+			}
+		}
+
+		CurrentFile = 0;
 		_lseeki64(Infile[0], 0, SEEK_SET);
 		Initialize_Buffer();
 
@@ -190,7 +209,7 @@ do_rip_play:
 					// We reached EOF without ever seeing a video start code.
 					MessageBox(hWnd, "No start codes! Are you sure this is an MPEG2 video stream?",
 								   NULL, MB_OK | MB_ICONERROR);
-					return (0);
+					ThreadKill();
 				}
 				Flush_Buffer(8);
 			}
@@ -220,7 +239,7 @@ do_rip_play:
 				if (code == EXTENSION_START_CODE && Get_Bits(4) == 1)
 				{
 					// The SEQUENCE_HEADER_CODE is real.
-					File_Flag = 0;
+					CurrentFile = 0;
 					_lseeki64(Infile[0], 0, SEEK_SET);
 					Initialize_Buffer();
 					while (true)
@@ -247,18 +266,19 @@ do_rip_play:
 		// This will be used to warn the user if required and to
 		// adjust the VideoPTS.
 		saveloc = process.startloc;
-		File_Flag = 0;
+		CurrentFile = 0;
 		_lseeki64(Infile[0], 0, SEEK_SET);
 		Initialize_Buffer();
-		while (1)
-		{
-			Get_Hdr(0);
-			if (picture_coding_type == I_TYPE) break;
-		}
+		while (Get_Hdr(0) && picture_coding_type != I_TYPE)
 		LeadingBFrames = 0;
 		while (1)
 		{
-			Get_Hdr(0);
+			if (Get_Hdr(1) == 1)
+			{
+				// We hit a sequence end code, so there are no
+				// more frames.
+				break;
+			}
 			if (picture_coding_type != B_TYPE) break;
 			LeadingBFrames++;
 		}
@@ -269,21 +289,22 @@ do_rip_play:
 		}
 		// Position back to the first GOP.
 		process.startloc = saveloc;
+		Stop_Flag = false;
 	}
 
 	Frame_Rate = (FO_Flag==FO_FILM) ? frame_rate * 0.8f : frame_rate;
 
 	if (D2V_Flag)
 	{
-		i = File_Limit;
+		i = NumLoadedFiles;
 
 		// The first parameter is the format version number.
 		// It must be coordinated with the test in DGDecode
 		// and used to reject obsolete D2V files.
-		fprintf(D2VFile, "DGIndexProjectFile%s\n%d\n", "06", i);
+		fprintf(D2VFile, "DGIndexProjectFile%s\n%d\n", "08", i);
 		while (i)
 		{
-			fprintf(D2VFile, "%d %s\n", strlen(Infilename[File_Limit-i]), Infilename[File_Limit-i]);
+			fprintf(D2VFile, "%d %s\n", strlen(Infilename[NumLoadedFiles-i]), Infilename[NumLoadedFiles-i]);
 			i--;
 		}
 
@@ -319,13 +340,19 @@ do_rip_play:
 		fprintf(D2VFile, "Frame_Rate=%d\n", (int)(Frame_Rate*1000));
 		fprintf(D2VFile, "Location=%d,%X,%d,%X\n\n", process.leftfile, (int)process.leftlba, 
 				process.rightfile, (int)process.rightlba);
+
+		// Default to ITU-709.
+		matrix_coefficients = 1;
 	}
 
-	File_Flag = process.startfile;
+	// Start normal decoding from the start position.
+	StartTemporalReference = -1;
+	PTSAdjustDone = 0;
+	CurrentFile = process.startfile;
 	_lseeki64(Infile[process.startfile], (process.startloc/BUFFER_SIZE)*BUFFER_SIZE, SEEK_SET);
 	Initialize_Buffer();
 
-	process.op = 0;
+	timing.op = 0;
 
 	while (1)
 	{
@@ -338,19 +365,21 @@ do_rip_play:
 
 	Decode_Picture();
 
-	process.op = process.mi = timeGetTime();
+	timing.op = timing.mi = timeGetTime();
 
+    field = 0;
 	while (1)
 	{
 		Get_Hdr(0);
-		if (Stop_Flag)
+		Decode_Picture();
+		field ^= 1;
+		if (Stop_Flag && (!field || picture_structure == FRAME_PICTURE))
 		{
+			// Stop only after every two fields if we are decoding field pictures.
 			Write_Frame(current_frame, d2v_current, Frame_Number - 1);
 			ThreadKill();
 		}
-		Decode_Picture();
 	}
-
 	return 0;
 }
 
@@ -388,6 +417,8 @@ static BOOL GOPBack()
 			curloc = _telli64(Infile[process.startfile]);
 			if (curloc >= endloc) break;
 			Get_Hdr(0);
+			if (picture_structure != FRAME_PICTURE)
+				Get_Hdr(0);
 			if (picture_coding_type==I_TYPE)
 			{
 				if (d2v_current.file > startfile)
@@ -395,10 +426,10 @@ static BOOL GOPBack()
 					// We've crossed back into the next file and found
 					// the first I frame. That's not the one we are looking for,
 					// so go back again and keep looking.
-					File_Flag = startfile;
+					CurrentFile = startfile;
 					process.run = 0;
 					for (i=0; i < startfile; i++)
-						process.run += process.length[i];
+						process.run += Infilelength[i];
 					break;
 				}
 				if (d2v_current.lba == startlba)

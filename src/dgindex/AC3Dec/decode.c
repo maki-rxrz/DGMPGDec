@@ -82,7 +82,7 @@ resync:
 	// check the crc over the entire frame
 	if (crc_process_frame(buffer, (syncinfo->frame_size<<1) - 2))
 	{
-		SetDlgItemText(hDlg, IDC_INFO, "A.E.!");
+		SetDlgItemText(hDlg, IDC_INFO, "audio error");
 
 		syncword = 0xffff;
 		buffer_size = 0;
@@ -114,7 +114,7 @@ uint_32 ac3_decode_data(uint_8 *data_start, uint_32 length, uint_32 start)
 	{
 		if (error_flag)
 		{
-			SetDlgItemText(hDlg, IDC_INFO, "A.E.!");
+			SetDlgItemText(hDlg, IDC_INFO, "audio error");
 			ZeroMemory(s16_samples, sizeof(sint_16) * 256 * 2 * 6);
 			error_flag = 0;
 			continue;

@@ -289,12 +289,15 @@ void Wavefs44File(int delay)
 		fseek(WaveIn, WaveInPos, SEEK_SET);
 		rsize = DataSize;
 
-		process.op = timeGetTime();
+		timing.op = timeGetTime();
 
 		while (rsize > 0)
 		{
+			unsigned int elapsed, remain;
+			float percent;
+
 			if (Stop_Flag)
-				break;
+				ThreadKill();
 
 			if (rsize < (WINSIZ<<2))
 			{
@@ -317,21 +320,21 @@ void Wavefs44File(int delay)
 
 			winpos = (winpos > 0) ? 0 : WINSIZ;
 
-			process.ed = timeGetTime();
-			process.elapsed = (process.ed-process.op)/1000;
-			process.percent = (float)(100.0*(DataSize-rsize)/DataSize);
-			process.remain = (int)((process.ed-process.op)*(100.0-process.percent)/process.percent)/1000;
+			timing.ed = timeGetTime();
+			elapsed = (timing.ed-timing.op)/1000;
+			percent = (float)(100.0*(DataSize-rsize)/DataSize);
+			remain = (int)((timing.ed-timing.op)*(100.0-percent)/percent)/1000;
 
 			if (Info_Flag)
 			{
-				sprintf(szBuffer, "%d:%02d:%02d", process.elapsed/3600, (process.elapsed%3600)/60, process.elapsed%60);
+				sprintf(szBuffer, "%d:%02d:%02d", elapsed/3600, (elapsed%3600)/60, elapsed%60);
 				SetDlgItemText(hDlg, IDC_ELAPSED, szBuffer);
 
-				sprintf(szBuffer, "%d:%02d:%02d", process.remain/3600, (process.remain%3600)/60, process.remain%60);
+				sprintf(szBuffer, "%d:%02d:%02d", remain/3600, (remain%3600)/60, remain%60);
 				SetDlgItemText(hDlg, IDC_REMAIN, szBuffer);
 			}
 
-			SendMessage(hTrack, TBM_SETPOS, (WPARAM)true, (int)(process.percent*TRACK_PITCH/100));
+			SendMessage(hTrack, TBM_SETPOS, (WPARAM)true, (int)(percent*TRACK_PITCH/100));
 		}
 
 		DataSize = (int)(0.91875*(DataSize-rsize));
