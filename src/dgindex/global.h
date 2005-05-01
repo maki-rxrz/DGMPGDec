@@ -287,9 +287,10 @@ HMENU hMenu; HDC hDC;
 FILE *D2VFile;
 char D2VFilePath[_MAX_PATH];
 int VOB_ID, CELL_ID;
+FILE *MuxFile;
 
 HWND hWnd, hDlg, hTrack;
-char szInput[_MAX_PATH], szOutput[_MAX_PATH], szBuffer[_MAX_PATH], szSave[_MAX_PATH];;
+char szInput[10*_MAX_PATH], szOutput[_MAX_PATH], szBuffer[_MAX_PATH], szSave[_MAX_PATH];
 
 unsigned char *backward_reference_frame[3], *forward_reference_frame[3];
 unsigned char *auxframe[3], *current_frame[3];

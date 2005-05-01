@@ -84,12 +84,16 @@ int Get_Hdr(int mode)
 	for (;;)
 	{
 		// Look for next_start_code.
+		if (Stop_Flag == true)
+			return 1;
 		next_start_code();
 
 		code = Show_Bits(32);
 		switch (code)
 		{
 			case SEQUENCE_HEADER_CODE:
+				if (MuxFile == 0)
+					StartVideoDemux();
 				position = PackHeaderPosition;
 				Get_Bits(32);
 				sequence_header(position);
@@ -356,6 +360,8 @@ static void extension_and_user_data()
 {
 	int code, ext_ID;
 
+	if (Stop_Flag == true)
+		return 1;
 	next_start_code();
 
 	while ((code = Show_Bits(32))==EXTENSION_START_CODE || code==USER_DATA_START_CODE)
@@ -386,11 +392,15 @@ static void extension_and_user_data()
 					copyright_extension();
 					break;
 			}
+			if (Stop_Flag == true)
+				return 1;
 			next_start_code();
 		}
 		else
 		{
 			Flush_Buffer(32);	// ISO/IEC 13818-2  sections 6.3.4.1 and 6.2.2.2.2
+			if (Stop_Flag == true)
+				return 1;
 			next_start_code();	// skip user data
 		}
 	}

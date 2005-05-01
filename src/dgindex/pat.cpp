@@ -45,6 +45,7 @@ int PATParser::AnalyzeRaw(HWND hDialog, char *filename, unsigned int audio_pid, 
 	int read, pes_offset;
 	char listbox_line[255], description[80];
 #define MAX_PIDS 100
+#define MAX_PACKETS 100000
 	struct
 	{
 		unsigned int pid;
@@ -99,7 +100,6 @@ int PATParser::AnalyzeRaw(HWND hDialog, char *filename, unsigned int audio_pid, 
 		Pids[i].stream_id = 0;
 	}
 	// Process the transport packets looking for PIDs.
-#define MAX_PACKETS 600000
 	pkt_count = 0;
 	while ((pkt_count++ < MAX_PACKETS) && (read = fread(buffer, 1, 188, fin)) == 188)
 	{
@@ -231,6 +231,7 @@ int PATParser::AnalyzePAT(HWND hDialog, char *filename, unsigned int audio_pid, 
 	char *stream_type;
 	int read;
 	char listbox_line[255];
+	int pkt_count;
 
 	num_pat_entries = 0;
 	first_pat = first_pmt = true;
@@ -277,7 +278,8 @@ int PATParser::AnalyzePAT(HWND hDialog, char *filename, unsigned int audio_pid, 
 	}
 
 	// Process the transport packets.
-	while ((read = fread(buffer, 1, 188, fin)) == 188)
+	pkt_count = 0;
+	while ((pkt_count++ < MAX_PACKETS) && (read = fread(buffer, 1, 188, fin)) == 188)
 	{
 		pid = ((buffer[1] & 0x1f) << 8) | buffer[2];
 		if (pid != 0) continue;
@@ -343,7 +345,8 @@ int PATParser::AnalyzePAT(HWND hDialog, char *filename, unsigned int audio_pid, 
 		// If this is the last section number, we're done.
 		if (number == last) break;
 	}
-	if (read != 188)
+	// Exit if we didn't find the PAT.
+	if (first_pat == true)
 	{
 		fclose(fin);
 		return 1;
@@ -351,9 +354,10 @@ int PATParser::AnalyzePAT(HWND hDialog, char *filename, unsigned int audio_pid, 
 
 	// Now we have to get the PMT tables to retrieve the actual
 	// program PIDs.
-	fseek(fin, 0, SEEK_SET);
 	for (entry = 0; entry < num_pat_entries; entry++)
 	{
+		// Start at the beginning of the file.
+		fseek(fin, 0, SEEK_SET);
 		// Find a sync byte.
 		for (i = 0; i < LIMIT; i++)
 		{
@@ -400,7 +404,7 @@ int PATParser::AnalyzePAT(HWND hDialog, char *filename, unsigned int audio_pid, 
 			ndx = 4;
 			if (byte == 3)
 			{
-				ndx += buffer[ndx];
+				ndx += buffer[ndx] + 1;
 			}
 
 			// Skip to the start of the section.

@@ -31,7 +31,7 @@
 #include "utilities.h"
 #include <string.h>
 
-#define VERSION "DGDecode 1.2.1"
+#define VERSION "DGDecode 1.3.0"
 
 MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int moderate_h, int moderate_v, bool showQ, bool fastMC, const char* _cpu2, int _info, bool _upConv, bool _i420, IScriptEnvironment* env)
 {
@@ -1591,14 +1591,7 @@ if (strncmp(buf, name, len) == 0) \
 	{
 		FILE *f;
 
-	//	no autoloading in avisynth 2.5 yet.
-
-	//	const char* plugin_dir = env->GetVar("$PluginDir$").AsString();
-	//	strcpy(path, plugin_dir);
-	//	strcat(path, "\\MPEG2Dec3.def");
-	//	if ((f = fopen(path, "r")) != NULL)
-
-		if ((f = fopen("MPEG2Dec3.def", "r")) != NULL)
+		if ((f = fopen("DGDecode.def", "r")) != NULL)
 		{
 			while(fgets(buf, 80, f) != 0)
 			{
@@ -1625,7 +1618,6 @@ if (strncmp(buf, name, len) == 0) \
 
 	// check for uninitialised strings
 	if (strlen(d2v)>=255) d2v[0]=0;
-//		env->ThrowError("MPEG2Dec3 : Need d2v project file path");
 	if (strlen(cpu2)>=255) cpu2[0]=0;
 
 	MPEG2Source *dec = new MPEG2Source( args[0].AsString(d2v),
@@ -1703,9 +1695,8 @@ extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit2(IScri
 }
 
 // Code for backward compatibility and Gordian Knot support
-// (running MPEG2DEC3 functions without Avisynth).
+// (running DGDecode functions without Avisynth).
 YUVRGBScale ext_cscale;
-IScriptEnvironment *DLLEnv = NULL;
 MPEG2Source* vf = NULL;
 unsigned char* buffer = NULL;
 unsigned char* picture = NULL;
@@ -1714,6 +1705,7 @@ unsigned char* v422 = NULL, *v444 = NULL;
 
 VideoInfo pvi;
 int pitch = 0;
+int vfapi_progressive;
 
 MPEG2Source::MPEG2Source(const char* d2v)
 {
@@ -1725,11 +1717,6 @@ MPEG2Source::MPEG2Source(const char* d2v)
 	bool showQ = false;
 	bool fastMC = false;
 	int info = 0;
-
-	unsigned char* buffer = NULL;
-	unsigned char* picture = NULL;
-	unsigned char* u422 = NULL, *u444 = NULL;
-	unsigned char* v422 = NULL, *v444 = NULL;
 
 	CheckCPU();
 
@@ -1806,8 +1793,6 @@ MPEG2Source::MPEG2Source(const char* d2v)
 	out = (YV12PICT*)aligned_malloc(sizeof(YV12PICT),0);
 }
 
-int PF;
-
 void MPEG2Source::GetFrame(int n, unsigned char *buffer, int pitch)
 {
 	out->y = buffer;
@@ -1818,14 +1803,25 @@ void MPEG2Source::GetFrame(int n, unsigned char *buffer, int pitch)
 
 	m_decoder.Decode(n, out);
 
-	PF = out->pf;
-
 	__asm emms;
 }
 
 extern "C" __declspec(dllexport) VideoInfo* __cdecl openMPEG2Source(char* file)
 {
+	char *p;
+
 //dprintf("openMPEG2Source\n");
+
+	// If the D2V filename has _P just before the extension, force
+	// progressive upsampling; otherwise, use interlaced.
+	p = file + strlen(file);
+	while (*p != '.') p--;
+	p -= 2;
+	if (p[0] == '_' && p[1] == 'P')
+		vfapi_progressive = 1;
+	else
+		vfapi_progressive = 0;
+	
 	ext_cscale.RGB_Scale  = 0x1000254310002543;
 	ext_cscale.RGB_Offset = 0x0010001000100010;
 	ext_cscale.RGB_CBU    = 0x0000408D0000408D;
@@ -1857,13 +1853,6 @@ extern "C" __declspec(dllexport) unsigned char* __cdecl getFrame(int frame)
 
 extern "C" __declspec(dllexport) unsigned char* __cdecl getRGBFrame(int frame)
 {
-#if 0
-	if (PF == 1)
-		OutputDebugString("PF=1\n");
-	else
-		OutputDebugString("PF=0\n");
-#endif
-
 //dprintf("getRGBFrame\n");
 //dprintf("frame %x\n", frame);
 //dprintf("buffer %p\n", buffer);
@@ -1875,9 +1864,9 @@ extern "C" __declspec(dllexport) unsigned char* __cdecl getRGBFrame(int frame)
 	unsigned char *u = y + (pitch * pvi.height);
 	unsigned char *v = u + ((pitch * pvi.height)/4);
 
-	conv420to422(u, u422, PF, pvi.width, pvi.height);
+	conv420to422(u, u422, vfapi_progressive, pvi.width, pvi.height);
 	conv422to444(u422, u444, pvi.width, pvi.height);
-	conv420to422(v, v422, PF, pvi.width, pvi.height);
+	conv420to422(v, v422, vfapi_progressive, pvi.width, pvi.height);
 	conv422to444(v422, v444, pvi.width, pvi.height);
 	conv444toRGB24(y, u444, v444, picture, pvi.width * 2, pvi.width, pvi.height, &ext_cscale);
 

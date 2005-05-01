@@ -382,6 +382,7 @@ BEGIN
         MENUITEM "Process WAV",                 IDM_PROCESS_WAV
         MENUITEM SEPARATOR
         MENUITEM "&Save Project\t[F4]",         IDM_SAVE_D2V
+        MENUITEM "Save Project and Demux Video", IDM_SAVE_D2V_AND_DEMUX
         MENUITEM "Save BMP\t[B]",               IDM_BMP
         MENUITEM SEPARATOR
         MENUITEM "Preview\t[F5]",               IDM_PREVIEW

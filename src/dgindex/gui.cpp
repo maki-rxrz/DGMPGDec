@@ -29,7 +29,7 @@ extern "C"
 #include "pat.h"
 }
 
-static char Version[] = "DGIndex 1.2.1";
+static char Version[] = "DGIndex 1.3.0";
 
 #define TRACK_HEIGHT	30
 #define INIT_WIDTH		480
@@ -267,6 +267,8 @@ TEST_END:
 	CheckFlag();
 
 	Store_Flag = STORE_RGB24;
+
+	MuxFile = (struct _iobuf *) 0xffffffff;
 
 	// Command line handling
 	strcpy(ucCmdLine, lpCmdLine);
@@ -736,29 +738,27 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 					// Make an AVS file if it doesn't already exist and a template exists.
 					GetModuleFileName(NULL, prog, 255);
-					GetFullPathName(prog, 255, path, &ptr);
+					ptr = &prog[strlen(prog)];
+					while (ptr > prog && *ptr != '\\') ptr--;
+					if (*ptr == '\\') ptr++;
 					*ptr = 0;
-					strcat(path, "template.avs");
+					strcat(prog, "template.avs");
 					strcpy(avsfile, D2VFilePath);
 					ptr = strrchr(avsfile, '.');
 					strcpy(++ptr, "avs");
-					if (!fopen(avsfile, "r") && (tplate = fopen(path, "r")))
+					if (!fopen(avsfile, "r") && (tplate = fopen(prog, "r")))
 					{
 						avs = fopen(avsfile, "w");
 						if (avs)
 						{
 							while (fgets(path, 1023, tplate))
 							{
-								strcpy(prog, path);
-								strlwr(prog);
-								if (strstr(prog, "mpeg2source"))
+								if (ptr = strstr(path, "__src__"))
 								{
-									ptr = strchr(path, '\"');
-									ptr[1] = 0;
+									ptr[0] = 0;
 									strcpy(prog, path);
 									strcat(prog, D2VFilePath);
-									strcat(prog, "\"");
-									strcat(prog, &ptr[2]);
+									strcat(prog, ptr+7);
 									fputs(prog, avs);
 								}
 								else
@@ -860,8 +860,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					DialogBox(hInst, (LPCTSTR)IDD_FILELIST, hWnd, (DLGPROC)AudioList);
 					break;
 
+				case IDM_SAVE_D2V_AND_DEMUX:
+					MuxFile = (struct _iobuf *) 0;
+					goto proceed;
+
 				case IDM_SAVE_D2V:
 saved2v:
+					// No video demux.
+					MuxFile = (struct _iobuf *) 0xffffffff;
+proceed:
 					if (!Check_Flag)
 					{
 						MessageBox(hWnd, "No data. Check your PIDS.", "Save Project", MB_OK | MB_ICONWARNING);
@@ -873,8 +880,11 @@ saved2v:
 						if (CLIActive)
 						{
 							if ((D2VFile = fopen(szBuffer, "w+")) == 0)
+							{
 								if (ExitOnEnd) exit (0);
 								else CLIActive = 0;
+							}
+							strcpy(D2VFilePath, szBuffer);
 						}
 						else 
 						{
@@ -1026,6 +1036,8 @@ D2V_PROCESS:
 
 				case IDM_STOP:
 					Stop_Flag = true;
+					ExitOnEnd = 0;
+					CLIActive = false;
 					FileLoadedEnables();
 
 					if (Pause_Flag)
@@ -1384,11 +1396,11 @@ D2V_PROCESS:
 					break;
 
 				case IDM_JACKEI:
-					ShellExecute(NULL, "open", "http://arbor.ee.ntu.edu.tw/~jackei/dvd2avi/", NULL, NULL, SW_SHOWNORMAL);
+					ShellExecute(NULL, "open", "http://arbor.ee.ntu.edu.tw/~jackeikuo/dvd2avi/", NULL, NULL, SW_SHOWNORMAL);
 					break;
 
 				case IDM_NEURON2:
-					ShellExecute(NULL, "open", "http://neuron2.net/fixd2v/decodefix.html", NULL, NULL, SW_SHOWNORMAL);
+					ShellExecute(NULL, "open", "http://neuron2.net/dgmpgdec/dgmpgdec.html", NULL, NULL, SW_SHOWNORMAL);
 					break;
 
 				case IDM_EXIT:
@@ -2603,7 +2615,7 @@ bool PopFileDlg(PTSTR pstrFileName, HWND hOwner, int Status)
 	ofn.hwndOwner         = hOwner ;
 	ofn.hInstance         = hInst ;
 	ofn.lpstrFilter       = szFilter ;
-	ofn.nMaxFile          = 100 * _MAX_PATH ;
+	ofn.nMaxFile          = 10 * _MAX_PATH ;
 	ofn.nMaxFileTitle     = _MAX_PATH ;
 	ofn.lpstrFile         = pstrFileName ;
 	*ofn.lpstrFile        = 0;
@@ -3203,6 +3215,7 @@ static void StartupEnables(void)
 	EnableMenuItem(hMenu, IDM_LOAD_D2V, MF_ENABLED);
 	EnableMenuItem(hMenu, IDM_PROCESS_WAV, MF_ENABLED);
 	EnableMenuItem(hMenu, IDM_SAVE_D2V, MF_GRAYED);
+	EnableMenuItem(hMenu, IDM_SAVE_D2V_AND_DEMUX, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_BMP, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_PLAY, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_PREVIEW, MF_GRAYED);
@@ -3245,6 +3258,7 @@ static void FileLoadedEnables(void)
 	EnableMenuItem(hMenu, IDM_LOAD_D2V, MF_ENABLED);
 	EnableMenuItem(hMenu, IDM_PROCESS_WAV, MF_ENABLED);
 	EnableMenuItem(hMenu, IDM_SAVE_D2V, MF_ENABLED);
+	EnableMenuItem(hMenu, IDM_SAVE_D2V_AND_DEMUX, MF_ENABLED);
 	EnableMenuItem(hMenu, IDM_BMP, MF_ENABLED);
 	EnableMenuItem(hMenu, IDM_PLAY, MF_ENABLED);
 	EnableMenuItem(hMenu, IDM_PREVIEW, MF_ENABLED);
@@ -3282,6 +3296,7 @@ static void RunningEnables(void)
 	EnableMenuItem(hMenu, IDM_LOAD_D2V, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_PROCESS_WAV, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_SAVE_D2V, MF_GRAYED);
+	EnableMenuItem(hMenu, IDM_SAVE_D2V_AND_DEMUX, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_BMP, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_PLAY, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_PREVIEW, MF_GRAYED);

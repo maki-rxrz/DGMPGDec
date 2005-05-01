@@ -24,7 +24,6 @@
   lots of code modified for YV12 / MPEG2Dec3 - MarcFD
 */
 
-//#define MPEG2DEC_EXPORTS
 #include "global.h"
 #include "mc.h"
 
@@ -549,10 +548,12 @@ void CMPEG2Decoder::Decode(DWORD frame, YV12PICT *dst)
 	unsigned int i, f, gop, count, HadI, requested_frame;
 	YV12PICT *tmp;
 
+__try
+{
 	Fault_Flag = 0;
 	Second_Field = 0;
 
-//	dprintf("MPEG2DEC3: %d: top = %d, bot = %d\n", frame, FrameList[frame]->top, FrameList[frame]->bottom);
+//	dprintf("DGDecode: %d: top = %d, bot = %d\n", frame, FrameList[frame]->top, FrameList[frame]->bottom);
 
 	// Skip initial non-decodable frames.
 	if (frame < BadStartingFrames) frame = BadStartingFrames;
@@ -775,6 +776,12 @@ void CMPEG2Decoder::Decode(DWORD frame, YV12PICT *dst)
 			Copyodd(saved_active, dst);
 		}
 	}
+	return;
+}
+__except(EXCEPTION_EXECUTE_HANDLER)
+{
+	return;
+}
 }
 
 void CMPEG2Decoder::Close()

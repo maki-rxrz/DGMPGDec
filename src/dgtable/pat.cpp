@@ -200,7 +200,7 @@ int PATParser::DumpPAT(char *filename)
 			ndx = 4;
 			if (byte == 3)
 			{
-				ndx += buffer[ndx];
+				ndx += buffer[ndx] + 1;
 			}
 
 			// Skip to the start of the section.
@@ -306,7 +306,7 @@ int main(int argc, char *argv[])
 	PATParser parser;
 
 	printf("--------------------------------------------------\n");
-	printf("DGTable 1.1.0 -- PAT/PMT Parser by Donald A. Graft\n");
+	printf("DGTable 1.1.1 -- PAT/PMT Parser by Donald A. Graft\n");
 	printf("--------------------------------------------------\n\n");
 	if (argc < 2)
 	{

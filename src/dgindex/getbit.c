@@ -193,6 +193,8 @@ static short *ptrPCM_Buffer = (short*)PCM_Buffer;
 
 unsigned char *buffer_invalid;
 
+void VideoDemux(void);
+
 void Initialize_Buffer()
 {
 	Rdptr = Rdbfr + BUFFER_SIZE;
@@ -230,6 +232,10 @@ void Initialize_Buffer()
 	}
 
 	BitsLeft = 32;
+	if (!Stop_Flag && MuxFile != (struct _iobuf *) 0xffffffff && MuxFile > 0)
+	{
+		VideoDemux();
+	}
 }
 
 // Skips ahead in transport stream by specified number of bytes.
@@ -326,6 +332,8 @@ void Next_Transport_Packet()
 		// Search for a sync byte. Gives some protection against emulation.
 		for(;;)
 		{
+			if (Stop_Flag)
+				ThreadKill();
 			if (Get_Byte() != 0x47) continue;
 			if (Rdptr + 187 >= Rdbfr + BUFFER_SIZE && Rdptr[-189] == 0x47)
 				break;
@@ -858,8 +866,10 @@ void Next_PVA_Packet()
 		}
 
 		// Search for a good sync.
-		while (true)
+		for(;;)
 		{
+			if (Stop_Flag)
+				ThreadKill();
 			// Sync word is 0x4156.
 			if (Get_Byte() != 0x41) continue;
 			if (Get_Byte() != 0x56)
@@ -1083,7 +1093,11 @@ void Next_Packet()
 		code = (code << 16) | Get_Short();
 
 		while ((code & 0xffffff00) != 0x00000100)
+		{
+			if (Stop_Flag)
+				return;
 			code = (code<<8) + Get_Byte();
+		}
 
 		switch (code)
 		{
@@ -1607,6 +1621,11 @@ unsigned int Get_Bits_All(unsigned int N)
 	BitsLeft = 32 - N;
 	Fill_Next();
 
+	if (!Stop_Flag && MuxFile != (struct _iobuf *) 0xffffffff && MuxFile > 0)
+	{
+		VideoDemux();
+	}
+
 	return Val;
 }
 
@@ -1615,6 +1634,10 @@ void Flush_Buffer_All(unsigned int N)
 	CurrentBfr = NextBfr;
 	BitsLeft = BitsLeft + 32 - N;
 	Fill_Next();
+	if (!Stop_Flag && MuxFile != (struct _iobuf *) 0xffffffff && MuxFile > 0)
+	{
+		VideoDemux();
+	}
 }
 
 void Fill_Buffer()
@@ -1810,3 +1833,69 @@ void UpdateInfo()
 		SetDlgItemText(hDlg, IDC_FPS, "");
 	}
 }
+
+// Video demuxing functions.
+void StartVideoDemux(void)
+{
+	unsigned char buf[4];
+	char path[1024];
+	char *p;
+
+	strcpy(path, D2VFilePath);
+	p = path + strlen(path);
+	while (*p != '.' && p >= path) p--;
+	if (p < path)
+	{
+		// No extension in this name. WTF?
+		p = path;
+		strcat(path, ".");
+	}
+	else
+		p[1] = 0;
+	strcat(p, "demuxed.m2v");
+	MuxFile = fopen(path, "wb");
+	if (MuxFile == 0)
+	{
+		MessageBox(hWnd, "Cannot open file for video demux output.", NULL, MB_OK | MB_ICONERROR);
+		MuxFile = (struct _iobuf *) 0xffffffff;
+		return;
+	}
+	if (BitsLeft == 32)
+	{
+		buf[0] = CurrentBfr >> 24;
+		buf[1] = (CurrentBfr >> 16) & 0xff;
+		buf[2] = (CurrentBfr >> 8) & 0xff;
+		buf[3] = CurrentBfr & 0xff;
+		fwrite(&buf, 1, 4, MuxFile);
+	}
+	else if (BitsLeft == 24)
+	{
+		buf[0] = (CurrentBfr >> 16) & 0xff;
+		buf[1] = (CurrentBfr >> 8) & 0xff;
+		buf[2] = CurrentBfr & 0xff;
+		fwrite(&buf, 1, 3, MuxFile);
+	}
+	else if (BitsLeft == 16)
+	{
+		buf[0] = (CurrentBfr >> 8) & 0xff;
+		buf[1] = CurrentBfr & 0xff;
+		fwrite(&buf, 1, 2, MuxFile);
+	}
+	else if (BitsLeft == 8)
+	{
+		buf[0] = CurrentBfr & 0xff;
+		fwrite(&buf, 1, 1, MuxFile);
+	}
+}
+
+void VideoDemux(void)
+{
+	unsigned char buf[4];
+
+	buf[0] = CurrentBfr >> 24;
+	buf[1] = (CurrentBfr >> 16) & 0xff;
+	buf[2] = (CurrentBfr >> 8) & 0xff;
+	buf[3] = CurrentBfr & 0xff;
+	fwrite(&buf, 1, 4, MuxFile);
+}
+

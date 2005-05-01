@@ -154,6 +154,7 @@
 #define IDM_SET_PIDS                    32866
 #define IDM_DETECT_PIDS                 32867
 #define IDM_DETECT_PIDS_RAW             32868
+#define IDM_SAVE_D2V_AND_DEMUX          32870
 #define IDC_STATIC                      -1
 
 // Next default values for new objects
@@ -161,7 +162,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        143
-#define _APS_NEXT_COMMAND_VALUE         32870
+#define _APS_NEXT_COMMAND_VALUE         32871
 #define _APS_NEXT_CONTROL_VALUE         1067
 #define _APS_NEXT_SYMED_VALUE           107
 #endif

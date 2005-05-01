@@ -73,7 +73,9 @@ __forceinline static unsigned int Get_Byte()
 	if (Rdptr >= buffer_invalid)
 	{
 		// Ran out of good data.
-		ThreadKill();
+//		ThreadKill();
+		Stop_Flag = 1;
+		return 0xff;
 	}
 
 	while (Rdptr >= Rdbfr+BUFFER_SIZE)
@@ -95,7 +97,10 @@ __forceinline static void Fill_Next()
 	if (Rdptr >= buffer_invalid)
 	{
 		// Ran out of good data.
-		ThreadKill();
+//		ThreadKill();
+		Stop_Flag = 1;
+		NextBfr = 0xffffffff;
+		return;
 	}
 
 	if (SystemStream_Flag && Rdptr > Rdmax - 4)
@@ -149,6 +154,8 @@ __forceinline static void next_start_code()
 
 	while ((show = Show_Bits(24)) != 1)
 	{
+		if (Stop_Flag == true)
+			return;
 		Flush_Buffer(8);
 	}
 }

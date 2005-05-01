@@ -29,12 +29,14 @@ static void InitialDecoder(void);
 
 DWORD WINAPI MPEG2Dec(LPVOID n)
 {
-	int i;
+	int i = (int) n; // Prevent compiler warning.
 	extern int closed_gop, VideoPTS;
 	extern FILE *mpafp, *mpvfp;
 	__int64 saveloc;
     int field;
 
+__try
+{
 	Pause_Flag = Stop_Flag = Start_Flag = Fault_Flag = false;
 	Frame_Number = Second_Field = 0;
 	VOB_ID = CELL_ID = 0;
@@ -113,9 +115,11 @@ do_rip_play:
 			timing.op = 0;
 			saveloc = process.startloc;
 
-			while (true)
+			for (;;)
 			{
 				Get_Hdr(0);
+				if (Stop_Flag == true)
+					ThreadKill();
 				if (picture_coding_type == I_TYPE)
 				{
 					process.startloc = saveloc;
@@ -234,6 +238,8 @@ do_rip_play:
 
 			case SEQUENCE_HEADER_CODE:
 				// Can't currently decode MPEG1, so detect that.
+				if (Stop_Flag == true)
+					ThreadKill();
 				next_start_code();
 				code = Get_Bits(32);
 				if (code == EXTENSION_START_CODE && Get_Bits(4) == 1)
@@ -242,8 +248,10 @@ do_rip_play:
 					CurrentFile = 0;
 					_lseeki64(Infile[0], 0, SEEK_SET);
 					Initialize_Buffer();
-					while (true)
+					for (;;)
 					{
+						if (Stop_Flag == true)
+							ThreadKill();
 						next_start_code();
 						code = Get_Bits(32);
 						if (code == SEQUENCE_HEADER_CODE) break;
@@ -271,7 +279,7 @@ do_rip_play:
 		Initialize_Buffer();
 		while (Get_Hdr(0) && picture_coding_type != I_TYPE)
 		LeadingBFrames = 0;
-		while (1)
+		for (;;)
 		{
 			if (Get_Hdr(1) == 1)
 			{
@@ -354,9 +362,11 @@ do_rip_play:
 
 	timing.op = 0;
 
-	while (1)
+	for (;;)
 	{
 		Get_Hdr(0);
+		if (Stop_Flag == true)
+			ThreadKill();
 		if (picture_coding_type == I_TYPE) break;
 	}
 	Start_Flag = true;
@@ -368,9 +378,15 @@ do_rip_play:
 	timing.op = timing.mi = timeGetTime();
 
     field = 0;
-	while (1)
+	for (;;)
 	{
 		Get_Hdr(0);
+		if (Stop_Flag && (!field || picture_structure == FRAME_PICTURE))
+		{
+			// Stop only after every two fields if we are decoding field pictures.
+			Write_Frame(current_frame, d2v_current, Frame_Number - 1);
+			ThreadKill();
+		}
 		Decode_Picture();
 		field ^= 1;
 		if (Stop_Flag && (!field || picture_structure == FRAME_PICTURE))
@@ -380,6 +396,12 @@ do_rip_play:
 			ThreadKill();
 		}
 	}
+}
+__except (EXCEPTION_EXECUTE_HANDLER)
+{
+	MessageBox(hWnd, "Caught an exception during decoding! See help file.", NULL, MB_OK | MB_ICONERROR);
+	ThreadKill();
+}
 	return 0;
 }
 
@@ -412,13 +434,19 @@ static BOOL GOPBack()
 		_lseeki64(Infile[process.startfile], process.startloc, SEEK_SET);
 		Initialize_Buffer();
 
-		while (true)
+		for (;;)
 		{
 			curloc = _telli64(Infile[process.startfile]);
 			if (curloc >= endloc) break;
 			Get_Hdr(0);
+			if (Stop_Flag == true)
+				ThreadKill();
 			if (picture_structure != FRAME_PICTURE)
+			{
 				Get_Hdr(0);
+				if (Stop_Flag == true)
+					ThreadKill();
+			}
 			if (picture_coding_type==I_TYPE)
 			{
 				if (d2v_current.file > startfile)

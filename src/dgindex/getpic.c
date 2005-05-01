@@ -319,6 +319,8 @@ static int slice(int MBAmax)
 		{
 			if (!Show_Bits(23) || Fault_Flag)	// next_start_code or fault
 			{
+				if (Stop_Flag == true)
+					return -1;
 resync:
 				if (Fault_Flag)
 				{
@@ -844,6 +846,8 @@ static int start_of_slice(int *MBA, int *MBAinc,
 	unsigned int code;
 	int slice_vert_pos_ext;
 
+	if (Stop_Flag == true)
+		return 1;
 	next_start_code();
 	code = Get_Bits(32);
 
@@ -1074,7 +1078,17 @@ static void Decode_MPEG2_Intra_Block(int comp, int dc_dct_pred[])
 				val = 4096 - val;
 		}
 
+		if (i > 63)
+		{
+			Fault_Flag = 1;
+			return;
+		}
 		j = scan[alternate_scan][i];
+		if (j > 63)
+		{
+			Fault_Flag = 1;
+			return;
+		}
 
 		val = (val * quantizer_scale * qmat[j]) >> 4;
 		bp[j] = sign ? -val : val;
@@ -1144,7 +1158,17 @@ static void Decode_MPEG2_Non_Intra_Block(int comp)
 				val = 4096 - val;
 		}
 
+		if (i > 63)
+		{
+			Fault_Flag = 1;
+			return;
+		}
 		j = scan[alternate_scan][i];
+		if (j > 63)
+		{
+			Fault_Flag = 1;
+			return;
+		}
 
 		val = (((val<<1)+1) * quantizer_scale * qmat[j]) >> 5;
 		bp[j] = sign ? -val : val;

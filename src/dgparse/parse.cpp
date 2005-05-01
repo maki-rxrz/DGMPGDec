@@ -14,7 +14,7 @@ int main(int argc, char *argv[])
 	int vob, cell;
 	char render[128], temp[20];
 
- 	printf("DGParse 1.2.1 by Donald A. Graft\n\n");
+ 	printf("DGParse 1.3.0 by Donald A. Graft\n\n");
 	if (argc != 2)
 	{
 		printf("Usage: dgparse file\n");
