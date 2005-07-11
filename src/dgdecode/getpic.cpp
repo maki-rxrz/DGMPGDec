@@ -198,7 +198,8 @@ int CMPEG2Decoder::slice(int MBAmax)
 			if (!Show_Bits(23) || Fault_Flag)	// next_start_code or fault
 			{
 resync:
-				if (Fault_Flag) return -1;
+				if (Fault_Flag == OUT_OF_BITS)
+					return -1;
 				Fault_Flag = 0;
 				return 0;	// trigger: go to next slice
 			}
@@ -255,12 +256,10 @@ void CMPEG2Decoder::macroblock_modes(int *pmacroblock_type, int *pmotion_type,
 			motion_type = Get_Bits(2);
     }
 	else if ((macroblock_type & MACROBLOCK_INTRA) && concealment_motion_vectors)
-		motion_type = (picture_structure==FRAME_PICTURE) ? MC_FRAME : MC_FIELD;
-	else
 	{
-		// Can't leave this uninitialised. [DAG]
-		motion_type = MC_FRAME;
+		motion_type = (picture_structure==FRAME_PICTURE) ? MC_FRAME : MC_FIELD;
 	}
+	else motion_type = 0; // implied
 
 	/* derive motion_vector_count, mv_format and dmv, (table 6-17, 6-18) */
 	if (picture_structure==FRAME_PICTURE)
@@ -850,55 +849,6 @@ void CMPEG2Decoder::motion_compensation(int MBA, int macroblock_type, int motion
 				idctFunc(block[comp]);
 	}
 
-/*  // Nic removed now to use iDCT pointer
-	switch (IDCT_Flag)
-
-	{
-		case IDCT_MMX:
-			for (comp=0; comp<block_count; comp++)
-				MMX_IDCT(block[comp]);
-			break;
-
-		case IDCT_SSEMMX:
-			for (comp=0; comp<block_count; comp++)
-				SSEMMX_IDCT(block[comp]);
-			break;
-
-		case IDCT_SSE2MMX:
-
-		#ifdef SSE2CHECK
-			sse2checkrun(4);
-		#endif
-
-			for (comp=0; comp<block_count-1; comp++)
-			{
-				prefetchpointer2=block[comp+1];
-				__asm {
-					mov eax,prefetchpointer2
-					prefetcht0 [eax]
-				};
-
-				SSE2MMX_IDCT(block[comp]);
-			};
-			SSE2MMX_IDCT(block[comp]);
-		#ifdef SSE2CHECK
-			sse2checkpass(4);
-		#endif
-			break;
-
-
-		case IDCT_FPU:
-			for (comp=0; comp<block_count; comp++)
-				FPU_IDCT(block[comp]);
-			break;
-
-		case IDCT_REF:
-			for (comp=0; comp<block_count; comp++)
-				REF_IDCT(block[comp]);
-			break;
-	}
-*/
-
 	#ifdef PROFILING
 		stop_timer(&tim.idct);
 		start_timer();
@@ -1012,16 +962,32 @@ int CMPEG2Decoder::decode_macroblock(int *macroblock_type, int *motion_type, int
 		quantizer_scale_code = Get_Bits(5);
 
 		/* ISO/IEC 13818-2 section 7.4.2.2: Quantizer scale factor */
-		quantizer_scale = q_scale_type ?
-		Non_Linear_quantizer_scale[quantizer_scale_code] : (quantizer_scale_code << 1);
+		if (mpeg_type == IS_MPEG2)
+		{
+			quantizer_scale = q_scale_type ?
+				Non_Linear_quantizer_scale[quantizer_scale_code] : (quantizer_scale_code << 1);
+		}
+		else
+		{
+			quantizer_scale = quantizer_scale_code;
+		}
 	}
 
 	/* ISO/IEC 13818-2 section 6.3.17.2: Motion vectors */
 	/* decode forward motion vectors */
 	if ((*macroblock_type & MACROBLOCK_MOTION_FORWARD) 
 		|| ((*macroblock_type & MACROBLOCK_INTRA) && concealment_motion_vectors))
-		motion_vectors(PMV, dmvector, motion_vertical_field_select, 0,
-		motion_vector_count, mv_format, f_code[0][0]-1, f_code[0][1]-1, dmv, mvscale);
+	{
+		if (mpeg_type == IS_MPEG2)
+		{
+			motion_vectors(PMV, dmvector, motion_vertical_field_select, 0,
+						   motion_vector_count, mv_format, f_code[0][0]-1, f_code[0][1]-1, dmv, mvscale);
+		}
+		else
+		{
+			motion_vector(PMV[0][0], dmvector, forward_f_code-1, forward_f_code-1, dmv, mvscale, full_pel_forward_vector);
+		}
+	}
 	if (Fault_Flag) {
 		#ifdef PROFILING
 //			stop_decMB_timer();
@@ -1031,8 +997,17 @@ int CMPEG2Decoder::decode_macroblock(int *macroblock_type, int *motion_type, int
 
 	/* decode backward motion vectors */
 	if (*macroblock_type & MACROBLOCK_MOTION_BACKWARD)
-		motion_vectors(PMV, dmvector, motion_vertical_field_select, 1,
-		motion_vector_count,mv_format, f_code[1][0]-1, f_code[1][1]-1, 0, mvscale);
+	{
+		if (mpeg_type == IS_MPEG2)
+		{
+			motion_vectors(PMV, dmvector, motion_vertical_field_select, 1,
+						   motion_vector_count,mv_format, f_code[1][0]-1, f_code[1][1]-1, 0, mvscale);
+		}
+		else
+		{
+			motion_vector(PMV[0][1], dmvector, backward_f_code-1, backward_f_code-1, dmv, mvscale, full_pel_backward_vector);
+		}
+	}
 	if (Fault_Flag) {
 		#ifdef PROFILING
 //			stop_decMB_timer();
@@ -1077,9 +1052,19 @@ int CMPEG2Decoder::decode_macroblock(int *macroblock_type, int *motion_type, int
 			if (coded_block_pattern & (1<<(block_count-1-comp)))
 			{
 				if (*macroblock_type & MACROBLOCK_INTRA)
-					Decode_MPEG2_Intra_Block_SSE(comp, dc_dct_pred);
+				{
+					if (mpeg_type == IS_MPEG2)
+						Decode_MPEG2_Intra_Block_SSE(comp, dc_dct_pred);
+					else
+						Decode_MPEG1_Intra_Block(comp, dc_dct_pred);
+				}
 				else
-					Decode_MPEG2_Non_Intra_Block_SSE(comp);
+				{
+					if (mpeg_type == IS_MPEG2)
+						Decode_MPEG2_Non_Intra_Block_SSE(comp);
+					else
+						Decode_MPEG1_Non_Intra_Block(comp);
+				}
 				if (Fault_Flag) {
 					#ifdef PROFILING
 				//			stop_decMB_timer();
@@ -1096,9 +1081,19 @@ int CMPEG2Decoder::decode_macroblock(int *macroblock_type, int *motion_type, int
 			if (coded_block_pattern & (1<<(block_count-1-comp)))
 			{
 				if (*macroblock_type & MACROBLOCK_INTRA)
-					Decode_MPEG2_Intra_Block(comp, dc_dct_pred);
+				{
+					if (mpeg_type == IS_MPEG2)
+						Decode_MPEG2_Intra_Block(comp, dc_dct_pred);
+					else
+						Decode_MPEG1_Intra_Block(comp, dc_dct_pred);
+				}
 				else
-					Decode_MPEG2_Non_Intra_Block(comp);
+				{
+					if (mpeg_type == IS_MPEG2)
+						Decode_MPEG2_Non_Intra_Block(comp);
+					else
+						Decode_MPEG1_Non_Intra_Block(comp);
+				}
 				if (Fault_Flag) {
 					#ifdef PROFILING
 				//			stop_decMB_timer();
@@ -1148,6 +1143,198 @@ int CMPEG2Decoder::decode_macroblock(int *macroblock_type, int *motion_type, int
 
 	/* successfully decoded macroblock */
 	return 1 ;
+}
+
+/* decode one intra coded MPEG-1 block */
+void CMPEG2Decoder::Decode_MPEG1_Intra_Block(int comp, int dc_dct_pred[])
+{
+	int val, i, j, sign, *qmat;
+	unsigned int code;
+	DCTtab *tab;
+	short *bp;
+
+	bp = block[comp];
+	qmat = (comp<4 || chroma_format==CHROMA420) 
+		? intra_quantizer_matrix : chroma_intra_quantizer_matrix;
+
+	/* ISO/IEC 13818-2 section 7.2.1: decode DC coefficients */
+	switch (cc_table[comp])
+	{
+		case 0:
+			val = (dc_dct_pred[0]+= Get_Luma_DC_dct_diff());
+			break;
+
+		case 1:
+			val = (dc_dct_pred[1]+= Get_Chroma_DC_dct_diff());
+			break;
+
+		case 2:
+			val = (dc_dct_pred[2]+= Get_Chroma_DC_dct_diff());
+			break;
+	}
+
+	bp[0] = val << 3;
+	
+	if (picture_coding_type == D_TYPE) return;
+
+	/* decode AC coefficients */
+	for (i=1; ; i++)
+	{
+		code = Show_Bits(16);
+
+		if (code>=16384)
+			tab = &DCTtabnext[(code>>12)-4];
+		else if (code>=1024)
+			tab = &DCTtab0[(code>>8)-4];
+		else if (code>=512)
+			tab = &DCTtab1[(code>>6)-8];
+		else if (code>=256)
+			tab = &DCTtab2[(code>>4)-16];
+		else if (code>=128)
+			tab = &DCTtab3[(code>>3)-16];
+		else if (code>=64)
+			tab = &DCTtab4[(code>>2)-16];
+		else if (code>=32)
+			tab = &DCTtab5[(code>>1)-16];
+		else if (code>=16)
+			tab = &DCTtab6[code-16];
+		else
+		{
+			Fault_Flag = 1;
+			return;
+		}
+
+		Flush_Buffer(tab->len);
+
+		if (tab->run<64)
+		{
+			i+= tab->run;
+			val = tab->level;
+			sign = Get_Bits(1);
+		}
+		else if (tab->run==64) /* end_of_block */
+			return;
+		else /* escape */
+		{
+			i+= Get_Bits(6);
+			val = Get_Bits(8);
+			if (val == 0)
+				val = Get_Bits(8);
+			else if (val == 128)
+				val = Get_Bits(8) - 256;
+			else if (val > 128)
+				val -= 256;
+
+			if (sign = (val < 0)) val = - val;
+		}
+
+		if (i > 63)
+		{
+			Fault_Flag = 1;
+			return;
+		}
+		j = scan[alternate_scan][i];
+		if (j > 63)
+		{
+			Fault_Flag = 1;
+			return;
+		}
+
+		val = (val * quantizer_scale * qmat[j]) >> 3;
+		if (val) val = (val - 1) | 1; // mismatch
+		if (val >= 2048) val = 2047 + sign; // saturation
+		if (sign) val = -val;
+		bp[j] = val;
+	}
+
+}
+/* decode one non-intra coded MPEG-2 block */
+// old MMX only version
+void CMPEG2Decoder::Decode_MPEG1_Non_Intra_Block(int comp)
+{
+	int val, i, j, sign, *qmat;
+	unsigned int code;
+	DCTtab *tab;
+	short *bp;
+
+	bp = block[comp];
+	qmat = (comp<4 || chroma_format==CHROMA420) 
+		? non_intra_quantizer_matrix : chroma_non_intra_quantizer_matrix;
+
+	/* decode AC coefficients */
+	for (i=0; ; i++)
+	{
+		code = Show_Bits(16);
+
+		if (code>=16384)
+		{
+			if (i==0)
+				tab = &DCTtabfirst[(code>>12)-4];
+			else
+				tab = &DCTtabnext[(code>>12)-4];
+		}
+		else if (code>=1024)
+			tab = &DCTtab0[(code>>8)-4];
+		else if (code>=512)
+			tab = &DCTtab1[(code>>6)-8];
+		else if (code>=256)
+			tab = &DCTtab2[(code>>4)-16];
+		else if (code>=128)
+			tab = &DCTtab3[(code>>3)-16];
+		else if (code>=64)
+			tab = &DCTtab4[(code>>2)-16];
+		else if (code>=32)
+			tab = &DCTtab5[(code>>1)-16];
+		else if (code>=16)
+			tab = &DCTtab6[code-16];
+		else
+		{
+			Fault_Flag = 1;
+			return;
+		}
+
+		Flush_Buffer(tab->len);
+
+		if (tab->run<64)
+		{
+			i+= tab->run;
+			val = tab->level;
+			sign = Get_Bits(1);
+		}
+		else if (tab->run==64) /* end_of_block */
+			return;
+		else /* escape */
+		{
+			i+= Get_Bits(6);
+			val = Get_Bits(8);
+			if (val == 0)
+				val = Get_Bits(8);
+			else if (val == 128)
+				val = Get_Bits(8) - 256;
+			else if (val > 128)
+				val -= 256;
+
+			if (sign = (val<0)) val = - val;
+		}
+
+		if (i > 63)
+		{
+			Fault_Flag = 1;
+			return;
+		}
+		j = scan[alternate_scan][i];
+		if (j > 63)
+		{
+			Fault_Flag = 1;
+			return;
+		}
+
+		val = (((val<<1)+1) * quantizer_scale * qmat[j]) >> 4;
+		if (val) val = (val - 1) | 1; // mismatch
+		if (val >= 2048) val = 2047 + sign; //saturation
+		if (sign) val = -val;
+		bp[j] = val;
+	}
 }
 
 /* decode one intra coded MPEG-2 block */
@@ -1247,6 +1434,11 @@ void CMPEG2Decoder::Decode_MPEG2_Intra_Block_SSE(int comp, int dc_dct_pred[])
 			if (sign = (val>=2048))
 				val = 4096 - val;
 		}
+		if (i > 63)
+		{
+			Fault_Flag = 1;
+			return;
+		}
 
 		j = scan[alternate_scan][i];
 
@@ -1331,6 +1523,11 @@ void CMPEG2Decoder::Decode_MPEG2_Non_Intra_Block_SSE(int comp)
 
 			if (sign = (val>=2048))
 				val = 4096 - val;
+		}
+		if (i > 63)
+		{
+			Fault_Flag = 1;
+			return;
 		}
 
 		j = scan[alternate_scan][i];
@@ -1446,6 +1643,11 @@ void CMPEG2Decoder::Decode_MPEG2_Intra_Block(int comp, int dc_dct_pred[])
 			if (sign = (val>=2048))
 				val = 4096 - val;
 		}
+		if (i > 63)
+		{
+			Fault_Flag = 1;
+			return;
+		}
 
 		j = scan[alternate_scan][i];
 
@@ -1531,6 +1733,11 @@ void CMPEG2Decoder::Decode_MPEG2_Non_Intra_Block(int comp)
 
 			if (sign = (val>=2048))
 				val = 4096 - val;
+		}
+		if (i > 63)
+		{
+			Fault_Flag = 1;
+			return;
 		}
 
 		j = scan[alternate_scan][i];

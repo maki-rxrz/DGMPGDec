@@ -145,7 +145,10 @@ void Write_Frame(unsigned char *src[], D2VData d2v, DWORD frame)
 		if (Clip_Width > MAX_WINDOW_WIDTH || Clip_Height > MAX_WINDOW_HEIGHT)
 			ResizeWindow(Clip_Width/2, Clip_Height/2);
 		else
+		{
 			ResizeWindow(Clip_Width, Clip_Height);
+			ResizeWindow(Clip_Width, Clip_Height);
+		}
 
 		ZeroMemory(&birgb, sizeof(BITMAPINFOHEADER));
 		birgb.biSize = sizeof(BITMAPINFOHEADER);
@@ -284,8 +287,9 @@ static void FlushRGB24()
 {
 	if (TFB & BFB)
 	{
+		if (PlaybackDelay)
+			Sleep(PlaybackDelay);
 		ShowFrame(false);
-
 		playback++;
 		TFB = BFB = false;
 	}

@@ -62,8 +62,6 @@
 #ifdef _DEBUG
 #define _INLINE_ 
 #else
-//#define _INLINE_ __forceinline
-//#define _INLINE_ 
 #define _INLINE_ inline
 #endif
 
@@ -102,6 +100,7 @@ int dprintf(char* fmt, ...);
 #define I_TYPE			1
 #define P_TYPE			2
 #define B_TYPE			3
+#define D_TYPE			4
 
 #define TOP_FIELD		1
 #define BOTTOM_FIELD	2
@@ -130,9 +129,9 @@ int dprintf(char* fmt, ...);
 
 #define IDCT_MMX		1
 #define IDCT_SSEMMX		2
-#define	IDCT_FPU		3
-#define IDCT_REF		4
-#define IDCT_SSE2MMX	5
+#define IDCT_SSE2MMX	3
+#define	IDCT_FPU		4
+#define IDCT_REF		5
 #define IDCT_SKALSSE	6
 #define IDCT_SIMPLEIDCT	7
 
@@ -161,13 +160,12 @@ extern "C"void aligned_free(void *aligned);
 
 typedef void (WINAPI *PBufferOp) (unsigned char*, int, int);
 
-#define MAX_FRAME_NUMBER	1000000
-#define MAX_GOP_SIZE		1024
-
 struct YV12PICT 
 {
 	unsigned char *y, *u, *v;
 	int ypitch, uvpitch;
+	int ywidth, uvwidth;
+	int yheight, uvheight;
 	int pf;
 };
 
@@ -240,6 +238,8 @@ private:
   _INLINE_ int start_of_slice(int *MBA, int *MBAinc, int dc_dct_pred[3], int PMV[2][2][2]);
   _INLINE_ int decode_macroblock(int *macroblock_type, int *motion_type, int *dct_type,
 	  int PMV[2][2][2], int dc_dct_pred[3], int motion_vertical_field_select[2][2], int dmvector[2]);
+  _INLINE_ void Decode_MPEG1_Intra_Block(int comp, int dc_dct_pred[]);
+  _INLINE_ void Decode_MPEG1_Non_Intra_Block(int comp);
   _INLINE_ void Decode_MPEG2_Intra_Block(int comp, int dc_dct_pred[]);
   _INLINE_ void Decode_MPEG2_Non_Intra_Block(int comp);
   _INLINE_ void Decode_MPEG2_Intra_Block_SSE(int comp, int dc_dct_pred[]);
@@ -288,13 +288,7 @@ protected:
   // store.cpp
   void assembleFrame(unsigned char *src[], int pf, YV12PICT *dst);
 private:
-/* not used in MPEG2Dec3
-  void Luminance_Filter(unsigned char *src, unsigned char *dst);
-  void conv420to422(unsigned char *src, unsigned char *dst, int frame_type);
-  void conv422to444(unsigned char *src, unsigned char *dst);
-  _INLINE_ void conv444toRGB24(unsigned char *py, unsigned char *pu, unsigned char *pv, unsigned char *dst, int pitch);
-  void conv422toYUV422(unsigned char *py, unsigned char *pu, unsigned char *pv, unsigned char *dst, int pitch);
-*/
+
 protected:
   // decoder operation control flags
   int Fault_Flag;
@@ -337,17 +331,15 @@ protected:
   // global values
   unsigned char *backward_reference_frame[3], *forward_reference_frame[3];
   unsigned char *auxframe[3], *current_frame[3];
-  unsigned char *u422, *v422, *u444, *v444, /* *rgb24,*/ *lum;
+  unsigned char *u422, *v422, *u444, *v444;
   YV12PICT *auxFrame1;
   YV12PICT *auxFrame2;
   YV12PICT *saved_active;
   YV12PICT *saved_store;
 
-  __int64 RGB_Scale, RGB_Offset, RGB_CRV, RGB_CBU, RGB_CGX, LumOffsetMask, LumGainMask;
+  __int64 RGB_Scale, RGB_Offset, RGB_CRV, RGB_CBU, RGB_CGX;
 
-  int HALF_WIDTH, PROGRESSIVE_HEIGHT, INTERLACED_HEIGHT, DOUBLE_WIDTH;
-  int /*TWIDTH, SWIDTH,*/ HALF_WIDTH_D8, LUM_AREA, CLIP_AREA, HALF_CLIP_AREA, CLIP_STEP;
-  int DSTBYTES, DSTBYTES2;	// these replace TWIDTH and SWIDTH
+
 public:
   int Clip_Width, Clip_Height;
   int Clip_Top, Clip_Bottom, Clip_Left, Clip_Right;
@@ -355,6 +347,14 @@ public:
 
 protected:
 
+#define ELEMENTARY_STREAM 0
+#define MPEG1_PROGRAM_STREAM 1
+#define MPEG2_PROGRAM_STREAM 2
+#define IS_NOT_MPEG 0
+#define IS_MPEG1 1
+#define IS_MPEG2 2
+
+  int mpeg_type;
   int Coded_Picture_Width, Coded_Picture_Height, Chroma_Width, Chroma_Height;
   int block_count, Second_Field;
   int horizontal_size, vertical_size, mb_width, mb_height;
@@ -362,10 +362,15 @@ protected:
   /* ISO/IEC 13818-2 section 6.2.2.3:  sequence_extension() */
   int progressive_sequence;
   int chroma_format;
+  int matrix_coefficients;
 
   /* ISO/IEC 13818-2 section 6.2.3: picture_header() */
   int picture_coding_type;
   int temporal_reference;
+  int full_pel_forward_vector;
+  int forward_f_code;
+  int full_pel_backward_vector;
+  int backward_f_code;
 
   /* ISO/IEC 13818-2 section 6.2.3.1: picture_coding_extension() header */
   int f_code[2][2];
@@ -379,25 +384,26 @@ protected:
   int intra_vlc_format;
 
   // interface
-  typedef struct {
+  struct GOPLIST {
 	DWORD		number;
 	int			file;
 	__int64		position;
 	int			closed;
 	int			progressive;
 	int			matrix;
-  }	GOPLIST;
-  GOPLIST *GOPList[MAX_FRAME_NUMBER];
+  };
+  GOPLIST **GOPList;
+  int GOPListSize;
 
-  typedef struct {
+  struct FRAMELIST {
 	DWORD top;
 	DWORD bottom;
 	unsigned char pf;
 	unsigned char pct;
-  }	FRAMELIST;
-  FRAMELIST FrameList[MAX_FRAME_NUMBER];
+  };
+  FRAMELIST *FrameList;
 
-  char DirectAccess[MAX_FRAME_NUMBER];
+  char *DirectAccess;
 
 public:
   int Field_Order;
@@ -412,22 +418,15 @@ protected:
 public:
   FILE		*VF_File;
   int		VF_FrameRate;
-  int		Matrix;
   DWORD		VF_FrameLimit;
   DWORD		VF_GOPLimit;
   DWORD		prev_frame;
 
-  enum DstFormat {
-	RGB24, YUV422
-  };
-  DstFormat m_dstFormat;
 
   CMPEG2Decoder();
-  int Open(const char *path, DstFormat);
+  int Open(const char *path);
   void Close();
   void Decode(DWORD frame, YV12PICT *dst);
-  bool dstRGB24() const { return m_dstFormat == RGB24; }
-  bool dstYUV422() const { return m_dstFormat == YUV422; }
 
   int iPP;
   bool fastMC;
@@ -442,9 +441,7 @@ public:
 
 	// Luminance Code
     bool Luminance_Flag;
-
 	unsigned char LuminanceTable[256];
-	int nLumSize;
 
 	void InitializeLuminanceFilter(int LumGamma, int LumOffset)
 	{
@@ -464,16 +461,18 @@ public:
 		}
 	}
 
-	void LuminanceFilter(unsigned char *src)
+	void LuminanceFilter(unsigned char *src, int width_in, int height_in, int pitch_in)
 	{
-		int i;
-
-		for (i=0; i<nLumSize; i++)
+		for (int y=0; y<height_in; ++y)
 		{
-			*(src) = LuminanceTable[*(src)];
-			src++;
+			for (int x=0; x<width_in; ++x)
+			{
+				src[x] = LuminanceTable[src[x]];
+			}
+			src += pitch_in;
 		}
 	}
+	// end luminance code
 
 };
 
@@ -491,7 +490,6 @@ extern "C" void __fastcall Skl_IDct16_Sparse_SSE(short *block);
 
 void Initialize_FPU_IDCT(void);
 void __fastcall FPU_IDCT(short *block);
-void Initialize_REF_IDCT(void);
 void __fastcall REF_IDCT(short *block);
 
 /* default intra quantization matrix */

@@ -29,7 +29,7 @@ extern "C"
 #include "pat.h"
 }
 
-static char Version[] = "DGIndex 1.3.0";
+static char Version[] = "DGIndex 1.4.0";
 
 #define TRACK_HEIGHT	30
 #define INIT_WIDTH		480
@@ -55,10 +55,9 @@ ATOM MyRegisterClass(HINSTANCE);
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK Info(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK VideoList(HWND, UINT, WPARAM, LPARAM);
-LRESULT CALLBACK AudioList(HWND, UINT, WPARAM, LPARAM);
-LRESULT CALLBACK Delay(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK ClipResize(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK Luminance(HWND, UINT, WPARAM, LPARAM);
+LRESULT CALLBACK Speed(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK Normalization(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK SetPids(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK DetectPids(HWND, UINT, WPARAM, LPARAM);
@@ -96,6 +95,8 @@ char *ExitOnEnd;
 int CLIActive = 0;
 
 PATParser pat_parser;
+extern "C" int fix_d2v(HWND hWnd, char *path);
+extern "C" int parse_d2v(HWND hWnd, char *path);
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
@@ -109,6 +110,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	char *p, *q;
 	int val;
 	char ucCmdLine[1024];
+	char delimiter1[2], delimiter2[2], save;
 
 	// Load INI
 	if ((INIFile = fopen("DGIndex.ini", "r")) == NULL)
@@ -116,7 +118,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 NEW_VERSION:
 		INIT_X = INIT_Y = 100;
 
-		iDCT_Flag = IDCT_MMX;
+		iDCT_Flag = IDCT_SSE2MMX;
 		Scale_Flag = true;
 		FO_Flag = FO_NONE;
 		Method_Flag = AUDIO_DEMUXALL;
@@ -128,6 +130,8 @@ NEW_VERSION:
 		Priority_Flag = PRIORITY_NORMAL;
 		MPEG2_Transport_VideoPID = 0x02;
 		MPEG2_Transport_AudioPID = 0x02;
+		PlaybackSpeed = 100;
+		PlaybackDelay = 0;
 	}
 	else
 	{
@@ -159,6 +163,11 @@ NEW_VERSION:
 		fscanf(INIFile, "Norm_Ratio=%d\n", &Norm_Ratio);
 		fscanf(INIFile, "Process_Priority=%d\n", &Priority_Flag);
 		fscanf(INIFile, "Transport_PIDs=%x,%x\n", &MPEG2_Transport_VideoPID, &MPEG2_Transport_AudioPID);
+		if (fscanf(INIFile, "Playback_Speed=%d\n", &PlaybackSpeed) != 1)
+		{
+			PlaybackSpeed = 100;
+		}
+		PlaybackDelay = 100 - PlaybackSpeed;
 
 		fclose(INIFile);
 	}
@@ -210,6 +219,7 @@ TEST_END:
 	{
 		DeleteMenu(hMenu, IDM_IDCT_SSE2MMX, 0);
 	}
+
 	if (!cpu.ssemmx)
 	{
 		DeleteMenu(hMenu, IDM_IDCT_SSEMMX, 0);
@@ -281,15 +291,25 @@ TEST_END:
 		char cwd[1024];
 
 		NumLoadedFiles = 0;
-		SystemStream_Flag = 0;
+		SystemStream_Flag = ELEMENTARY_STREAM;
+		delimiter1[0] = '[';
+		delimiter2[0] = ']';
+		delimiter1[1] = delimiter2[1] = 0;
+		if ((ptr = strstr(ucCmdLine,"-SET-DELIMITER")) || (ptr = strstr(ucCmdLine,"-SD")))
+		{
+			ptr = lpCmdLine + (ptr - ucCmdLine);
+			ptr += 4;
+			delimiter1[0] = delimiter2[0] = *ptr;
+		}
 		if ((ptr = strstr(ucCmdLine,"-AUTO-INPUT-FILES")) || (ptr = strstr(ucCmdLine,"-AIF")))
 		{
 			ptr = lpCmdLine + (ptr - ucCmdLine);
-			ptr  = strstr(ptr,"[")+1;
-			ende = strstr(ptr, "]");
+			ptr  = strstr(ptr, delimiter1) + 1;
+			ende = strstr(ptr + 1, delimiter2);
+			save = *ende;
 			*ende = 0;
 			strcpy(aFName, ptr);
-			*ende = ']';
+			*ende = save;
 			while (true)
 			{
 				/* If the specified file does not include a path, use the
@@ -331,13 +351,13 @@ TEST_END:
 		else if ((ptr = strstr(ucCmdLine,"-INPUT-FILES")) || (ptr = strstr(ucCmdLine,"-IF")))
 		{
 		  ptr = lpCmdLine + (ptr - ucCmdLine);
-		  ptr  = strstr(ptr,"[")+1;
-		  ende = strstr(ptr, "]");
+		  ptr  = strstr(ptr, delimiter1) + 1;
+		  ende = strstr(ptr + 1, delimiter2);
   
 		  do
 		  {
 			i = 0;
-			if ((fptr = strstr(ptr, ",")) || (fptr = strstr(ptr, "]")))
+			if ((fptr = strstr(ptr, ",")) || (fptr = strstr(ptr + 1, delimiter2)))
 			{
 			  while (ptr < fptr)
 			  {
@@ -381,11 +401,12 @@ TEST_END:
 			char line[1024];
 
 			ptr = lpCmdLine + (ptr - ucCmdLine);
-			ptr  = strstr(ptr,"[")+1;
-			ende = strstr(ptr, "]");
+			ptr  = strstr(ptr, delimiter1) + 1;
+			ende = strstr(ptr + 1, delimiter2);
+			save = *ende;
 			*ende = 0;
 			strcpy(aFName, ptr);
-			*ende = ']';
+			*ende = save;
 			/* If the specified batch file does not include a path, use the
 			   current directory. */
 			if (!strstr(aFName, "\\"))
@@ -453,28 +474,24 @@ TEST_END:
    
 		switch (*(strstr(ptr,"=")+1))
 		{
-		default:
 		case '1':
 		  iDCT_Flag = IDCT_MMX;
-		  CheckMenuItem(hMenu, IDM_IDCT_MMX, MF_CHECKED);
 		  break;
 		case '2':
 		  iDCT_Flag = IDCT_SSEMMX;
-		  CheckMenuItem(hMenu, IDM_IDCT_SSEMMX, MF_CHECKED);
 		  break;
+		default:
 		case '3':
 		  iDCT_Flag = IDCT_SSE2MMX;
-		  CheckMenuItem(hMenu, IDM_IDCT_SSE2MMX, MF_CHECKED);
 		  break;
 		case '4':
 		  iDCT_Flag = IDCT_FPU;
-		  CheckMenuItem(hMenu, IDM_IDCT_FPU, MF_CHECKED);
 		  break;
 		case '5':
 		  iDCT_Flag = IDCT_REF;
-		  CheckMenuItem(hMenu, IDM_IDCT_REF, MF_CHECKED);
 		  break;
 		}
+		CheckFlag();
 	}
 
     //Field-Operation
@@ -673,11 +690,20 @@ TEST_END:
 		CLIActive = 1;
 		ExitOnEnd = strstr(ucCmdLine,"-EXIT");
 		ptr = lpCmdLine + (ptr - ucCmdLine);
-		ptr  = strstr(ptr,"[")+1;
-		ende = strstr(ptr, "]");
-		strcpy(ende,"\0");
+		ptr  = strstr(ptr, delimiter1) + 1;
+		ende = strstr(ptr + 1, delimiter2);
+		save = *ende;
+		*ende = 0;
 		strcpy(szOutput, ptr);
+		*ende = save;
 	}
+
+#if 0
+	if (strstr(ucCmdLine,"-MINIMIZE"))
+		ShowWindow(hWnd, SW_MINIMIZE);
+	else
+		ShowWindow(hWnd, nCmdShow);
+#endif
 
     if (NumLoadedFiles)
     {
@@ -794,7 +820,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			for (i=0; i<8; i++)
 				block[i] = (short *)_aligned_malloc(sizeof(short)*64, 64);
 
-			Initialize_REF_IDCT();
 			Initialize_FPU_IDCT();
 
 			// register VFAPI
@@ -846,6 +871,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 						Display_Flag = true;
 						ShowInfo(true);
 
+						if (SystemStream_Flag == TRANSPORT_STREAM)
+						{
+							MPEG2_Transport_AudioType =
+										pat_parser.GetAudioType(Infilename[0], MPEG2_Transport_AudioPID);
+						}
+
 						if (wmId == IDM_PREVIEW)
 							process.locate = LOCATE_RIP;
 						else
@@ -854,10 +885,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 						if (WaitForSingleObject(hThread, INFINITE)==WAIT_OBJECT_0)
 							hThread = CreateThread(NULL, 0, MPEG2Dec, 0, 0, &threadId);
 					}
-					break;
-
-				case IDM_PROCESS_WAV:
-					DialogBox(hInst, (LPCTSTR)IDD_FILELIST, hWnd, (DLGPROC)AudioList);
 					break;
 
 				case IDM_SAVE_D2V_AND_DEMUX:
@@ -907,7 +934,7 @@ proceed:
 							RunningEnables();
 							ShowInfo(true);
 							// Get the audio type so that we parse correctly for transport streams.
-							if (SystemStream_Flag == 2)
+							if (SystemStream_Flag == TRANSPORT_STREAM)
 							{
 								MPEG2_Transport_AudioType =
 											pat_parser.GetAudioType(Infilename[0], MPEG2_Transport_AudioPID);
@@ -930,9 +957,28 @@ proceed:
 					{
 D2V_PROCESS:
 						int m, n;
+						char line[2048];
+						int D2Vformat;
 
 						D2VFile = fopen(szInput, "r");
 
+						// Validate the D2V file.
+						fgets(line, 2048, D2VFile);
+						if (strncmp(line, "DGIndexProjectFile", 18) != 0)
+						{
+							MessageBox(hWnd, "The file is not a DGIndex project file!", NULL, MB_OK | MB_ICONERROR);
+							fclose(D2VFile);
+							break;
+						}
+						sscanf(line, "DGIndexProjectFile%d", &D2Vformat);
+						if (D2Vformat != D2V_FILE_VERSION)
+						{
+							MessageBox(hWnd, "Obsolete D2V file.\nRecreate it with this version of DGIndex.", NULL, MB_OK | MB_ICONERROR);
+							fclose(D2VFile);
+							break;
+						}
+
+						// Close any opened files.
 						while (NumLoadedFiles)
 						{
 							NumLoadedFiles--;
@@ -965,8 +1011,11 @@ D2V_PROCESS:
 						Recovery();
 
 						fscanf(D2VFile, "\nStream_Type=%d\n", &SystemStream_Flag);
-						if (SystemStream_Flag == 2)
+						if (SystemStream_Flag == TRANSPORT_STREAM)
 							fscanf(D2VFile, "MPEG2_Transport_PID=%x,%x\n", &MPEG2_Transport_VideoPID, &MPEG2_Transport_AudioPID);
+						fscanf(D2VFile, "MPEG_Type=%d\n", &mpeg_type);
+						if (mpeg_type == 1) mpeg_type = IS_MPEG1;
+						else mpeg_type = IS_MPEG2;
 						fscanf(D2VFile, "iDCT_Algorithm=%d (1:MMX 2:SSEMMX 3:FPU 4:REF 5:SSE2MMX)\n", &iDCT_Flag);
 						fscanf(D2VFile, "YUVRGB_Scale=%d (0:TVScale 1:PCScale)\n", &Scale_Flag);
 						fscanf(D2VFile, "Luminance_Filter=%d,%d (Gamma, Offset)\n", &LumGamma, &LumOffset);
@@ -1030,6 +1079,26 @@ D2V_PROCESS:
 
 							if (!threadId || WaitForSingleObject(hThread, INFINITE)==WAIT_OBJECT_0)
 								hThread = CreateThread(NULL, 0, MPEG2Dec, 0, 0, &threadId);
+						}
+					}
+					break;
+
+				case IDM_PARSE_D2V:
+					if (PopFileDlg(szInput, hWnd, OPEN_D2V))
+					{
+						if (parse_d2v(hWnd, szInput))
+						{
+							ShellExecute(hDlg, "open", szInput, NULL, NULL, SW_SHOWNORMAL);
+						}
+					}
+					break;
+
+				case IDM_FIX_D2V:
+					if (PopFileDlg(szInput, hWnd, OPEN_D2V))
+					{
+						if (fix_d2v(hWnd, szInput))
+						{
+							ShellExecute(hDlg, "open", szInput, NULL, NULL, SW_SHOWNORMAL);
 						}
 					}
 					break;
@@ -1303,6 +1372,10 @@ D2V_PROCESS:
 
 				case IDM_LUMINANCE:
 					DialogBox(hInst, (LPCTSTR)IDD_LUMINANCE, hWnd, (DLGPROC)Luminance);
+					break;
+
+				case IDM_SPEED:
+					DialogBox(hInst, (LPCTSTR)IDD_SPEED, hWnd, (DLGPROC)Speed);
 					break;
 
 				case IDM_NORM:
@@ -1597,32 +1670,6 @@ D2V_PROCESS:
 					DragFinish((HDROP)wParam);
 					goto D2V_PROCESS;
 				}
-
-				if (!_strnicmp(ext, ".wav", 4))
-				{
-					DragFinish((HDROP)wParam);
-					if (Check_Flag)
-					{
-						break;
-					}
-
-					if (!CheckWAV())
-					{
-						sprintf(szBuffer, "Support 16-bit 48KHz or 44.1KHz Stereo Linear PCM Only! ");
-						MessageBox(hWnd, szBuffer, NULL, MB_OK | MB_ICONERROR);
-						break;
-					}
-
-					if (PopFileDlg(szOutput, hWnd, SAVE_WAV))
-					{
-						DialogBox(hInst, (LPCTSTR)IDD_DELAY, hWnd, (DLGPROC)Delay);
-						ShowInfo(true);
-
-						if (!threadId || WaitForSingleObject(hThread, INFINITE)==WAIT_OBJECT_0)
-							hThread = CreateThread(NULL, 0, ProcessWAV, 0, 0, &threadId);
-					}
-					break;
-				}
 			}
 
 			while (NumLoadedFiles)
@@ -1640,7 +1687,7 @@ D2V_PROCESS:
 				{
 					strcpy(Infilename[NumLoadedFiles], szInput);
 					NumLoadedFiles++;
-					SystemStream_Flag = 0;
+					SystemStream_Flag = ELEMENTARY_STREAM;
 				}
 			}
 			DragFinish((HDROP)wParam);
@@ -1688,6 +1735,7 @@ D2V_PROCESS:
 				fprintf(INIFile, "Norm_Ratio=%d\n", 100 * Norm_Flag + Norm_Ratio);
 				fprintf(INIFile, "Process_Priority=%d\n", Priority_Flag);
 				fprintf(INIFile, "Transport_PIDs=%x,%x\n", MPEG2_Transport_VideoPID, MPEG2_Transport_AudioPID);
+				fprintf(INIFile, "Playback_Speed=%d\n", PlaybackSpeed);
 
 				fclose(INIFile);
 			}
@@ -1723,7 +1771,7 @@ LRESULT CALLBACK DetectPids(HWND hDialog, UINT message, WPARAM wParam, LPARAM lP
 	switch (message)
 	{
 		case WM_INITDIALOG:
-			if (SystemStream_Flag != 2)
+			if (SystemStream_Flag != TRANSPORT_STREAM)
 			{
 				sprintf(msg, "Not a transport stream!");
 				SendDlgItemMessage(hDialog, IDC_PID_LISTBOX, LB_ADDSTRING, 0, (LPARAM)msg);
@@ -1778,6 +1826,7 @@ LRESULT CALLBACK DetectPids(HWND hDialog, UINT message, WPARAM wParam, LPARAM lP
 					}
 					break;
 
+				case IDC_SET_DONE:
 				case IDCANCEL:
 					EndDialog(hDialog, 0);
 			}
@@ -1805,6 +1854,7 @@ LRESULT CALLBACK VideoList(HWND hVideoListDlg, UINT message, WPARAM wParam, LPAR
 
 			if (NumLoadedFiles)
 				SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_SETCURSEL, NumLoadedFiles-1, 0);
+
 			return true;
 
 		case WM_COMMAND:
@@ -1869,7 +1919,7 @@ LRESULT CALLBACK VideoList(HWND hVideoListDlg, UINT message, WPARAM wParam, LPAR
 					if (!NumLoadedFiles)
 					{
 						Recovery();
-						SystemStream_Flag = 0;
+						SystemStream_Flag = ELEMENTARY_STREAM;
 					}
 					break;
 
@@ -1883,7 +1933,7 @@ LRESULT CALLBACK VideoList(HWND hVideoListDlg, UINT message, WPARAM wParam, LPAR
 						SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_SETCURSEL, i>=NumLoadedFiles ? NumLoadedFiles-1 : i, 0);
 					}
 					Recovery();
-					SystemStream_Flag = 0;
+					SystemStream_Flag = ELEMENTARY_STREAM;
 					break;
 
 				case IDOK:
@@ -1929,7 +1979,7 @@ static void OpenVideoFile(HWND hVideoListDlg)
 		int i, j, n;
 		char *tmp;
 
-		SystemStream_Flag = 0;
+		SystemStream_Flag = ELEMENTARY_STREAM;
 		getcwd(curPath, _MAX_PATH);
 		if (strlen(curPath) != strlen(szInput))
 		{
@@ -2011,117 +2061,6 @@ static void OpenVideoFile(HWND hVideoListDlg)
 	}
 }
 
-LRESULT CALLBACK AudioList(HWND hAudioListDlg, UINT message, WPARAM wParam, LPARAM lParam)
-{
-	int i, j;
-
-	switch (message)
-	{
-		case WM_INITDIALOG:
-			NumLoadedFiles = 0;
-			OpenAudioFile(hAudioListDlg);
-			return true;
-
-		case WM_COMMAND:
-			switch (LOWORD(wParam))
-			{
-				case ID_ADD:
-					OpenAudioFile(hAudioListDlg);
-					break;
-
-				case ID_DEL:
-					if (NumLoadedFiles)
-					{
-						i= SendDlgItemMessage(hAudioListDlg, IDC_LIST, LB_GETCURSEL, 0, 0);
-						SendDlgItemMessage(hAudioListDlg, IDC_LIST, LB_DELETESTRING, i, 0);
-
-						NumLoadedFiles--;
-
-						for (j=i; j<NumLoadedFiles; j++)
-						{
-							strcpy(Infilename[j], Infilename[j+1]);
-							strcpy(Outfilename[j], Outfilename[j+1]);
-							SoundDelay[j] = SoundDelay[j+1];
-						}
-
-						SendDlgItemMessage(hAudioListDlg, IDC_LIST, LB_SETCURSEL, i>=NumLoadedFiles ? NumLoadedFiles-1 : i, 0);
-					}
-					break;
-
-				case IDOK:
-				case IDCANCEL:
-					EndDialog(hAudioListDlg, 0);
-
-					if (NumLoadedFiles)
-					{
-						ShowInfo(true);
-
-						if (!threadId || WaitForSingleObject(hThread, INFINITE)==WAIT_OBJECT_0)
-							hThread = CreateThread(NULL, 0, ProcessWAV, (void *)NumLoadedFiles, 0, &threadId);
-					}
-					return true;
-			}
-			break;
-	}
-    return false;
-}
-
-static void OpenAudioFile(HWND hAudioListDlg)
-{
-	if (PopFileDlg(szInput, hAudioListDlg, OPEN_WAV))
-	{
-		if (!CheckWAV())
-		{
-			sprintf(szBuffer, "Support 16-bit 48KHz or 44.1KHz Stereo Linear PCM Only! ");
-			MessageBox(hWnd, szBuffer, NULL, MB_OK | MB_ICONERROR);
-			return;
-		}
-
-		if (PopFileDlg(szOutput, hAudioListDlg, SAVE_WAV))
-		{
-			strcpy(Infilename[NumLoadedFiles], szInput);
-			strcpy(Outfilename[NumLoadedFiles], szOutput);
-			DialogBox(hInst, (LPCTSTR)IDD_DELAY, hWnd, (DLGPROC)Delay);
-			sprintf(szBuffer, "%s %dms", szInput, SoundDelay[NumLoadedFiles]);
-			SendDlgItemMessage(hAudioListDlg, IDC_LIST, LB_ADDSTRING, 0, (LPARAM)szBuffer);
-			NumLoadedFiles++;
-		}
-	}
-
-	if (NumLoadedFiles)
-		SendDlgItemMessage(hAudioListDlg, IDC_LIST, LB_SETCURSEL, NumLoadedFiles-1, 0);
-}
-
-DWORD WINAPI ProcessWAV(LPVOID n)
-{
-	int i;
-
-	Stop_Flag = Pause_Flag = false;
-	RunningEnables();
-
-	if (!n)
-		Wavefs44File(SoundDelay[0]);
-	else
-		for (i=0; i<NumLoadedFiles && !Stop_Flag; i++)
-		{
-			strcpy(szInput, Infilename[i]);
-			strcpy(szOutput, Outfilename[i]);
-			Wavefs44File(SoundDelay[i]);
-		}
-
-	NumLoadedFiles = 0;
-
-	if (!Stop_Flag)
-	{
-		MessageBeep(MB_OK);
-		SetDlgItemText(hDlg, IDC_REMAIN, "FINISH");
-	}
-
-	SetForegroundWindow(hWnd);
-	StartupEnables();
-	return 0;
-}
-
 void ThreadKill()
 {
 	if (D2V_Flag && (ac3[Track_Flag].rip && Method_Flag==AUDIO_DECODE  ||  pcm.rip))
@@ -2141,7 +2080,7 @@ void ThreadKill()
 		if (D2V_Flag)
 		{
 			// Revised by Donald Graft to support IBBPIBBP...
-			WriteGopLine(1);
+			WriteD2VLine(1);
 			fprintf(D2VFile, "\nFINISHED");
 			// Prevent divide by 0.
 			if (FILM_Purity+NTSC_Purity == 0) NTSC_Purity = 1;
@@ -2213,28 +2152,6 @@ LRESULT CALLBACK Info(HWND hInfoDlg, UINT message, WPARAM wParam, LPARAM lParam)
 			{
 				DestroyWindow(hInfoDlg);
 				Info_Flag = false;
-				return true;
-			}
-	}
-    return false;
-}
-
-LRESULT CALLBACK Delay(HWND hDelayDlg, UINT message, WPARAM wParam, LPARAM lParam)
-{
-	switch (message)
-	{
-		case WM_INITDIALOG:
-			SetDlgItemText(hDelayDlg, IDC_DELAY, "0");
-			return true;
-
-		case WM_COMMAND:
-			if (LOWORD(wParam)==IDOK || LOWORD(wParam)==IDCANCEL) 
-			{
-				SoundDelay[NumLoadedFiles] = GetDlgItemInt(hDelayDlg, IDC_DELAY, NULL, true);
-				if (abs(SoundDelay[NumLoadedFiles]) > 10000000)
-					SoundDelay[NumLoadedFiles] = 0;
-
-				EndDialog(hDelayDlg, 0);
 				return true;
 			}
 	}
@@ -2448,6 +2365,40 @@ LRESULT CALLBACK Luminance(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPa
     return false;
 }
 
+LRESULT CALLBACK Speed(HWND hDialog, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	switch (message)
+	{
+		case WM_INITDIALOG:
+			SendDlgItemMessage(hDialog, IDC_SPEED_SLIDER, TBM_SETRANGE, 0, MAKELPARAM(0, 100));
+			SendDlgItemMessage(hDialog, IDC_SPEED_SLIDER, TBM_SETPOS, 1, PlaybackSpeed);
+			ShowWindow(hDialog, SW_SHOW);
+			return true;
+
+		case WM_COMMAND:
+			switch (LOWORD(wParam))
+			{
+				case IDCANCEL:
+					EndDialog(hDialog, 0);
+					return true;
+			}
+			break;
+
+		case WM_HSCROLL:
+			switch (GetWindowLong((HWND)lParam, GWL_ID))
+			{
+				case IDC_SPEED_SLIDER:
+					PlaybackSpeed = SendDlgItemMessage(hDialog, IDC_SPEED_SLIDER, TBM_GETPOS, 0, 0);
+					PlaybackDelay = 100 - PlaybackSpeed;
+					break;
+			}
+
+			RefreshWindow(true);
+			break;
+	}
+    return false;
+}
+
 LRESULT CALLBACK SetPids(HWND hDialog, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	char buf[80];
@@ -2498,6 +2449,7 @@ LRESULT CALLBACK SetPids(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPara
 	}
     return false;
 }
+
 LRESULT CALLBACK Normalization(HWND hDialog, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)
@@ -2583,9 +2535,9 @@ bool PopFileDlg(PTSTR pstrFileName, HWND hOwner, int Status)
 			ofn.nFilterIndex = 4;
 			szFilter = \
 				TEXT ("vob\0*.vob\0") \
-				TEXT ("mpg, mpeg, m2v\0*.mpg;*.mpeg;*.m2v\0") \
-				TEXT ("tp, ts, trp, pva\0*.tp;*.ts;*.trp;*.pva\0") \
-				TEXT ("vob, mpg, mpeg, m2v, tp, ts, trp, pva\0*.vob;*.mpg;*.mpeg;*.m2v;*.tp;*.ts;*.trp;*.pva\0") \
+				TEXT ("mpg, mpeg, m2v, mpv\0*.mpg;*.mpeg;*.m2v;*.mpv\0") \
+				TEXT ("tp, ts, trp, pva, vro\0*.tp;*.ts;*.trp;*.pva;*.vro\0") \
+				TEXT ("vob, mpg, mpeg, m2v, mpv, tp, ts, trp, pva, vro\0*.vob;*.mpg;*.mpeg;*.m2v;*.mpv;*.tp;*.ts;*.trp;*.pva;*.vro\0") \
 				TEXT ("All Files (*.*)\0*.*\0");
 			break;
 
@@ -2715,30 +2667,11 @@ static void CheckFlag()
 	CheckMenuItem(hMenu, IDM_TVSCALE, MF_UNCHECKED);
 	CheckMenuItem(hMenu, IDM_FO_FILM, MF_UNCHECKED);
 
-	if (iDCT_Flag==IDCT_MMX)
-	{
-		if (cpu.ssemmx)
-			iDCT_Flag = IDCT_SSEMMX;
-
-		if (cpu.sse2)
-			iDCT_Flag = IDCT_SSE2MMX;
-	}
-	else if (iDCT_Flag==IDCT_SSEMMX)
-	{
-		if (cpu.sse2)
-			iDCT_Flag = IDCT_SSE2MMX;
-
-		if (!cpu.ssemmx)
-			iDCT_Flag = IDCT_MMX;
-	}
-	else if (iDCT_Flag==IDCT_SSE2MMX)
-	{
-		if (!cpu.sse2)
-			iDCT_Flag = IDCT_SSEMMX;
-
-		if (!cpu.ssemmx)
-			iDCT_Flag = IDCT_MMX;
-	}
+	//Downgrade the iDCT if the processor does not support it.
+	if (iDCT_Flag == IDCT_SSE2MMX && !cpu.sse2)
+		iDCT_Flag = IDCT_SSEMMX;
+	if (iDCT_Flag == IDCT_SSEMMX && !cpu.ssemmx)
+		iDCT_Flag = IDCT_MMX;
 
 	switch (iDCT_Flag)
 	{
@@ -3118,6 +3051,10 @@ static DWORD DDColorMatch(LPDIRECTDRAWSURFACE pdds, COLORREF rgb)
 
 void ResizeWindow(int width, int height)
 {
+	// Don't let window get too small so
+	// that the trackbar does not become a joke.
+	if (width < 320) width = 320;
+	if (height < 240) height = 240;
 	MoveWindow(hTrack, 0, height, width-4*TRACK_HEIGHT, TRACK_HEIGHT, true);
 	MoveWindow(hLeftButton, width-4*TRACK_HEIGHT, height, TRACK_HEIGHT, TRACK_HEIGHT, true);
 	MoveWindow(hLeftArrow, width-3*TRACK_HEIGHT, height, TRACK_HEIGHT, TRACK_HEIGHT, true);
@@ -3213,7 +3150,6 @@ static void StartupEnables(void)
 	EnableMenuItem(hMenu, IDM_OPEN, MF_ENABLED);
 	EnableMenuItem(hMenu, IDM_OPEN_AUTO, MF_ENABLED);
 	EnableMenuItem(hMenu, IDM_LOAD_D2V, MF_ENABLED);
-	EnableMenuItem(hMenu, IDM_PROCESS_WAV, MF_ENABLED);
 	EnableMenuItem(hMenu, IDM_SAVE_D2V, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_SAVE_D2V_AND_DEMUX, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_BMP, MF_GRAYED);
@@ -3243,7 +3179,7 @@ static void FileLoadedEnables(void)
 {
 	// Main menu.
 	EnableMenuItem(hMenu, 0, MF_BYPOSITION | MF_ENABLED);
-	if (SystemStream_Flag == 2)
+	if (SystemStream_Flag == TRANSPORT_STREAM)
 		EnableMenuItem(hMenu, 1, MF_BYPOSITION | MF_ENABLED);
 	else
 		EnableMenuItem(hMenu, 1, MF_BYPOSITION | MF_GRAYED);
@@ -3256,7 +3192,6 @@ static void FileLoadedEnables(void)
 	EnableMenuItem(hMenu, IDM_OPEN, MF_ENABLED);
 	EnableMenuItem(hMenu, IDM_OPEN_AUTO, MF_ENABLED);
 	EnableMenuItem(hMenu, IDM_LOAD_D2V, MF_ENABLED);
-	EnableMenuItem(hMenu, IDM_PROCESS_WAV, MF_ENABLED);
 	EnableMenuItem(hMenu, IDM_SAVE_D2V, MF_ENABLED);
 	EnableMenuItem(hMenu, IDM_SAVE_D2V_AND_DEMUX, MF_ENABLED);
 	EnableMenuItem(hMenu, IDM_BMP, MF_ENABLED);
@@ -3287,14 +3222,13 @@ static void RunningEnables(void)
 	EnableMenuItem(hMenu, 1, MF_BYPOSITION | MF_GRAYED);
 	EnableMenuItem(hMenu, 2, MF_BYPOSITION | MF_GRAYED);
 	EnableMenuItem(hMenu, 3, MF_BYPOSITION | MF_GRAYED);
-	EnableMenuItem(hMenu, 4, MF_BYPOSITION | MF_GRAYED);
+	EnableMenuItem(hMenu, 4, MF_BYPOSITION | MF_ENABLED);
 	EnableMenuItem(hMenu, 5, MF_BYPOSITION | MF_GRAYED);
 
 	// File menu.
 	EnableMenuItem(hMenu, IDM_OPEN, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_OPEN_AUTO, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_LOAD_D2V, MF_GRAYED);
-	EnableMenuItem(hMenu, IDM_PROCESS_WAV, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_SAVE_D2V, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_SAVE_D2V_AND_DEMUX, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_BMP, MF_GRAYED);

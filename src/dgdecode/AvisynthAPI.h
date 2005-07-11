@@ -50,18 +50,10 @@ public:
   const VideoInfo& __stdcall GetVideoInfo() { return vi; }
   void __stdcall SetCacheHints(int cachehints,int frame_range) { } ;  // We do not pass cache requests upwards, only to the next filter.
   void override(int ovr_idct);
-  void conv422toYUV422_2(const unsigned char *py, unsigned char *pu, unsigned char *pv, unsigned char *dst, 
+  void conv422toYUV422(const unsigned char *py, unsigned char *pu, unsigned char *pv, unsigned char *dst, 
 					   int pitch1Y, int pitch1UV, int pitch2, int width, int height);
 
   CMPEG2Decoder m_decoder;
-};
-
-class LumaFilter : public GenericVideoFilter {
-	int lumgain,lumoff;
-	__int64 LumOffsetMask,LumGainMask;
-public:
-	LumaFilter(AVSValue args, IScriptEnvironment* env);
-    PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 };
 
 struct YUVRGBScale {
@@ -70,26 +62,6 @@ struct YUVRGBScale {
 	__int64 RGB_CBU;
 	__int64 RGB_CRV;
 	__int64 RGB_CGX;
-};
-
-class YV12toRGB24 : public GenericVideoFilter {
-	YUVRGBScale cscale;
-	uc *u422,*v422,*u444,*v444;
-	bool interlaced;
-	bool TVscale;
-public:
-	YV12toRGB24(AVSValue args, IScriptEnvironment* env);
-	~YV12toRGB24();
-    PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
-};
-
-class YV12toYUY2 : public GenericVideoFilter {
-	uc *u422,*v422;
-	bool interlaced;
-public:
-	YV12toYUY2(AVSValue args, IScriptEnvironment* env);
-	~YV12toYUY2();
-    PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 };
 
 class BlindPP : public GenericVideoFilter {
@@ -108,7 +80,8 @@ public:
 					   int pitch1Y, int pitch1UV, int pitch2, int width, int height);
 };
 
-void conv420to422(const unsigned char *src, unsigned char *dst, int frame_type, int width, int height);
+void conv420to422(const unsigned char *src, unsigned char *dst, int frame_type, int src_pitch,
+				  int dst_pitch, int width, int height);
 
 /* Macros for accessing easily frame pointers and pitch */
 #define YRPLAN(a) (a)->GetReadPtr(PLANAR_Y)

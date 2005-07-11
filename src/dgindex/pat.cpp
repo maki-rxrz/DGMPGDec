@@ -1,8 +1,7 @@
 /* 
  *	Copyright (C) 2004, Donald A Graft, All Rights Reserved
  *
- *  Command line PAT/PMT table parser for PID detection.
- *  Usage: table filename
+ *  PAT/PMT table parser for PID detection.
  *	
  *  TABLE is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -211,11 +210,11 @@ int PATParser::DumpPAT(HWND hDialog, char *filename)
 
 int PATParser::GetAudioType(char *filename, unsigned int audio_pid)
 {
-	unsigned int audio_type;
+	unsigned int audio_type = 0xffffffff;
 
-	if (AnalyzePAT(NULL, filename, audio_pid, &audio_type) == 0)
+	if ((AnalyzePAT(NULL, filename, audio_pid, &audio_type) == 0) && (audio_type != 0xffffffff))
 		return audio_type;
-	else if (AnalyzeRaw(NULL, filename, audio_pid, &audio_type) == 0)
+	else if ((AnalyzeRaw(NULL, filename, audio_pid, &audio_type) == 0) && (audio_type != 0xffffffff))
 		return audio_type;
 	else
 		return -1;
@@ -336,8 +335,12 @@ int PATParser::AnalyzePAT(HWND hDialog, char *filename, unsigned int audio_pid, 
 			program |= buffer[ndx+i++];
 			pmtpid = (buffer[ndx+i++] & 0x1f) << 8;
 			pmtpid |= buffer[ndx+i++];
-			pat_entries[num_pat_entries].program = program;
-			pat_entries[num_pat_entries++].pmtpid = pmtpid;
+			// Skip the Network Information Table (NIT).
+			if (program != 0)
+			{
+				pat_entries[num_pat_entries].program = program;
+				pat_entries[num_pat_entries++].pmtpid = pmtpid;
+			}
 		}
 
 		first_pat = false;

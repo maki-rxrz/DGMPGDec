@@ -241,7 +241,7 @@ InputPath=.\mcsse.asm
 InputName=mcsse
 
 "$(IntDir)\$(InputName).obj" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	nasm -f win32 -DPREFIX -o $(IntDir)\$(InputName).obj $(InputPath)
+	d:\dosbin\nasm -f win32 -DPREFIX -o $(IntDir)\$(InputName).obj $(InputPath)
 
 # End Custom Build
 
@@ -302,7 +302,7 @@ InputPath=.\simple_idct_mmx.asm
 InputName=simple_idct_mmx
 
 "$(IntDir)\$(InputName).obj" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	nasm -f win32 -DPREFIX -o $(IntDir)\$(InputName).obj $(InputPath)
+	d:\dosbin\nasm -f win32 -DPREFIX -o $(IntDir)\$(InputName).obj $(InputPath)
 
 # End Custom Build
 
@@ -333,7 +333,7 @@ InputPath=.\skl_dct_sse.asm
 InputName=skl_dct_sse
 
 "$(IntDir)\$(InputName).obj" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
-	nasm -f win32 -DPREFIX -DWIN32 -o $(IntDir)\$(InputName).obj $(InputPath)
+	d:\dosbin\nasm -f win32 -DPREFIX -DWIN32 -o $(IntDir)\$(InputName).obj $(InputPath)
 
 # End Custom Build
 

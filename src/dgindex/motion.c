@@ -28,7 +28,7 @@
 #include "global.h"
 #include "getbit.h"
 
-__forceinline static void motion_vector(int *PMV, int *dmvector, int h_r_size, int v_r_size,
+void motion_vector(int *PMV, int *dmvector, int h_r_size, int v_r_size,
 	int dmv, int mvscale, int full_pel_vector);
 __forceinline static void decode_motion_vector(int *pred, int r_size, int motion_code,
 	int motion_residualesidual, int full_pel_vector);
@@ -63,7 +63,7 @@ void motion_vectors(int PMV[2][2][2],int dmvector[2],
 }
 
 /* get and decode motion vector and differential motion vector for one prediction */
-static void motion_vector(int *PMV, int *dmvector, int h_r_size, int v_r_size,
+void motion_vector(int *PMV, int *dmvector, int h_r_size, int v_r_size,
 				   int dmv, int mvscale, int full_pel_vector)
 {
 	int motion_code, motion_residual;
@@ -170,11 +170,11 @@ static int Get_motion_code()
 	if (Get_Bits(1))
 		return 0;
 
-	if ((code = Show_Bits(9))>=64)
+	code = Show_Bits(9);
+	if (code >= 64)
 	{
 		code >>= 6;
 		Flush_Buffer(MVtab0[code].len);
-
 		return Get_Bits(1)?-MVtab0[code].val:MVtab0[code].val;
 	}
 
@@ -182,19 +182,18 @@ static int Get_motion_code()
 	{
 		code >>= 3;
 		Flush_Buffer(MVtab1[code].len);
-
 		return Get_Bits(1)?-MVtab1[code].val:MVtab1[code].val;
 	}
 
-	if ((code-=12)<0)
+	if (code >= 12)
 	{
-		Fault_Flag = 10;
-		return 0;
+		code -= 12;
+		Flush_Buffer(MVtab2[code].len);
+		return Get_Bits(1) ? -MVtab2[code].val : MVtab2[code].val;
 	}
 
-	Flush_Buffer(MVtab2[code].len);
-
-	return Get_Bits(1) ? -MVtab2[code].val : MVtab2[code].val;
+	Fault_Flag = 10;
+	return 0;
 }
 
 /* get differential motion vector (for dual prime prediction) */

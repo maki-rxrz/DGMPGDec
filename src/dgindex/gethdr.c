@@ -80,6 +80,7 @@ int Get_Hdr(int mode)
 	__int64 position = 0;
 	boolean HadSequenceHeader = false;
 	boolean HadGopHeader = false;
+	void StartVideoDemux(void);
 
 	for (;;)
 	{
@@ -108,6 +109,7 @@ int Get_Hdr(int mode)
 				Get_Bits(32);
 				group_of_pictures_header();
 				HadGopHeader = true;
+				GOPSeen = true;
 //				Second_Field = 0;
 				break;
 
@@ -134,7 +136,7 @@ void sequence_header(__int64 start)
 	int i;
 
 	// Index the location of the sequence header for the D2V file.
-	if (SystemStream_Flag)
+	if (SystemStream_Flag != ELEMENTARY_STREAM)
 	{
 		d2v_current.position = start;
 	}
@@ -148,6 +150,8 @@ void sequence_header(__int64 start)
 	vertical_size               = Get_Bits(12);
 	aspect_ratio_information    = Get_Bits(4);
 	frame_rate_code             = Get_Bits(4);
+	if (mpeg_type == IS_MPEG1)
+		Frame_Rate = frame_rate = (float) frame_rate_Table[frame_rate_code];
 	bit_rate_value              = Get_Bits(18);
 	Flush_Buffer(1);	// marker bit
 	vbv_buffer_size             = Get_Bits(10);
@@ -181,6 +185,12 @@ void sequence_header(__int64 start)
 		chroma_intra_quantizer_matrix[i] = intra_quantizer_matrix[i];
 		chroma_non_intra_quantizer_matrix[i] = non_intra_quantizer_matrix[i];
 	}
+
+	// These are MPEG1 defaults. These will be overridden if we have MPEG2
+	// when the sequence header extension is parsed.
+	progressive_sequence = 1;
+	chroma_format = CHROMA420;
+	matrix_coefficients = 5;
 
 	extension_and_user_data();
 }
@@ -217,20 +227,16 @@ static void group_of_pictures_header()
 static void picture_header(__int64 start, boolean HadSequenceHeader, boolean HadGopHeader)
 {
 	int vbv_delay;
-	int full_pel_forward_vector;
-	int forward_f_code;
-	int full_pel_backward_vector;
-	int backward_f_code;
 	int Extra_Information_Byte_Count;
 	int trackpos;
 	__int64 position = 0;
 	double track;
 
     // We prefer to index the sequence header, but if one doesn't exist,
-	// we index the picture header of the first I frame of the GOP.
+	// we index the picture header of the I frame.
 	if (HadSequenceHeader == false)
 	{
-		if (SystemStream_Flag)
+		if (SystemStream_Flag != ELEMENTARY_STREAM)
 			position = start;
 		else
 		{
@@ -315,6 +321,21 @@ static void picture_header(__int64 start, boolean HadSequenceHeader, boolean Had
 		backward_f_code = Get_Bits(3);
 	}
 
+	// MPEG1 defaults. May be overriden by picture coding extension.
+	intra_dc_precision = 0;
+	picture_structure = FRAME_PICTURE;
+	top_field_first = 1;
+	frame_pred_frame_dct = 1;
+	concealment_motion_vectors = 0;
+	q_scale_type = 0;
+	intra_vlc_format = 0;
+	alternate_scan = 0;
+	repeat_first_field = 0;
+	progressive_frame = 1;
+
+	d2v_current.pf = progressive_frame;
+	d2v_current.trf = (top_field_first<<1) + repeat_first_field;
+
 	Extra_Information_Byte_Count = extra_bit_information();
 	extension_and_user_data();
 
@@ -336,20 +357,18 @@ int slice_header()
 	int slice_picture_id = 0;
 	int extra_information_slice = 0;
 
-	slice_vertical_position_extension = vertical_size>2800 ? Get_Bits(3) : 0;
+	if (mpeg_type == IS_MPEG2)
+		slice_vertical_position_extension = vertical_size>2800 ? Get_Bits(3) : 0;
+	else
+		slice_vertical_position_extension = 0;
 
 	quantizer_scale_code = Get_Bits(5);
-	quantizer_scale = q_scale_type ? Non_Linear_quantizer_scale[quantizer_scale_code] : quantizer_scale_code<<1;
+	if (mpeg_type == IS_MPEG2)
+		quantizer_scale = q_scale_type ? Non_Linear_quantizer_scale[quantizer_scale_code] : quantizer_scale_code<<1;
+	else
+		quantizer_scale = quantizer_scale_code;
 
-	if (Get_Bits(1))
-	{
-		Get_Bits(1);	// intra slice
-
-		slice_picture_id_enable = Get_Bits(1);
-		slice_picture_id = Get_Bits(6);
-
-		extra_information_slice = extra_bit_information();
-	}
+	while (Get_Bits(1)) Flush_Buffer(8);
 
 	return slice_vertical_position_extension;
 }
@@ -361,7 +380,7 @@ static void extension_and_user_data()
 	int code, ext_ID;
 
 	if (Stop_Flag == true)
-		return 1;
+		return;
 	next_start_code();
 
 	while ((code = Show_Bits(32))==EXTENSION_START_CODE || code==USER_DATA_START_CODE)
@@ -393,14 +412,14 @@ static void extension_and_user_data()
 					break;
 			}
 			if (Stop_Flag == true)
-				return 1;
+				return;
 			next_start_code();
 		}
 		else
 		{
 			Flush_Buffer(32);	// ISO/IEC 13818-2  sections 6.3.4.1 and 6.2.2.2.2
 			if (Stop_Flag == true)
-				return 1;
+				return;
 			next_start_code();	// skip user data
 		}
 	}

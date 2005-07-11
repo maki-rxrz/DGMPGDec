@@ -28,6 +28,7 @@
 #define IDD_CLIPRESIZE                  140
 #define IDD_SET_PIDS                    141
 #define IDD_DETECT_PIDS                 142
+#define IDD_SPEED                       143
 #define IDC_CODED_NUMBER                1016
 #define IDC_PLAYBACK_NUMBER             1017
 #define IDC_FRAME_RATE                  1018
@@ -43,7 +44,6 @@
 #define IDC_FILE                        1027
 #define IDC_PROFILE                     1027
 #define IDC_FPS                         1028
-#define IDC_AUDIO_TYPE                  1029
 #define IDC_TIMESTAMP                   1030
 #define IDC_LIST                        1031
 #define IDC_FRAME_STRUCTURE             1031
@@ -84,6 +84,16 @@
 #define IDC_PID_LISTBOX                 1064
 #define IDC_SET_AUDIO                   1065
 #define IDC_SET_VIDEO                   1066
+#define IDC_AUDIO_TYPE                  1067
+#define IDC_SET_DONE                    1067
+#define IDC_AUDIO_TYPE2                 1068
+#define IDC_AUDIO_TYPE3                 1069
+#define IDC_SPEED_SLIDER                1069
+#define IDC_AUDIO_TYPE4                 1070
+#define IDC_AUDIO_TYPE5                 1071
+#define IDC_AUDIO_TYPE6                 1072
+#define IDC_AUDIO_TYPE7                 1073
+#define IDC_AUDIO_TYPE8                 1074
 #define IDM_OPEN                        32771
 #define IDM_SAVE_D2V                    32772
 #define IDM_SAVE_AC3                    32773
@@ -155,15 +165,18 @@
 #define IDM_DETECT_PIDS                 32867
 #define IDM_DETECT_PIDS_RAW             32868
 #define IDM_SAVE_D2V_AND_DEMUX          32870
+#define IDM_PARSE_D2V                   32871
+#define IDM_FIX_D2V                     32872
+#define IDM_SPEED                       32873
 #define IDC_STATIC                      -1
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        143
-#define _APS_NEXT_COMMAND_VALUE         32871
-#define _APS_NEXT_CONTROL_VALUE         1067
+#define _APS_NEXT_RESOURCE_VALUE        144
+#define _APS_NEXT_COMMAND_VALUE         32874
+#define _APS_NEXT_CONTROL_VALUE         1075
 #define _APS_NEXT_SYMED_VALUE           107
 #endif
 #endif

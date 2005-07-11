@@ -49,8 +49,12 @@ __forceinline static void skipped_macroblock(int dc_dct_pred[3], int PMV[2][2][2
 __forceinline static int start_of_slice(int *MBA, int *MBAinc, int dc_dct_pred[3], int PMV[2][2][2]);
 __forceinline static int decode_macroblock(int *macroblock_type, int *motion_type, int *dct_type,
 	int PMV[2][2][2], int dc_dct_pred[3], int motion_vertical_field_select[2][2], int dmvector[2]);
+__forceinline static void Decode_MPEG1_Intra_Block(int comp, int dc_dct_pred[]);
 __forceinline static void Decode_MPEG2_Intra_Block(int comp, int dc_dct_pred[]);
+__forceinline static void Decode_MPEG1_Non_Intra_Block(int comp);
 __forceinline static void Decode_MPEG2_Non_Intra_Block(int comp);
+void motion_vector(int *PMV, int *dmvector, int h_r_size, int v_r_size,
+	int dmv, int mvscale, int full_pel_vector);
 
 __forceinline static int Get_macroblock_type(void);
 __forceinline static int Get_I_macroblock_type(void);
@@ -72,6 +76,7 @@ __forceinline static void form_component_prediction(unsigned char *src, unsigned
 /* decode one frame */
 struct ENTRY
 {
+	bool gop_start;
 	int lba;
 	__int64 position;
 	int pct;
@@ -83,9 +88,9 @@ struct ENTRY
 } gop_entries[MAX_PICTURES_PER_GOP];
 int gop_entries_ndx = 0;
 
-char GopLine[2048];
+char D2VLine[2048];
 
-void WriteGopLine(int finish)
+void WriteD2VLine(int finish)
 {
 	char temp[8], position[255];
 	int m, r;
@@ -95,11 +100,12 @@ void WriteGopLine(int finish)
 	struct ENTRY entries[MAX_PICTURES_PER_GOP];
 	unsigned int gop_marker = 0x800;
 
-	// Write the first part of the GOP line to the D2V file.
+	// Write the first part of the data line to the D2V file.
+	if (gop_entries[0].gop_start == true) gop_marker |= 0x100;
 	if (closed_gop_prev == 1) gop_marker |= 0x400;
 	if (progressive_sequence_prev == 1) gop_marker |= 0x200;
 	_i64toa(gop_entries[0].position, position, 10);
-	sprintf(GopLine,"%03x %d %d %s %d %d",
+	sprintf(D2VLine,"%03x %d %d %s %d %d",
 		    gop_marker, matrix_coefficients, d2v_forward.file, position,
 			gop_entries[0].vob_id, gop_entries[0].cell_id);
 
@@ -138,11 +144,11 @@ void WriteGopLine(int finish)
 	for (m = 0; m < gop_entries_ndx; m++)
 	{
 		sprintf(temp," %02x", entries[m].trf | (entries[m].pct << 4) | (entries[m].pf << 6));
-		strcat(GopLine, temp);
+		strcat(D2VLine, temp);
 	}
-	if (finish) strcat(GopLine, " ff\n");
-	else strcat(GopLine, "\n");
-	fprintf(D2VFile, "%s", GopLine);
+	if (finish) strcat(D2VLine, " ff\n");
+	else strcat(D2VLine, "\n");
+	fprintf(D2VFile, "%s", D2VLine);
 	gop_entries_ndx = 0;
 }
 
@@ -160,11 +166,16 @@ void Decode_Picture()
 	}
 
 	// D2V file generation rewritten by Donald Graft to support IBBPBBP...
-	if (D2V_Flag  && (picture_structure==FRAME_PICTURE  || !Second_Field))
+	if (D2V_Flag && (picture_structure==FRAME_PICTURE  || !Second_Field))
 	{	
+		if (picture_coding_type == I_TYPE && GOPSeen == true)
+			gop_entries[gop_entries_ndx].gop_start = true;
+		else
+			gop_entries[gop_entries_ndx].gop_start = false;
+
 		if (picture_coding_type == I_TYPE && gop_entries_ndx > 0)
 		{
-			WriteGopLine(0);
+			WriteD2VLine(0);
 		}
 		gop_entries[gop_entries_ndx].lba = (int) d2v_current.lba;
 		gop_entries[gop_entries_ndx].position = d2v_current.position;
@@ -238,7 +249,7 @@ void Decode_Picture()
 		Second_Field = !Second_Field;
 
 	if (!Second_Field)
-		Frame_Number ++;
+		Frame_Number++;
 }
 
 /* reuse old picture buffers as soon as they are no longer needed */
@@ -281,6 +292,7 @@ static void Update_Picture_Buffers()
 
 /* decode all macroblocks of the current picture */
 /* stages described in ISO/IEC 13818-2 section 7 */
+int slice_no;
 static void picture_data()
 {
 	int MBAmax;
@@ -291,7 +303,7 @@ static void picture_data()
 	if (picture_structure!=FRAME_PICTURE)
 		MBAmax>>=1;
 
-	for (;;)
+	for (slice_no = 0;;slice_no++)
 	{		
 		if (slice(MBAmax)<0)
 			return;
@@ -302,11 +314,13 @@ static void picture_data()
 /* ISO/IEC 13818-2 section 6.3.16 */
 /* return 0 : go to next slice */
 /* return -1: go to next picture */
+int MBA, MBAinc;
 static int slice(int MBAmax)
 {
-	int MBA = 0, MBAinc =0, macroblock_type, motion_type, dct_type, ret;
+	int macroblock_type, motion_type, dct_type, ret;
 	int dc_dct_pred[3], PMV[2][2][2], motion_vertical_field_select[2][2], dmvector[2];
 
+	MBA = MBAinc = 0;
 	if ((ret=start_of_slice(&MBA, &MBAinc, dc_dct_pred, PMV))!=1)
 		return ret;
 
@@ -327,7 +341,7 @@ resync:
 					char fault[10];
 					sprintf(fault, "video error %d", Fault_Flag);
 					SetDlgItemText(hDlg, IDC_INFO, fault);
-					return -1;
+					return 0;
 				}
 
 				Fault_Flag = 0;
@@ -382,11 +396,7 @@ static void macroblock_modes(int *pmacroblock_type, int *pmotion_type,
     }
 	else if ((macroblock_type & MACROBLOCK_INTRA) && concealment_motion_vectors)
 		motion_type = (picture_structure==FRAME_PICTURE) ? MC_FRAME : MC_FIELD;
-	else
-	{
-		// I don't know if this is right, but we can't leave it uninitialised. [DAG]
-		motion_type = MC_FRAME;
-	}
+	else motion_type = 0; // implied
 
 	/* derive motion_vector_count, mv_format and dmv, (table 6-17, 6-18) */
 	if (picture_structure==FRAME_PICTURE)
@@ -902,23 +912,48 @@ static int decode_macroblock(int *macroblock_type, int *motion_type, int *dct_ty
 		quantizer_scale_code = Get_Bits(5);
 
 		/* ISO/IEC 13818-2 section 7.4.2.2: Quantizer scale factor */
-		quantizer_scale = q_scale_type ?
-		Non_Linear_quantizer_scale[quantizer_scale_code] : (quantizer_scale_code << 1);
+		if (mpeg_type == IS_MPEG2)
+		{
+			quantizer_scale = q_scale_type ?
+				Non_Linear_quantizer_scale[quantizer_scale_code] : (quantizer_scale_code << 1);
+		}
+		else
+		{
+			quantizer_scale = quantizer_scale_code;
+		}
 	}
 
 	/* ISO/IEC 13818-2 section 6.3.17.2: Motion vectors */
 	/* decode forward motion vectors */
 	if ((*macroblock_type & MACROBLOCK_MOTION_FORWARD) 
 		|| ((*macroblock_type & MACROBLOCK_INTRA) && concealment_motion_vectors))
-		motion_vectors(PMV, dmvector, motion_vertical_field_select, 0,
-		motion_vector_count, mv_format, f_code[0][0]-1, f_code[0][1]-1, dmv, mvscale);
+	{
+		if (mpeg_type == IS_MPEG2)
+		{
+			motion_vectors(PMV, dmvector, motion_vertical_field_select, 0,
+						   motion_vector_count, mv_format, f_code[0][0]-1, f_code[0][1]-1, dmv, mvscale);
+		}
+		else
+		{
+			motion_vector(PMV[0][0], dmvector, forward_f_code-1, forward_f_code-1, dmv, mvscale, full_pel_forward_vector);
+		}
+	}
 	if (Fault_Flag)
 		return 0;	// trigger: go to next slice
 
 	/* decode backward motion vectors */
 	if (*macroblock_type & MACROBLOCK_MOTION_BACKWARD)
-		motion_vectors(PMV, dmvector, motion_vertical_field_select, 1,
-		motion_vector_count,mv_format, f_code[1][0]-1, f_code[1][1]-1, 0, mvscale);
+	{
+		if (mpeg_type == IS_MPEG2)
+		{
+			motion_vectors(PMV, dmvector, motion_vertical_field_select, 1,
+						   motion_vector_count,mv_format, f_code[1][0]-1, f_code[1][1]-1, 0, mvscale);
+		}
+		else
+		{
+			motion_vector(PMV[0][1], dmvector, backward_f_code-1, backward_f_code-1, dmv, mvscale, full_pel_backward_vector);
+		}
+	}
 	if (Fault_Flag) return 0;  // trigger: go to next slice
 
 	if ((*macroblock_type & MACROBLOCK_INTRA) && concealment_motion_vectors)
@@ -948,10 +983,19 @@ static int decode_macroblock(int *macroblock_type, int *motion_type, int *dct_ty
 		if (coded_block_pattern & (1<<(block_count-1-comp)))
 		{
 			if (*macroblock_type & MACROBLOCK_INTRA)
-				Decode_MPEG2_Intra_Block(comp, dc_dct_pred);
+			{
+				if (mpeg_type == IS_MPEG2)
+					Decode_MPEG2_Intra_Block(comp, dc_dct_pred);
+				else
+					Decode_MPEG1_Intra_Block(comp, dc_dct_pred);
+			}
 			else
-				Decode_MPEG2_Non_Intra_Block(comp);
-
+			{
+				if (mpeg_type == IS_MPEG2)
+					Decode_MPEG2_Non_Intra_Block(comp);
+				else
+					Decode_MPEG1_Non_Intra_Block(comp);
+			}
 			if (Fault_Flag) return 0;	// trigger: go to next slice
 		}
 	}
@@ -990,6 +1034,109 @@ static int decode_macroblock(int *macroblock_type, int *motion_type, int *dct_ty
 	}
 	/* successfully decoded macroblock */
 	return 1 ;
+}
+
+/* decode one intra coded MPEG-1 block */
+static void Decode_MPEG1_Intra_Block(int comp, int dc_dct_pred[])
+{
+	int val, i, j, sign, *qmat;
+	unsigned int code;
+	DCTtab *tab;
+	short *bp;
+
+	bp = block[comp];
+	qmat = (comp<4 || chroma_format==CHROMA420) 
+		? intra_quantizer_matrix : chroma_intra_quantizer_matrix;
+
+	/* ISO/IEC 13818-2 section 7.2.1: decode DC coefficients */
+	switch (cc_table[comp])
+	{
+		case 0:
+			val = (dc_dct_pred[0]+= Get_Luma_DC_dct_diff());
+			break;
+
+		case 1:
+			val = (dc_dct_pred[1]+= Get_Chroma_DC_dct_diff());
+			break;
+
+		case 2:
+			val = (dc_dct_pred[2]+= Get_Chroma_DC_dct_diff());
+			break;
+	}
+
+	bp[0] = val << 3;
+	
+	if (picture_coding_type == D_TYPE) return;
+
+	/* decode AC coefficients */
+	for (i=1; ; i++)
+	{
+		code = Show_Bits(16);
+
+		if (code>=16384)
+			tab = &DCTtabnext[(code>>12)-4];
+		else if (code>=1024)
+			tab = &DCTtab0[(code>>8)-4];
+		else if (code>=512)
+			tab = &DCTtab1[(code>>6)-8];
+		else if (code>=256)
+			tab = &DCTtab2[(code>>4)-16];
+		else if (code>=128)
+			tab = &DCTtab3[(code>>3)-16];
+		else if (code>=64)
+			tab = &DCTtab4[(code>>2)-16];
+		else if (code>=32)
+			tab = &DCTtab5[(code>>1)-16];
+		else if (code>=16)
+			tab = &DCTtab6[code-16];
+		else
+		{
+			Fault_Flag = 1;
+			return;
+		}
+
+		Flush_Buffer(tab->len);
+
+		if (tab->run<64)
+		{
+			i+= tab->run;
+			val = tab->level;
+			sign = Get_Bits(1);
+		}
+		else if (tab->run==64) /* end_of_block */
+			return;
+		else /* escape */
+		{
+			i+= Get_Bits(6);
+			val = Get_Bits(8);
+			if (val == 0)
+				val = Get_Bits(8);
+			else if (val == 128)
+				val = Get_Bits(8) - 256;
+			else if (val > 128)
+				val -= 256;
+
+			if (sign = (val < 0)) val = - val;
+		}
+
+		if (i > 63)
+		{
+			Fault_Flag = 1;
+			return;
+		}
+		j = scan[alternate_scan][i];
+		if (j > 63)
+		{
+			Fault_Flag = 1;
+			return;
+		}
+
+		val = (val * quantizer_scale * qmat[j]) >> 3;
+		if (val) val = (val - 1) | 1; // mismatch
+		if (val >= 2048) val = 2047 + sign; // saturation
+		if (sign) val = -val;
+		bp[j] = val;
+	}
 }
 
 /* decode one intra coded MPEG-2 block */
@@ -1092,6 +1239,94 @@ static void Decode_MPEG2_Intra_Block(int comp, int dc_dct_pred[])
 
 		val = (val * quantizer_scale * qmat[j]) >> 4;
 		bp[j] = sign ? -val : val;
+	}
+}
+
+/* decode one non-intra coded MPEG-1 block */
+static void Decode_MPEG1_Non_Intra_Block(int comp)
+{
+	int val, i, j, sign, *qmat;
+	unsigned int code;
+	DCTtab *tab;
+	short *bp;
+
+	bp = block[comp];
+	qmat = (comp<4 || chroma_format==CHROMA420) 
+		? non_intra_quantizer_matrix : chroma_non_intra_quantizer_matrix;
+
+	/* decode AC coefficients */
+	for (i=0; ; i++)
+	{
+		code = Show_Bits(16);
+
+		if (code>=16384)
+		{
+			if (i==0)
+				tab = &DCTtabfirst[(code>>12)-4];
+			else
+				tab = &DCTtabnext[(code>>12)-4];
+		}
+		else if (code>=1024)
+			tab = &DCTtab0[(code>>8)-4];
+		else if (code>=512)
+			tab = &DCTtab1[(code>>6)-8];
+		else if (code>=256)
+			tab = &DCTtab2[(code>>4)-16];
+		else if (code>=128)
+			tab = &DCTtab3[(code>>3)-16];
+		else if (code>=64)
+			tab = &DCTtab4[(code>>2)-16];
+		else if (code>=32)
+			tab = &DCTtab5[(code>>1)-16];
+		else if (code>=16)
+			tab = &DCTtab6[code-16];
+		else
+		{
+			Fault_Flag = 1;
+			return;
+		}
+
+		Flush_Buffer(tab->len);
+
+		if (tab->run<64)
+		{
+			i+= tab->run;
+			val = tab->level;
+			sign = Get_Bits(1);
+		}
+		else if (tab->run==64) /* end_of_block */
+			return;
+		else /* escape */
+		{
+			i+= Get_Bits(6);
+			val = Get_Bits(8);
+			if (val == 0)
+				val = Get_Bits(8);
+			else if (val == 128)
+				val = Get_Bits(8) - 256;
+			else if (val > 128)
+				val -= 256;
+
+			if (sign = (val<0)) val = - val;
+		}
+
+		if (i > 63)
+		{
+			Fault_Flag = 1;
+			return;
+		}
+		j = scan[alternate_scan][i];
+		if (j > 63)
+		{
+			Fault_Flag = 1;
+			return;
+		}
+
+		val = (((val<<1)+1) * quantizer_scale * qmat[j]) >> 4;
+		if (val) val = (val - 1) | 1; // mismatch
+		if (val >= 2048) val = 2047 + sign; //saturation
+		if (sign) val = -val;
+		bp[j] = val;
 	}
 }
 

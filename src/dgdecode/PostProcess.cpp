@@ -33,7 +33,7 @@ void postprocess(unsigned char * src[], int src_stride,
                  unsigned char * dst[], int dst_stride, 
                  int horizontal_size,   int vertical_size,
                  QP_STORE_T *QP_store,  int QP_stride,
-				 int mode, int moderate_h, int moderate_v, bool is422) 
+				 int mode, int moderate_h, int moderate_v, bool is422, bool iPP) 
 {
 
 
@@ -43,6 +43,8 @@ void postprocess(unsigned char * src[], int src_stride,
 	QP_STORE_T *QP_ptr;
 	int y, i;
 
+	if (iPP) vertical_size >>= 1; // field based post-processing
+
 	/* this loop is (hopefully) going to improve performance */
 	/* loop down the picture, copying and processing in vertical stripes, each four pixels high */
 	for (y=0; y<vertical_size; y+= 4) 
@@ -50,38 +52,78 @@ void postprocess(unsigned char * src[], int src_stride,
 		
 		if (!(mode & PP_DONT_COPY)) 
 		{
-			puc_src = &((src[0])[y*src_stride]);
-			puc_dst = &((dst[0])[y*dst_stride]);
-
-			// First copy source to destination... 
-			fast_copy(puc_src, src_stride, puc_dst, dst_stride, horizontal_size, 4);
+			if (!iPP)
+			{
+				puc_src = &((src[0])[y*src_stride]);
+				puc_dst = &((dst[0])[y*dst_stride]); 
+				fast_copy(puc_src, src_stride, puc_dst, dst_stride, horizontal_size, 4);
+			}
+			else
+			{
+				puc_src = &((src[0])[y*2*src_stride]);
+				puc_dst = &((dst[0])[y*2*dst_stride]); 
+				fast_copy(puc_src, src_stride, puc_dst, dst_stride, horizontal_size, 8);
+			}
 		}
 		
 		if (mode & PP_DEBLOCK_Y_H) 
 		{
-			puc_flt = &((dst[0])[y*dst_stride]);  
-			QP_ptr  = &(QP_store[(y>>4)*QP_stride]);
-			deblock_horiz(puc_flt, horizontal_size, dst_stride, QP_ptr, QP_stride, 0, moderate_h);
+			if (!iPP)
+			{
+				puc_flt = &((dst[0])[y*dst_stride]);  
+				QP_ptr  = &(QP_store[(y>>4)*QP_stride]);
+				deblock_horiz(puc_flt, horizontal_size, dst_stride, QP_ptr, QP_stride, 0, moderate_h);
+			}
+			else
+			{
+				// top field
+				puc_flt = &((dst[0])[y*2*dst_stride]);  
+				QP_ptr  = &(QP_store[(y>>4)*2*QP_stride]);
+				deblock_horiz(puc_flt, horizontal_size, dst_stride*2, QP_ptr, QP_stride*2, 0, moderate_h);
+				// bottom field
+				puc_flt = &((dst[0])[(y*2+1)*dst_stride]);  
+				QP_ptr  = &(QP_store[((y>>4)*2+1)*QP_stride]);
+				deblock_horiz(puc_flt, horizontal_size, dst_stride*2, QP_ptr, QP_stride*2, 0, moderate_h);
+			}
 		}
 
 		if (mode & PP_DEBLOCK_Y_V) 
 		{ 
 			if ( (y%8) && (y-4)>5 )   
 			{
-				puc_flt = &((dst[0])[(y-4)*dst_stride]);  
-				QP_ptr  = &(QP_store[(y>>4)*QP_stride]);
-				deblock_vert( puc_flt, horizontal_size,   dst_stride, QP_ptr, QP_stride, 0, moderate_v);
+				if (!iPP)
+				{
+					puc_flt = &((dst[0])[(y-4)*dst_stride]);  
+					QP_ptr  = &(QP_store[(y>>4)*QP_stride]);
+					deblock_vert( puc_flt, horizontal_size, dst_stride, QP_ptr, QP_stride, 0, moderate_v);
+				}
+				else
+				{
+					// top field
+					puc_flt = &((dst[0])[(y-4)*2*dst_stride]);  
+					QP_ptr  = &(QP_store[(y>>4)*2*QP_stride]);
+					deblock_vert( puc_flt, horizontal_size, dst_stride*2, QP_ptr, QP_stride*2, 0, moderate_v);
+					// bottom field
+					puc_flt = &((dst[0])[((y-4)*2+1)*dst_stride]);  
+					QP_ptr  = &(QP_store[((y>>4)*2+1)*QP_stride]);
+					deblock_vert( puc_flt, horizontal_size, dst_stride*2, QP_ptr, QP_stride*2, 0, moderate_v);
+				}
 			}
 		}
 
-	} /* for loop */
-
-	if (mode & PP_DERING_Y) {
-		dering(dst[0],horizontal_size,vertical_size,dst_stride,QP_store,QP_stride,0);
 	}
 
-	/* now we're going to do U and V assuming 4:2:0 */
-	// not anymore :)  -- (tritical 1/05/2004,  4:2:2 PLANAR support)
+	if (mode & PP_DERING_Y) 
+	{
+		if (!iPP) dering(dst[0],horizontal_size,vertical_size,dst_stride,QP_store,QP_stride,0);
+		else
+		{
+			dering(dst[0],horizontal_size,vertical_size,dst_stride*2,QP_store,QP_stride*2,0);
+			dering(dst[0]+dst_stride,horizontal_size,vertical_size,dst_stride*2,QP_store+QP_stride,QP_stride*2,0);
+		}
+	}
+
+	// adjust for chroma
 	if (!is422) vertical_size >>= 1;
 	horizontal_size >>= 1;
 	src_stride      >>= 1;
@@ -92,42 +134,91 @@ void postprocess(unsigned char * src[], int src_stride,
 	{
 		for (y=0; y<vertical_size; y+= 4) 
 		{
-		
+
 			if (!(mode & PP_DONT_COPY)) 
 			{
-				puc_src = &((src[i])[y*src_stride]);
-				puc_dst = &((dst[i])[y*dst_stride]);
-
-				/// First copy source to destination... 
-				fast_copy(puc_src, src_stride, puc_dst, dst_stride, horizontal_size, 4);
+				if (!iPP)
+				{
+					puc_src = &((src[i])[y*src_stride]);
+					puc_dst = &((dst[i])[y*dst_stride]);
+					fast_copy(puc_src, src_stride, puc_dst, dst_stride, horizontal_size, 4);
+				}
+				else
+				{
+					puc_src = &((src[i])[y*2*src_stride]);
+					puc_dst = &((dst[i])[y*2*dst_stride]);
+					fast_copy(puc_src, src_stride, puc_dst, dst_stride, horizontal_size, 8);
+				}
 			}
 		
 			if (mode & PP_DEBLOCK_C_H) 
 			{
-				puc_flt = &((dst[i])[y*dst_stride]);
-				if (is422) QP_ptr =  &(QP_store[(y>>4)*QP_stride]);
-				else QP_ptr = &(QP_store[(y>>3)*QP_stride]);
-				deblock_horiz(puc_flt, horizontal_size, dst_stride, QP_ptr, QP_stride, is422 ? 2 : 1, moderate_h);
+				if (!iPP)
+				{
+					puc_flt = &((dst[i])[y*dst_stride]);
+					if (is422) QP_ptr =  &(QP_store[(y>>4)*QP_stride]);
+					else QP_ptr = &(QP_store[(y>>3)*QP_stride]);
+					deblock_horiz(puc_flt, horizontal_size, dst_stride, QP_ptr, QP_stride, is422 ? 2 : 1, moderate_h);
+				}
+				else
+				{
+					// top field
+					puc_flt = &((dst[i])[y*2*dst_stride]);
+					if (is422) QP_ptr =  &(QP_store[(y>>4)*2*QP_stride]);
+					else QP_ptr = &(QP_store[(y>>3)*2*QP_stride]);
+					deblock_horiz(puc_flt, horizontal_size, dst_stride*2, QP_ptr, QP_stride*2, is422 ? 2 : 1, moderate_h);
+					// bottom field
+					puc_flt = &((dst[i])[(y*2+1)*dst_stride]);
+					if (is422) QP_ptr =  &(QP_store[((y>>4)*2+1)*QP_stride]);
+					else QP_ptr = &(QP_store[((y>>3)*2+1)*QP_stride]);
+					deblock_horiz(puc_flt, horizontal_size, dst_stride*2, QP_ptr, QP_stride*2, is422 ? 2 : 1, moderate_h);
+				}
 			}
 
 			if (mode & PP_DEBLOCK_C_V) 
 			{ 
 				if ( (y%8) && (y-4)>5 )   
 				{
-					puc_flt = &((dst[i])[(y-4)*dst_stride]);  
-					if (is422) QP_ptr  = &(QP_store[(y>>4)*QP_stride]);
-					else QP_ptr = &(QP_store[(y>>3)*QP_stride]);
-					deblock_vert( puc_flt, horizontal_size,   dst_stride, QP_ptr, QP_stride, is422 ? 2 : 1, moderate_v);
+					if (!iPP)
+					{
+						puc_flt = &((dst[i])[(y-4)*dst_stride]);  
+						if (is422) QP_ptr  = &(QP_store[(y>>4)*QP_stride]);
+						else QP_ptr = &(QP_store[(y>>3)*QP_stride]);
+						deblock_vert( puc_flt, horizontal_size, dst_stride, QP_ptr, QP_stride, is422 ? 2 : 1, moderate_v);
+					}
+					else
+					{
+						// top field
+						puc_flt = &((dst[i])[(y-4)*2*dst_stride]);  
+						if (is422) QP_ptr  = &(QP_store[(y>>4)*2*QP_stride]);
+						else QP_ptr = &(QP_store[(y>>3)*2*QP_stride]);
+						deblock_vert( puc_flt, horizontal_size, dst_stride*2, QP_ptr, QP_stride*2, is422 ? 2 : 1, moderate_v);
+						// bottom field
+						puc_flt = &((dst[i])[((y-4)*2+1)*dst_stride]);  
+						if (is422) QP_ptr  = &(QP_store[((y>>4)*2+1)*QP_stride]);
+						else QP_ptr = &(QP_store[((y>>3)*2+1)*QP_stride]);
+						deblock_vert( puc_flt, horizontal_size, dst_stride*2, QP_ptr, QP_stride*2, is422 ? 2 : 1, moderate_v);
+					}
 				}
 			}
 
-		} /* stripe loop */
+		}
+	}
 
-	} /* U,V loop */
-
-	if (mode & PP_DERING_C) {
-		dering(dst[1],horizontal_size,vertical_size,dst_stride,QP_store,QP_stride,is422 ? 2 : 1);
-		dering(dst[2],horizontal_size,vertical_size,dst_stride,QP_store,QP_stride,is422 ? 2 : 1);
+	if (mode & PP_DERING_C) 
+	{
+		if (!iPP)
+		{
+			dering(dst[1],horizontal_size,vertical_size,dst_stride,QP_store,QP_stride,is422 ? 2 : 1);
+			dering(dst[2],horizontal_size,vertical_size,dst_stride,QP_store,QP_stride,is422 ? 2 : 1);
+		}
+		else
+		{
+			dering(dst[1],horizontal_size,vertical_size,dst_stride*2,QP_store,QP_stride*2,is422 ? 2 : 1);
+			dering(dst[1]+dst_stride,horizontal_size,vertical_size,dst_stride*2,QP_store+QP_stride,QP_stride*2,is422 ? 2 : 1);
+			dering(dst[2],horizontal_size,vertical_size,dst_stride*2,QP_store,QP_stride*2,is422 ? 2 : 1);
+			dering(dst[2]+dst_stride,horizontal_size,vertical_size,dst_stride*2,QP_store+QP_stride,QP_stride*2,is422 ? 2 : 1);
+		}
 	}
 
 	do_emms();

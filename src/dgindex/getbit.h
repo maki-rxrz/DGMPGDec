@@ -103,7 +103,7 @@ __forceinline static void Fill_Next()
 		return;
 	}
 
-	if (SystemStream_Flag && Rdptr > Rdmax - 4)
+	if (SystemStream_Flag != ELEMENTARY_STREAM && Rdptr > Rdmax - 4)
 	{
 		if (Rdptr >= Rdmax)
 			Next_Packet();

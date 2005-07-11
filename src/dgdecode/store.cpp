@@ -167,33 +167,31 @@ void CMPEG2Decoder::assembleFrame(unsigned char *src[], int pf, YV12PICT *dst)
 			ppptr[1] = u422;
 			ppptr[2] = v422;
 		}
-		if (iPP == 1 || (iPP == -1 && pf == 0)) 
-		{	// Field Based PP
-			postprocess(src, this->Coded_Picture_Width*2, ppptr, this->Coded_Picture_Width*2, this->Coded_Picture_Width*2,
-				this->Coded_Picture_Height/2, this->QP, this->mb_width, pp_mode, moderate_h, moderate_v, chroma_format == 1 ? false : true);
-		}
-		else 
-		{	// Image Based PP
-			postprocess(src, this->Coded_Picture_Width, ppptr, this->Coded_Picture_Width, this->Coded_Picture_Width,
-				this->Coded_Picture_Height, this->QP, this->mb_width, pp_mode, moderate_h, moderate_v, chroma_format == 1 ? false : true);
-		}
+		bool iPPt;
+		if (iPP == 1 || (iPP == -1 && pf == 0)) iPPt = true;
+		else iPPt = false;
+		postprocess(src, this->Coded_Picture_Width, ppptr, dst->ypitch, this->Coded_Picture_Width,
+				this->Coded_Picture_Height, this->QP, this->mb_width, pp_mode, moderate_h, moderate_v, 
+				chroma_format == 1 ? false : true, iPPt);
 		if (upConv && chroma_format == 1)
 		{
-			conv420to422(ppptr[1],dst->u,pf,dst->ypitch,Coded_Picture_Height);
-			conv420to422(ppptr[2],dst->v,pf,dst->ypitch,Coded_Picture_Height);
+			conv420to422(ppptr[1],dst->u,pf,dst->uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
+			conv420to422(ppptr[2],dst->v,pf,dst->uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
 		}
 	} 
-	else 
+	else
 	{
 		YV12PICT psrc;
 		psrc.y = src[0]; psrc.u = src[1]; psrc.v = src[2];
-		psrc.ypitch = Coded_Picture_Width; 
-		psrc.uvpitch = Chroma_Width;
+		psrc.ypitch = psrc.ywidth = Coded_Picture_Width; 
+		psrc.uvpitch = psrc.uvwidth = Chroma_Width;
+		psrc.yheight = Coded_Picture_Height;
+		psrc.uvheight = Chroma_Height;
 		if (upConv && chroma_format == 1)
 		{
-			AVSenv->BitBlt(dst->y,dst->ypitch,psrc.y,psrc.ypitch,dst->ypitch,Coded_Picture_Height);
-			conv420to422(psrc.u,dst->u,pf,dst->ypitch,Coded_Picture_Height);
-			conv420to422(psrc.v,dst->v,pf,dst->ypitch,Coded_Picture_Height);
+			AVSenv->BitBlt(dst->y,dst->ypitch,psrc.y,psrc.ypitch,dst->ywidth,dst->yheight);
+			conv420to422(psrc.u,dst->u,pf,psrc.uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
+			conv420to422(psrc.v,dst->v,pf,psrc.uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
 		}
 		else Copyall(&psrc,dst);
 	}
@@ -205,7 +203,7 @@ void CMPEG2Decoder::assembleFrame(unsigned char *src[], int pf, YV12PICT *dst)
 		{
 			for(x=0;x<this->mb_width; x++) 
 			{
-				MBnum(&dst->y[x*16+y*16*this->Coded_Picture_Width],this->Coded_Picture_Width,QP[x+y*this->mb_width]);
+				MBnum(&dst->y[x*16+y*16*dst->ypitch],dst->ypitch,QP[x+y*this->mb_width]);
 			}
 		}
 	}

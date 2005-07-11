@@ -145,7 +145,6 @@ typedef struct {
 #define	SKIP_TRANSPORT_PACKET_BYTES( bytes_to_skip ) \
 {	Rdptr += (bytes_to_skip); Packet_Length -= (bytes_to_skip); }
 
-
 void CMPEG2Decoder::Next_Transport_Packet()
 {
 	int Packet_Length;  // bytes remaining in MPEG-2 transport packet
@@ -161,7 +160,8 @@ void CMPEG2Decoder::Next_Transport_Packet()
 		// 1) Search for a sync byte. Gives some protection against emulation.
 		for(;;)
 		{
-			if ((tp.sync_byte = Get_Byte()) != 0x47) continue;
+			if ((tp.sync_byte = Get_Byte()) != 0x47)
+				continue;
 			if (Rdptr + 187 >= Rdbfr + BUFFER_SIZE && Rdptr[-189] == 0x47)
 				break;
 			if (Rdptr + 187 < Rdbfr + BUFFER_SIZE && Rdptr[+187] == 0x47)
@@ -228,29 +228,33 @@ void CMPEG2Decoder::Next_Transport_Packet()
 		// we've processed the header, so now just the payload is left...
 
 		// video
-//		if ( (tp.pid == 0x0021 || tp.pid == 0x0011 ) && (Packet_Length > 0) ) 
-		if ( tp.pid == MPEG2_Transport_VideoPID && Packet_Length > 0 ) 
+		if ( tp.pid == MPEG2_Transport_VideoPID && Packet_Length > 0) 
 		{
+#if 0
 			code = Get_Short();
 			code = (code & 0xffff)<<16 | Get_Short();
 			Packet_Length = Packet_Length - 4; // remove these two bytes
 
 			// Packet start?
-			if (code < 0x000001E0 || code > 0x000001EF ) 		
+			if (code < 0x000001E0 || code > 0x000001EF ) 
+			if (!tp.payload_unit_start_indicator)
 			{
 				// No, move the buffer-pointer back.
 				Rdptr -= 4; 
 				Packet_Length = Packet_Length + 4; // restore these four bytes
 			}
 			else
+#endif
+			if (tp.payload_unit_start_indicator)
 			{
 				// YES, pull out PTS 
-				//Packet_Length = Get_Short();
+				Get_Short();
+				Get_Short();
 				Get_Short(); // MPEG2-PES total Packet_Length
 				Get_Byte(); // skip a byte
 				code = Get_Byte();
 				Packet_Header_Length = Get_Byte();
-				Packet_Length = Packet_Length - 5; // compensate the bytes we extracted
+				Packet_Length = Packet_Length - 9; // compensate the bytes we extracted
 	
 				// get PTS, and skip rest of PES-header
 				if (code>=0x80 && Packet_Header_Length > 4 ) // Extension_flag ?
@@ -356,6 +360,7 @@ void CMPEG2Decoder::Next_PVA_Packet()
 void CMPEG2Decoder::Next_Packet()
 {
 	unsigned int code, Packet_Length, Packet_Header_Length;
+	static int stream_type;
 
 	if ( SystemStream_Flag == 2 )  // MPEG-2 transport packet?
 	{
@@ -381,18 +386,64 @@ void CMPEG2Decoder::Next_Packet()
 			code = (code<<8) + Get_Byte();
 		}
 
-		switch (code)
+		if (code == PACK_START_CODE)
 		{
-			case PACK_START_CODE:
-				Rdptr += 8;
-				break;
+			if ((Get_Byte() & 0xf0) == 0x20)
+			{
+				Rdptr += 7; // MPEG1 program stream
+				stream_type = MPEG1_PROGRAM_STREAM;
+			}
+			else
+			{
+				Rdptr += 8; // MPEG2 program stream
+				stream_type = MPEG2_PROGRAM_STREAM;
+			}
+		}
+		else if ((code & 0xfffffff0) == VIDEO_ELEMENTARY_STREAM)
+		{
+			Packet_Length = Get_Short();
+			Rdmax = Rdptr + Packet_Length;
 
-			case VIDEO_ELEMENTARY_STREAM:   
-				Packet_Length = Get_Short();
-				Rdmax = Rdptr + Packet_Length;
-
+			if (stream_type == MPEG1_PROGRAM_STREAM)
+			{
+				// MPEG1 program stream.
+				Packet_Header_Length = 0;
+				// Stuffing bytes.
+				do 
+				{
+					code = Get_Byte();
+					Packet_Header_Length += 1;
+				} while (code == 0xff);
+				if ((code & 0xc0) == 0x40)
+				{
+					// STD bytes.
+					Get_Byte();
+					code = Get_Byte();
+					Packet_Header_Length += 2;
+				}
+				if ((code & 0xf0) == 0x20)
+				{
+					// PTS bytes.
+					Get_Short();
+					Get_Short();
+					Packet_Header_Length += 4;
+				}
+				else if ((code & 0xf0) == 0x30)
+				{
+					// PTS/DTS bytes.
+					Get_Short();
+					Get_Short();
+					Get_Short();
+					Get_Short();
+					Get_Byte();
+					Packet_Header_Length += 9;
+				}
+				return;
+			}
+			else
+			{
+				// MPEG2 program stream.
 				code = Get_Byte();
-
 				if ((code & 0xc0)==0x80)
 				{
 					code = Get_Byte();
@@ -403,15 +454,12 @@ void CMPEG2Decoder::Next_Packet()
 				}
 				else
 					Rdptr += Packet_Length-1;
-				break;
-
-			default:
-				if (code>=SYSTEM_START_CODE)
-				{
-					code = Get_Short();
-					Rdptr += code;
-				}
-				break;
+			}
+		}
+		else if (code>=SYSTEM_START_CODE)
+		{
+			code = Get_Short();
+			Rdptr += code;
 		}
 	}
 }

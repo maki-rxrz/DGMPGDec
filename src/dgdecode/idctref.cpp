@@ -3,7 +3,7 @@
 /*************************************************************/
 /*                                                           */
 /* x87 hand-optimized assembly by Miha Peternel              */
-/*                                     27.11. - 20.1.2001    */
+/*                                        27.11. - 20.1.2001 */
 /*                                                           */
 /* You are free to use this code in your project if:         */
 /* - no changes are made to this message                     */
@@ -14,349 +14,268 @@
 /*                                                           */
 /*************************************************************/
 
-/*  Perform IEEE 1180 reference (64-bit floating point, separable 8x1
- *  direct matrix multiply) Inverse Discrete Cosine Transform
-*/
+// revised by Loli.J: bug fix together with rounding mode optimization
+// clipping is unnecessary since motion compensation will saturate thereafter
 
-#define ModelX 123 // enable C-level optimizations by Miha Peternel
+//  Perform IEEE 1180 reference (64-bit floating point, separable 8x1
+//  direct matrix multiply) Inverse Discrete Cosine Transform
 
-/* Here we use math.h to generate constants.  Compiler results may
-   vary a little */
-
-#include <math.h>
-
-#define M_PI	3.1415926535897932384626433832795
-const static double HALF = 0.5;
-
-/* private data */
-static short iclip[1024+1024]; /* clipping table */
-static short *iclp;
-
-/* cosine transform matrix for 8x1 IDCT */
-static double c[8][8];
-
-/* initialize DCT coefficient matrix */
-void Initialize_REF_IDCT()
-{
-  int freq, time, i;
-  double scale;
-
-  for (freq=0; freq < 8; freq++)
+static const double r[8][8] = {
   {
-    scale = (freq == 0) ? sqrt(0.125) : 0.5;
-    for (time=0; time<8; time++)
-      c[freq][time] = scale*cos((M_PI/8.0)*freq*(time + 0.5));
-  }
-
-#ifdef ModelX
-  iclp = iclip+1024;
-  for (i= -1024; i<1024; i++)
-    iclp[i] = (i<-256) ? -256 : ((i>255) ? 255 : i);
-#endif
-}
+     3.5355339059327379e-001,  3.5355339059327379e-001,
+     3.5355339059327379e-001,  3.5355339059327379e-001,
+     3.5355339059327379e-001,  3.5355339059327379e-001,
+     3.5355339059327379e-001,  3.5355339059327379e-001,
+  }, {
+     4.9039264020161522e-001,  4.1573480615127262e-001,
+     2.7778511650980114e-001,  9.7545161008064166e-002,
+    -9.7545161008064096e-002, -2.7778511650980098e-001,
+    -4.1573480615127267e-001, -4.9039264020161522e-001,
+  }, {
+     4.6193976625564337e-001,  1.9134171618254492e-001,
+    -1.9134171618254486e-001, -4.6193976625564337e-001,
+    -4.6193976625564342e-001, -1.9134171618254517e-001,
+     1.9134171618254500e-001,  4.6193976625564326e-001,
+  }, {
+     4.1573480615127262e-001, -9.7545161008064096e-002,
+    -4.9039264020161522e-001, -2.7778511650980109e-001,
+     2.7778511650980092e-001,  4.9039264020161522e-001,
+     9.7545161008064388e-002, -4.1573480615127256e-001,
+  }, {
+     3.5355339059327379e-001, -3.5355339059327373e-001,
+    -3.5355339059327384e-001,  3.5355339059327368e-001,
+     3.5355339059327384e-001, -3.5355339059327334e-001,
+    -3.5355339059327356e-001,  3.5355339059327329e-001,
+  }, {
+     2.7778511650980114e-001, -4.9039264020161522e-001,
+     9.7545161008064152e-002,  4.1573480615127273e-001,
+    -4.1573480615127256e-001, -9.7545161008064013e-002,
+     4.9039264020161533e-001, -2.7778511650980076e-001,
+  }, {
+     1.9134171618254492e-001, -4.6193976625564342e-001,
+     4.6193976625564326e-001, -1.9134171618254495e-001,
+    -1.9134171618254528e-001,  4.6193976625564337e-001,
+    -4.6193976625564320e-001,  1.9134171618254478e-001,
+  }, {
+     9.7545161008064166e-002, -2.7778511650980109e-001,
+     4.1573480615127273e-001, -4.9039264020161533e-001,
+     4.9039264020161522e-001, -4.1573480615127251e-001,
+     2.7778511650980076e-001, -9.7545161008064291e-002,
+  },
+};
 
 void __fastcall REF_IDCT(short *block)
 {
-	__asm emms;
+  int *b = (int *)block;
+  double tmp[64], rnd[64];
 
-  double tmp[64];
-	double rnd[64];
-	int int0, int1, int2, int3, int4, int5, int6, int7;
-	unsigned short fpold;
-	unsigned short fpnew;
+  if ( !(b[0]|(b[31]&~0x10000)) )
+  {
+    if( b[ 1]|b[ 2]|b[ 3]|b[ 4]|b[ 5]|b[ 6] )
+      goto __normal;
+    if( b[ 7]|b[ 8]|b[ 9]|b[10]|b[11]|b[12] )
+      goto __normal;
+    if( b[13]|b[14]|b[15]|b[16]|b[17]|b[18] )
+      goto __normal;
+    if( b[19]|b[20]|b[21]|b[22]|b[23]|b[24] )
+      goto __normal;
+    if( b[25]|b[26]|b[27]|b[28]|b[29]|b[30] )
+      goto __normal;
+    b[31] = 0;
+    return;
+  }
 
-	int *b = (int *) block;
+__normal:
 
-  if( !(b[0]|(b[31]&~0x10000)) )
-	{
-	  if( b[ 1]|b[ 2]|b[ 3]|b[ 4]|b[ 5]|b[ 6] )
-		  goto normal;
-	  if( b[ 7]|b[ 8]|b[ 9]|b[10]|b[11]|b[12] )
-		  goto normal;
-	  if( b[13]|b[14]|b[15]|b[16]|b[17]|b[18] )
-		  goto normal;
-	  if( b[19]|b[20]|b[21]|b[22]|b[23]|b[24] )
-		  goto normal;
-	  if( b[25]|b[26]|b[27]|b[28]|b[29]|b[30] )
-		  goto normal;
-		b[31]=0;
-		return;
-	}
-normal:
+  __asm
+  {
+    mov  esi, [block]
+    lea  eax, [r]
+    lea  edi, [tmp]
+    mov  ebx, 8
 
-	__asm
-	{
-		// do the IDCT
-		mov esi,[block]
-		lea eax,[c]
-		lea edi,[tmp]
-		//mov ebx,8
-		mov ebx,8 // 0x77000000 // 8
-		align 16
-	__col1:
-	    movzx edx,[esi+1*2]
-			mov   ecx,[esi+2*2]
-			or    edx,[esi+4*2]
-			or    ecx,[esi+6*2]
-			or edx,ecx
-			//mov ecx,8
-			mov ecx,8/2 // 0x77000000 // 8
+__col1:
+      mov  edx, [esi+0*2]
+      mov  ecx, [esi+2*2]
+      or   edx, [esi+4*2]
+      or   ecx, [esi+6*2]
+      or   edx, ecx
+      mov  ecx, 4
+      jnz  __row1
 
-			jnz __row1
-				fild  word ptr [esi+0*2]
-				fmul qword ptr [eax+0*8*8]
-				fst  qword ptr [edi+0*8]
-				fst  qword ptr [edi+1*8]
-				fst  qword ptr [edi+2*8]
-				fst  qword ptr [edi+3*8]
-				fst  qword ptr [edi+4*8]
-				fst  qword ptr [edi+5*8]
-				fst  qword ptr [edi+6*8]
-				fstp qword ptr [edi+7*8]
-				add edi,8*8
-				jmp __next1
-			align 16
-		__row1:
-				fild  word ptr [esi+0*2]
-				fmul qword ptr [eax+0*8*8]
-				fild  word ptr [esi+1*2]
-				fmul qword ptr [eax+1*8*8]
-				fadd
-				fild  word ptr [esi+2*2]
-				fmul qword ptr [eax+2*8*8]
-				fadd
-				fild  word ptr [esi+3*2]
-				fmul qword ptr [eax+3*8*8]
-				fadd
-				fild  word ptr [esi+4*2]
-				fmul qword ptr [eax+4*8*8]
-				fadd
-				fild  word ptr [esi+5*2]
-				fmul qword ptr [eax+5*8*8]
-				fadd
-				fild  word ptr [esi+6*2]
-				fmul qword ptr [eax+6*8*8]
-				fadd
-				fild  word ptr [esi+7*2]
-				fmul qword ptr [eax+7*8*8]
-				fadd
+        fild  word ptr [esi+0*2]
+        fmul  qword ptr [eax+0*8*8]
+        fst   qword ptr [edi+0*8]
+        fst   qword ptr [edi+1*8]
+        fst   qword ptr [edi+2*8]
+        fst   qword ptr [edi+3*8]
+        fst   qword ptr [edi+4*8]
+        fst   qword ptr [edi+5*8]
+        fst   qword ptr [edi+6*8]
+        fstp  qword ptr [edi+7*8]
+        add   edi, 64
+        jmp   __next1
 
-				fild  word ptr [esi+0*2]
-				fmul qword ptr [eax+0*8*8+8]
-				fild  word ptr [esi+1*2]
-				fmul qword ptr [eax+1*8*8+8]
-				fadd
-				fild  word ptr [esi+2*2]
-				fmul qword ptr [eax+2*8*8+8]
-				fadd
-				fild  word ptr [esi+3*2]
-				fmul qword ptr [eax+3*8*8+8]
-				fadd
-				fild  word ptr [esi+4*2]
-				fmul qword ptr [eax+4*8*8+8]
-				fadd
-				fild  word ptr [esi+5*2]
-				fmul qword ptr [eax+5*8*8+8]
-				fadd
-				fild  word ptr [esi+6*2]
-				fmul qword ptr [eax+6*8*8+8]
-				fadd
-				fild  word ptr [esi+7*2]
-				fmul qword ptr [eax+7*8*8+8]
-				fadd
-				add eax,8*2
-				fxch st(1)
-				fstp qword ptr [edi]//
-				fstp qword ptr [edi+8]
-				add edi,8*2
-			dec ecx
+__row1:
+        fild  word ptr [esi+0*2]
+        fmul  qword ptr [eax+0*8*8]
+        fild  word ptr [esi+1*2]
+        fmul  qword ptr [eax+1*8*8]
+        fadd
+        fild  word ptr [esi+2*2]
+        fmul  qword ptr [eax+2*8*8]
+        fadd
+        fild  word ptr [esi+3*2]
+        fmul  qword ptr [eax+3*8*8]
+        fadd
+        fild  word ptr [esi+4*2]
+        fmul  qword ptr [eax+4*8*8]
+        fadd
+        fild  word ptr [esi+5*2]
+        fmul  qword ptr [eax+5*8*8]
+        fadd
+        fild  word ptr [esi+6*2]
+        fmul  qword ptr [eax+6*8*8]
+        fadd
+        fild  word ptr [esi+7*2]
+        fmul  qword ptr [eax+7*8*8]
+        fadd
 
-			jnz __row1
-			add eax,-8*8
-			  //align 16
-		__next1:
-			add esi,+8*2
+        fild  word ptr [esi+0*2]
+        fmul  qword ptr [eax+0*8*8+8]
+        fild  word ptr [esi+1*2]
+        fmul  qword ptr [eax+1*8*8+8]
+        fadd
+        fild  word ptr [esi+2*2]
+        fmul  qword ptr [eax+2*8*8+8]
+        fadd
+        fild  word ptr [esi+3*2]
+        fmul  qword ptr [eax+3*8*8+8]
+        fadd
+        fild  word ptr [esi+4*2]
+        fmul  qword ptr [eax+4*8*8+8]
+        fadd
+        fild  word ptr [esi+5*2]
+        fmul  qword ptr [eax+5*8*8+8]
+        fadd
+        fild  word ptr [esi+6*2]
+        fmul  qword ptr [eax+6*8*8+8]
+        fadd
+        fild  word ptr [esi+7*2]
+        fmul  qword ptr [eax+7*8*8+8]
+        fadd
+        add   eax, 16
+        fxch  st(1)
+        fstp  qword ptr [edi]
+        fstp  qword ptr [edi+8]
+        add   edi, 16
 
-		sub ebx,0x80000001 // add ebx,ebx 
-		js  __col1
-			//align 16
-			test ebx,ebx // align jump &| redo flags
-		jnz __col1
+      sub  ecx, 1
+      jnz  __row1
+      sub  eax, 64
 
-		lea esi,[tmp]
-		lea eax,[c]
-		lea edi,[rnd]
-		//mov edi,[block]
-    fld qword ptr [HALF]
-		mov ebx,8
-	__row2:
-			mov ecx,8/2
-			align 16
-			__col2:
-				fld  qword ptr [esi+0*8*8]
-				fmul qword ptr [eax+0*8*8]
-				fld  qword ptr [esi+1*8*8]
-				fmul qword ptr [eax+1*8*8]
-				fadd
-				fld  qword ptr [esi+2*8*8]
-				fmul qword ptr [eax+2*8*8]
-				fadd
-				fld  qword ptr [esi+3*8*8]
-				fmul qword ptr [eax+3*8*8]
-				fadd
-				fld  qword ptr [esi+4*8*8]
-				fmul qword ptr [eax+4*8*8]
-				fadd
-				fld  qword ptr [esi+5*8*8]
-				fmul qword ptr [eax+5*8*8]
-				fadd
-				fld  qword ptr [esi+6*8*8]
-				fmul qword ptr [eax+6*8*8]
-				fadd
-				fld  qword ptr [esi+7*8*8]
-				fmul qword ptr [eax+7*8*8]
-				fadd
-				fadd st(0),st(1)
+__next1:
+      add  esi, 16
 
-				fxch st(1)
+    sub  ebx, 1
+    jnz  __col1
 
-				fld  qword ptr [esi+0*8*8]
-				fmul qword ptr [eax+0*8*8+8]
-				fld  qword ptr [esi+1*8*8]
-				fmul qword ptr [eax+1*8*8+8]
-				fadd
-				fld  qword ptr [esi+2*8*8]
-				fmul qword ptr [eax+2*8*8+8]
-				fadd
-				fld  qword ptr [esi+3*8*8]
-				fmul qword ptr [eax+3*8*8+8]
-				fadd
-				fld  qword ptr [esi+4*8*8]
-				fmul qword ptr [eax+4*8*8+8]
-				fadd
-				fld  qword ptr [esi+5*8*8]
-				fmul qword ptr [eax+5*8*8+8]
-				fadd
-				fld  qword ptr [esi+6*8*8]
-				fmul qword ptr [eax+6*8*8+8]
-				fadd
-				fld  qword ptr [esi+7*8*8]
-				fmul qword ptr [eax+7*8*8+8]
-				fadd
-				fadd st(0),st(1)
-				add eax,8*2
+    lea  esi, [tmp]
+    lea  eax, [r]
+    lea  edi, [rnd]
 
-				fxch st(2)
-				fstp qword ptr [edi]
-				fxch st(1)
-				fstp qword ptr [edi+8*8]
-				add edi,8*8*2
+    mov  ebx, 8
+__row2:
+      mov  ecx, 4
 
-			dec ecx
+__col2:
+        fld   qword ptr [esi+0*8*8]
+        fmul  qword ptr [eax+0*8*8]
+        fld   qword ptr [esi+1*8*8]
+        fmul  qword ptr [eax+1*8*8]
+        fadd
+        fld   qword ptr [esi+2*8*8]
+        fmul  qword ptr [eax+2*8*8]
+        fadd
+        fld   qword ptr [esi+3*8*8]
+        fmul  qword ptr [eax+3*8*8]
+        fadd
+        fld   qword ptr [esi+4*8*8]
+        fmul  qword ptr [eax+4*8*8]
+        fadd
+        fld   qword ptr [esi+5*8*8]
+        fmul  qword ptr [eax+5*8*8]
+        fadd
+        fld   qword ptr [esi+6*8*8]
+        fmul  qword ptr [eax+6*8*8]
+        fadd
+        fld   qword ptr [esi+7*8*8]
+        fmul  qword ptr [eax+7*8*8]
+        fadd
 
-			jnz __col2
-			add eax,-8*8
-			add esi,+8
-			add edi,8-8*8*8
+        fld   qword ptr [esi+0*8*8]
+        fmul  qword ptr [eax+0*8*8+8]
+        fld   qword ptr [esi+1*8*8]
+        fmul  qword ptr [eax+1*8*8+8]
+        fadd
+        fld   qword ptr [esi+2*8*8]
+        fmul  qword ptr [eax+2*8*8+8]
+        fadd
+        fld   qword ptr [esi+3*8*8]
+        fmul  qword ptr [eax+3*8*8+8]
+        fadd
+        fld   qword ptr [esi+4*8*8]
+        fmul  qword ptr [eax+4*8*8+8]
+        fadd
+        fld   qword ptr [esi+5*8*8]
+        fmul  qword ptr [eax+5*8*8+8]
+        fadd
+        fld   qword ptr [esi+6*8*8]
+        fmul  qword ptr [eax+6*8*8+8]
+        fadd
+        fld   qword ptr [esi+7*8*8]
+        fmul  qword ptr [eax+7*8*8+8]
+        fadd
+        add   eax, 16
 
-		sub ebx,0x80000001
-		js  __row2
-			  //align 16
-				test ebx,ebx // align jump &| redo flags
-		jnz __row2
-		ffree st(0) // bye bye 0.5
+        fxch  st(1)
+        fstp  qword ptr [edi]
+        fstp  qword ptr [edi+8*8]
+        add   edi, 128
 
-	  // set x87 to floor mode
-		fstcw [fpold]
-		movzx eax, [fpold]
+      sub  ecx, 1
+      jnz  __col2
+      sub  eax, 64
+      add  esi, 8
+      sub  edi, 504
 
-		or eax, 0x0400 // round down - floor
-		mov [fpnew], ax
-		fldcw [fpnew]
+    sub  ebx, 1
+    jnz  __row2
 
-		// now floor the damn array
-		lea esi, [rnd]
-		mov edi, [block]
-		mov ebx, -256 // clip min
-		mov edx, +255 // clip max
-		mov ecx, 8
-		align 16
-	__floor:
-		  fld   qword ptr [esi+0*8]
-			fistp dword ptr [int0]
-			  mov eax,[int0]
-				cmp   eax,ebx
-				cmovl eax,ebx
-				cmp   eax,edx
-				cmovg eax,edx
-		  fld   qword ptr [esi+1*8]
-			fistp dword ptr [int1]
-				mov word ptr [edi+0*2],ax
-			  mov eax,[int1]
-				cmp   eax,ebx
-				cmovl eax,ebx
-				cmp   eax,edx
-				cmovg eax,edx
-		  fld   qword ptr [esi+2*8]
-			fistp dword ptr [int2]
-				mov word ptr [edi+1*2],ax
-			  mov eax,[int2]
-				cmp   eax,ebx
-				cmovl eax,ebx
-				cmp   eax,edx
-				cmovg eax,edx
-		  fld   qword ptr [esi+3*8]
-			fistp dword ptr [int3]
-				mov word ptr [edi+2*2],ax
-			  mov eax,[int3]
-				cmp   eax,ebx
-				cmovl eax,ebx
-				cmp   eax,edx
-				cmovg eax,edx
-		  fld   qword ptr [esi+4*8]
-			fistp dword ptr [int4]
-				mov word ptr [edi+3*2],ax
-			  mov eax,[int4]
-				cmp   eax,ebx
-				cmovl eax,ebx
-				cmp   eax,edx
-				cmovg eax,edx
-		  fld   qword ptr [esi+5*8]
-			fistp dword ptr [int5]
-				mov word ptr [edi+4*2],ax
-			  mov eax,[int5]
-				cmp   eax,ebx
-				cmovl eax,ebx
-				cmp   eax,edx
-				cmovg eax,edx
-		  fld   qword ptr [esi+6*8]
-			fistp dword ptr [int6]
-				mov word ptr [edi+5*2],ax
-			  mov eax,[int6]
-				cmp   eax,ebx
-				cmovl eax,ebx
-				cmp   eax,edx
-				cmovg eax,edx
-		  fld   qword ptr [esi+7*8]
-			fistp dword ptr [int7]
-				mov word ptr [edi+6*2],ax
-			  mov eax,[int7]
-				cmp   eax,ebx
-				cmovl eax,ebx
-				cmp   eax,edx
-				cmovg eax,edx
-				mov word ptr [edi+7*2],ax
+    lea  esi, [rnd]
+    mov  edi, [block]
+    mov  ecx, 8
 
-			add esi, 8*8
-			add edi, 8*2
-
-		sub ecx,0x80000001
-		js  __floor
-			  //align 16
-				test ecx,ecx // align jump &| redo flags
-		jnz __floor
-
-		// set x87 to default mode
-		fldcw [fpold]
-	};
+__round:
+      fld    qword ptr [esi+0*8]
+      fistp  word ptr [edi+0*2]
+      fld    qword ptr [esi+1*8]
+      fistp  word ptr [edi+1*2]
+      fld    qword ptr [esi+2*8]
+      fistp  word ptr [edi+2*2]
+      fld    qword ptr [esi+3*8]
+      fistp  word ptr [edi+3*2]
+      fld    qword ptr [esi+4*8]
+      fistp  word ptr [edi+4*2]
+      fld    qword ptr [esi+5*8]
+      fistp  word ptr [edi+5*2]
+      fld    qword ptr [esi+6*8]
+      fistp  word ptr [edi+6*2]
+      fld    qword ptr [esi+7*8]
+      add    esi, 64
+      fistp  word ptr [edi+7*2]
+      add    edi, 16
+    sub  ecx,1
+    jnz  __round
+  }
 }

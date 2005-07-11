@@ -74,6 +74,10 @@
 #define SUB_DTS						0x88
 #define SUB_PCM						0xA0
 
+#define ELEMENTARY_STREAM 0
+#define MPEG1_PROGRAM_STREAM 1
+#define MPEG2_PROGRAM_STREAM 2
+
 /* extension start code IDs */
 #define SEQUENCE_EXTENSION_ID					1
 #define SEQUENCE_DISPLAY_EXTENSION_ID			2
@@ -89,6 +93,7 @@
 #define I_TYPE			1
 #define P_TYPE			2
 #define B_TYPE			3
+#define D_TYPE			4
 
 #define MACROBLOCK_INTRA				1
 #define MACROBLOCK_PATTERN				2
@@ -121,9 +126,9 @@
 
 #define IDCT_MMX		1
 #define IDCT_SSEMMX		2
-#define	IDCT_FPU		3
-#define IDCT_REF		4
-#define IDCT_SSE2MMX	5
+#define IDCT_SSE2MMX	3
+#define	IDCT_FPU		4
+#define IDCT_REF		5
 
 #define LOCATE_INIT			0
 #define LOCATE_FORWARD		1
@@ -174,6 +179,7 @@
 #define CRITICAL_ERROR_LEVEL	50
 
 typedef struct {
+	int			gop_start;
 	int			type;
 	int			file;
 	__int64		lba;
@@ -205,6 +211,7 @@ struct PCMStream {
 	bool					rip;
 	int						size;
 	int						delay;
+	unsigned char			format;
 }	pcm;
 
 struct PROCESS {
@@ -257,6 +264,10 @@ bool Start_Flag;
 bool Stop_Flag;
 int Store_Flag;
 int SystemStream_Flag;
+#define ELEMENTARY_STREAM 0
+#define PROGRAM_STREAM 1
+#define TRANSPORT_STREAM 2
+#define PVA_STREAM 3
 __int64 PackHeaderPosition;
 
 int LeadingBFrames;
@@ -288,6 +299,7 @@ FILE *D2VFile;
 char D2VFilePath[_MAX_PATH];
 int VOB_ID, CELL_ID;
 FILE *MuxFile;
+#define D2V_FILE_VERSION 10
 
 HWND hWnd, hDlg, hTrack;
 char szInput[10*_MAX_PATH], szOutput[_MAX_PATH], szBuffer[_MAX_PATH], szSave[_MAX_PATH];
@@ -297,6 +309,7 @@ unsigned char *auxframe[3], *current_frame[3];
 unsigned char *u422, *v422, *u444, *v444, *rgb24, *rgb24small, *yuy2, *lum;
 __int64 RGB_Scale, RGB_Offset, RGB_CRV, RGB_CBU, RGB_CGX;
 int LumGamma, LumOffset;
+int PlaybackSpeed, PlaybackDelay;
 
 unsigned int Frame_Number;
 int Coded_Picture_Width, Coded_Picture_Height, Chroma_Width, Chroma_Height;
@@ -318,6 +331,10 @@ int intra_quantizer_matrix[64];
 int non_intra_quantizer_matrix[64];
 int chroma_intra_quantizer_matrix[64];
 int chroma_non_intra_quantizer_matrix[64];
+int full_pel_forward_vector;
+int full_pel_backward_vector;
+int forward_f_code;
+int backward_f_code;
 
 int q_scale_type;
 int alternate_scan;
@@ -362,10 +379,11 @@ void UpdateInfo(void);
 int Get_Hdr(int);
 void sequence_header(__int64 start);
 int slice_header(void);
+bool GOPSeen;
 
 /* getpic.c */
 void Decode_Picture(void);
-void WriteGopLine(int);
+void WriteD2VLine(int);
 
 /* gui.cpp */
 void ThreadKill(void);
@@ -379,8 +397,7 @@ extern void __fastcall SSEMMX_IDCT(short *block);
 extern void __fastcall SSE2MMX_IDCT(short *block);
 void Initialize_FPU_IDCT(void);
 void FPU_IDCT(short *block);
-void Initialize_REF_IDCT(void);
-void REF_IDCT(short *block);
+void __fastcall REF_IDCT(short *block);
 
 /* motion.c */
 void motion_vectors(int PMV[2][2][2], int dmvector[2], int motion_vertical_field_select[2][2], 
@@ -389,6 +406,12 @@ void Dual_Prime_Arithmetic(int DMV[][2], int *dmvector, int mvx, int mvy);
 
 /* mpeg2dec.c */
 DWORD WINAPI MPEG2Dec(LPVOID n);
+int initial_parse(char *input_file, int *mpeg_type_p, int *is_pgrogram_stream_p);
+#define IS_NOT_MPEG 0
+#define IS_MPEG1 1
+#define IS_MPEG2 2
+int mpeg_type;
+int is_program_stream;
 
 /* norm.c */
 void Normalize(FILE *WaveIn, int WaveInPos, char *filename, FILE *WaveOut, int WaveOutPos, int size);
@@ -403,13 +426,18 @@ void InitialSRC(void);
 void Wavefs44(FILE *file, int size, unsigned char *buffer);
 void EndSRC(FILE *file);
 void Wavefs44File(int delay);
-void StartWAV(FILE *file);
+void StartWAV(FILE *file, unsigned char format);
 void CloseWAV(FILE *file, int size);
 void DownWAV(FILE *file);
 bool CheckWAV(void);
 
-static char *AspectRatio[5] = {
+static char *AspectRatio[] = {
 	"", "1:1", "4:3", "16:9", "2.21:1"
+};
+
+static char *AspectRatioMPEG1[] = {
+	"", "1:1", "0.6735", "16:9, 625", "0.7615", "0.8055", "16:9,525", "0.8935", "4:3,625", "0.9815", "1.0255",
+	"1.0695", "4:3,525", "1.575", "1.2015"
 };
 
 int MPEG2_Transport_VideoPID;

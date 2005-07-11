@@ -1,5 +1,6 @@
 /* 
  *	Copyright (C) Chia-chen Kuo - April 2001
+ *  Modifications (C) Donald A. Graft - October 2003
  *
  *  This file is part of DVD2AVI, a free MPEG-2 decoder
  *	
@@ -20,11 +21,15 @@
  */
 
 #include <windows.h>
+#include <stdio.h>
+#include "avisynth.h"
 
 #define	VF_STREAM_VIDEO		0x00000001
 #define	VF_STREAM_AUDIO		0x00000002
 #define	VF_OK				0x00000000
 #define	VF_ERROR			0x80004005
+
+typedef	DWORD VF_FileHandle, *LPVF_FileHandle;
 
 typedef	struct {
 	DWORD	dwSize;
@@ -34,8 +39,6 @@ typedef	struct {
 	char	cPluginInfo[256];
 	char	cFileType[256];
 }	VF_PluginInfo, *LPVF_PluginInfo;
-
-typedef	DWORD VF_FileHandle, *LPVF_FileHandle;
 
 typedef	struct {
 	DWORD	dwSize;
@@ -91,19 +94,76 @@ typedef	struct {
 	HRESULT (__stdcall *ReadData)(VF_FileHandle hFileHandle, DWORD dwStream, void *lpData); 
 }	VF_PluginFunc, *LPVF_PluginFunc;
 
-typedef struct {
-	FILE		*VF_File;
-	int			VF_FrameRate;
-	DWORD		VF_FrameLimit;
-	DWORD		VF_FrameBound;
-	DWORD		VF_GOPLimit;
-	DWORD		VF_GOPNow;
-	DWORD		VF_GOPSize;
-	int			VF_FrameSize;
-	DWORD		VF_OldFrame;
-	DWORD		VF_OldRef;
-}	D2VFAPI;
+class vfMI
+{
+public:
+	VideoInfo * (__cdecl *openMPEG2SourceMI)(char*, int); 
+	unsigned char* (__cdecl *getRGBFrameMI)(int,int);
+	void (__cdecl *closeVideoMI)(int);
+	IScriptEnvironment* (__stdcall *CreateScriptEnvironment)(int);
+	IScriptEnvironment *avsEnv;
+	VideoInfo *vi;
+	HMODULE hDLL;
+	PClip *clip;
+	int type, ident;
+	static int instance;
+	vfMI *prv, *nxt;
+	vfMI::vfMI() : vi(NULL), avsEnv(NULL), clip(NULL), hDLL(NULL), type(-1)
+	{
+		openMPEG2SourceMI = NULL;
+		getRGBFrameMI = NULL;
+		closeVideoMI = NULL;
+		CreateScriptEnvironment = NULL;
+		ident = instance;
+		++instance;
+		prv = nxt = NULL;
+	}
+	vfMI::~vfMI()
+	{
+		if (vi && closeVideoMI) closeVideoMI(ident);
+		if (clip) delete clip;
+		if (avsEnv) delete avsEnv;
+		if (hDLL) FreeLibrary(hDLL);
+	}
+};
 
-int Open_D2VFAPI(char *path, D2VFAPI *out);
-void Close_D2VFAPI(D2VFAPI *in);
-void Decode_D2VFAPI(D2VFAPI *in, unsigned char *dst, DWORD frame, int pitch);
+class vfMILinkedList
+{
+public:
+	vfMI *LLB, *LLE;
+	vfMILinkedList::vfMILinkedList() : LLB(NULL), LLE(NULL) {};
+	vfMILinkedList::~vfMILinkedList()
+	{
+		for (vfMI *i=LLB; i;)
+		{
+			vfMI *j = i->nxt;
+			delete i;
+			i = j;
+		}
+		LLE = LLB = NULL;
+	}
+	void vfMILinkedList::Add(vfMI *i)
+	{
+		if (!i) return;
+		if (!LLB) { LLB = LLE = i; return; }
+		i->prv = LLE;
+		LLE->nxt = i;
+		LLE = i;
+	}
+	void vfMILinkedList::Remove(vfMI *i)
+	{
+		if (!i) return;
+		if (i->prv)
+		{
+			if (i->nxt) i->prv->nxt = i->nxt;
+			else i->prv->nxt = NULL;
+		}
+		else if (i == LLB) LLB = i->nxt;
+		if (i->nxt)
+		{
+			if (i->prv) i->nxt->prv = i->prv;
+			else i->nxt->prv = NULL;
+		}
+		else if (i == LLE) LLE = i->prv;
+	}
+};

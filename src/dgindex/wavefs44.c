@@ -234,7 +234,7 @@ void Wavefs44File(int delay)
 	sprintf(pcm.filename, "%s DELAY %dms compensated.wav", szBuffer, delay);
 	WaveOut = fopen(pcm.filename, "wb");
 
-	StartWAV(WaveOut);
+	StartWAV(WaveOut, 0x01);	// 48K, 16bit, 2ch
 
 	if (SRC_Flag || wfx.nSamplesPerSec==44100)
 		DownWAV(WaveOut);
@@ -351,16 +351,22 @@ THE_END:
 	_fcloseall();
 }
 
-void StartWAV(FILE *file)
+void StartWAV(FILE *file, unsigned char format)
 {
 	int i;
 
 	WAVEFORMATEX wfx;
 
 	wfx.wFormatTag = WAVE_FORMAT_PCM;
-	wfx.nChannels = 2;
-	wfx.nSamplesPerSec = 48000;
-	wfx.wBitsPerSample = 16;
+	wfx.nChannels = (format & 0x07) + 1;
+	if ((format & 0x30) == 0)
+		wfx.nSamplesPerSec = 48000;
+	else
+		wfx.nSamplesPerSec = 96000;
+	if ((format & 0xc0) == 0)
+		wfx.wBitsPerSample = 16;
+	else
+		wfx.wBitsPerSample = 24;
 	wfx.nBlockAlign = wfx.nChannels * wfx.wBitsPerSample / 8;
 	wfx.nAvgBytesPerSec = wfx.nSamplesPerSec * wfx.nBlockAlign;
 

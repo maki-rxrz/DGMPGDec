@@ -24,41 +24,7 @@
 #include <stdlib.h>
 #include "global.h"
 
-
 #define ptr_t unsigned int
-
-/*
-struct B { BYTE* yy; };
-
-extern "C" void *aligned_malloc(size_t size, size_t alignment)
-{
-	size_t algn = 4;
-	size_t mask = 0xfffffffc;
-	B* pB;
-
-	BYTE* x;
-	BYTE* y;
-
-	while (algn < alignment)		// align to next power of 2
-	{
-		algn <<= 1;
-		mask <<= 1;
-	}
-
-	x = (BYTE*)malloc(size+algn);
-	y = (BYTE*) (((unsigned int) (x+algn) & mask) - 4);
-	pB = (B*) y;
-	pB->yy = x;
-	return  y+4;
-}
-
-extern "C" void aligned_free(void *x)
-{
-	struct B { BYTE* yy; };
-	B* pB = (B*) ((BYTE*)x-4);
-	free(pB->yy);
-}
-*/
 
 extern "C" void *aligned_malloc(size_t size, size_t alignment)
 {
@@ -128,22 +94,48 @@ extern "C" void aligned_free(void *mem_ptr)
 }
 
 
-//  YV12 pictures memory allocation for MPEG2Dec3. MarcFD 25 nov 2002
-
-// It's not really YV12 anymore, more like PLANARPICT... but
-// I don't want to go to the trouble of renaming everything
-// -- tritical (1/05/2005)
+// memory allocation for MPEG2Dec3.
+//
+// Changed this to handle/track both width/pitch for when
+// width != pitch and it simply makes things easier to have all
+// information in this struct.  It now uses 32y/16uv byte alignment
+// by default, which makes internal bugs easier to catch.  This can 
+// easily be changed if needed.
+//
+// The definition of YV12PICT is in global.h
+//
+// tritical - May 16, 2005
 YV12PICT* create_YV12PICT(int height, int width, int chroma_format) 
 {
 	YV12PICT* pict;
 	pict = (YV12PICT*)malloc(sizeof(YV12PICT));
-	int div = chroma_format == 1 ? 4 : chroma_format == 2 ? 2 : 1;
-	int uvpitch = div == 1 ? width : width/2;
-	pict->y = (unsigned char*)aligned_malloc(height*width,128);
-	pict->u = (unsigned char*)aligned_malloc(height*width/div,128);
-	pict->v = (unsigned char*)aligned_malloc(height*width/div,128);
-	pict->ypitch = width;
+	int uvwidth, uvheight;
+	if (chroma_format == 1) // 4:2:0
+	{
+		uvwidth = width>>1;
+		uvheight = height>>1;
+	}
+	else if (chroma_format == 2) // 4:2:2
+	{
+		uvwidth = width>>1;
+		uvheight = height;
+	}
+	else // 4:4:4
+	{
+		uvwidth = width;
+		uvheight = height;
+	}
+	int uvpitch = (((uvwidth+15)>>4)<<4);
+	int ypitch = uvpitch*2;
+	pict->y = (unsigned char*)aligned_malloc(height*ypitch,32);
+	pict->u = (unsigned char*)aligned_malloc(uvheight*uvpitch,16);
+	pict->v = (unsigned char*)aligned_malloc(uvheight*uvpitch,16);
+	pict->ypitch = ypitch;
 	pict->uvpitch = uvpitch;
+	pict->ywidth = width;
+	pict->uvwidth = uvwidth;
+	pict->yheight = height;
+	pict->uvheight = uvheight;
 	return pict;
 }
 

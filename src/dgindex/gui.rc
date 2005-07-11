@@ -53,92 +53,120 @@ BEGIN
                     IDC_STATIC,9,74,153,44,NOT WS_GROUP
 END
 
-IDD_INFO DIALOG DISCARDABLE  0, 0, 122, 248
+IDD_INFO DIALOG DISCARDABLE  0, 0, 248, 199
 STYLE DS_MODALFRAME | DS_NOIDLEMSG | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Information"
 FONT 10, "System"
 BEGIN
-    GROUPBOX        "Video",IDC_STATIC,1,5,119,134,BS_LEFT
-    RTEXT           "Frame Type",IDC_STATIC,11,65,40,9,SS_CENTERIMAGE | NOT 
+    GROUPBOX        "Video",IDC_STATIC,3,5,119,134,BS_LEFT
+    RTEXT           "Frame Type",IDC_STATIC,13,65,40,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    RTEXT           "Aspect Ratio",IDC_STATIC,7,15,44,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Aspect Ratio",IDC_STATIC,9,15,44,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    RTEXT           "Coded #",IDC_STATIC,22,95,29,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Coded #",IDC_STATIC,24,95,29,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    RTEXT           "Playback #",IDC_STATIC,11,105,40,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Playback #",IDC_STATIC,13,105,40,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    RTEXT           "Frame Rate",IDC_STATIC,12,45,39,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Frame Rate",IDC_STATIC,14,45,39,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    RTEXT           "Video Type",IDC_STATIC,11,55,40,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Video Type",IDC_STATIC,13,55,40,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    CTEXT           "",IDC_CODED_NUMBER,54,95,59,9,SS_CENTERIMAGE | 
+    CTEXT           "",IDC_CODED_NUMBER,56,95,59,9,SS_CENTERIMAGE | 
                     SS_SUNKEN | NOT WS_GROUP
-    GROUPBOX        "Audio",IDC_STATIC,1,145,119,33
-    LTEXT           "Elapsed",IDC_STATIC,24,196,27,9,SS_CENTERIMAGE | NOT 
+    GROUPBOX        "Audio",IDC_STATIC,125,5,119,134
+    LTEXT           "Elapsed",IDC_STATIC,26,150,27,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    LTEXT           "Remain",IDC_STATIC,26,206,27,9,SS_CENTERIMAGE | NOT 
+    LTEXT           "Remain",IDC_STATIC,28,160,27,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    CTEXT           "",IDC_PLAYBACK_NUMBER,54,105,59,9,SS_CENTERIMAGE | 
+    CTEXT           "",IDC_PLAYBACK_NUMBER,56,105,59,9,SS_CENTERIMAGE | 
                     SS_SUNKEN | NOT WS_GROUP
-    CTEXT           "",IDC_FRAME_RATE,54,45,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_FRAME_RATE,56,45,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
                     NOT WS_GROUP
-    CTEXT           "",IDC_VIDEO_TYPE,54,55,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_VIDEO_TYPE,56,55,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
                     NOT WS_GROUP
-    CTEXT           "",IDC_FRAME_TYPE,54,65,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_FRAME_TYPE,56,65,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
                     NOT WS_GROUP
-    CTEXT           "",IDC_ASPECT_RATIO,54,15,59,9,SS_CENTERIMAGE | 
+    CTEXT           "",IDC_ASPECT_RATIO,56,15,59,9,SS_CENTERIMAGE | 
                     SS_SUNKEN | NOT WS_GROUP
-    CTEXT           "",IDC_REMAIN,54,206,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_REMAIN,56,160,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
                     NOT WS_GROUP
-    CTEXT           "",IDC_ELAPSED,54,196,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_ELAPSED,56,150,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
                     NOT WS_GROUP
-    CTEXT           "",IDC_FPS,54,216,59,9,SS_CENTERIMAGE | SS_SUNKEN | NOT 
+    CTEXT           "",IDC_FPS,56,170,59,9,SS_CENTERIMAGE | SS_SUNKEN | NOT 
                     WS_GROUP
-    RTEXT           "FPS",IDC_STATIC,35,216,16,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "FPS",IDC_STATIC,37,170,16,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    CTEXT           "",IDC_INFO,54,226,59,9,SS_SUNKEN | NOT WS_GROUP
-    LTEXT           "Format",IDC_STATIC,23,154,23,9,SS_CENTERIMAGE | NOT 
+    CTEXT           "",IDC_INFO,56,180,59,9,SS_SUNKEN | NOT WS_GROUP
+    LTEXT           "Track 1",IDC_STATIC,131,15,23,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    CTEXT           "",IDC_AUDIO_TYPE,49,154,64,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_AUDIO_TYPE,157,15,80,9,SS_CENTERIMAGE | SS_SUNKEN | 
                     NOT WS_GROUP
-    RTEXT           "Info",IDC_STATIC,35,226,16,8,NOT WS_GROUP
-    RTEXT           "Timestamp",IDC_STATIC,4,164,42,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Info",IDC_STATIC,37,180,16,8,NOT WS_GROUP
+    RTEXT           "Timestamp",IDC_STATIC,128,95,39,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    CTEXT           "",IDC_TIMESTAMP,49,164,64,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_TIMESTAMP,169,95,68,9,SS_CENTERIMAGE | SS_SUNKEN | 
                     NOT WS_GROUP
-    GROUPBOX        "Status",IDC_STATIC,1,187,119,53,BS_LEFT
-    RTEXT           "Vob Cell ID",IDC_STATIC,8,115,43,9,SS_CENTERIMAGE | NOT 
+    GROUPBOX        "Status",IDC_STATIC,3,141,119,53,BS_LEFT
+    RTEXT           "Vob Cell ID",IDC_STATIC,10,115,43,9,SS_CENTERIMAGE | 
+                    NOT WS_GROUP
+    CTEXT           "",IDC_VOB_ID,56,115,29,9,SS_CENTERIMAGE | SS_SUNKEN | 
+                    NOT WS_GROUP
+    CTEXT           "",IDC_CELL_ID,87,115,28,9,SS_CENTERIMAGE | SS_SUNKEN | 
+                    NOT WS_GROUP
+    RTEXT           "Bitrate",IDC_STATIC,10,124,43,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    CTEXT           "",IDC_VOB_ID,54,115,29,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_BITRATE,56,125,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
                     NOT WS_GROUP
-    CTEXT           "",IDC_CELL_ID,85,115,28,9,SS_CENTERIMAGE | SS_SUNKEN | 
-                    NOT WS_GROUP
-    RTEXT           "Bitrate",IDC_STATIC,8,124,43,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Frame Size",IDC_STATIC,9,25,44,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    CTEXT           "",IDC_BITRATE,54,125,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_FRAME_SIZE,56,25,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
                     NOT WS_GROUP
-    RTEXT           "Frame Size",IDC_STATIC,7,25,44,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Profile",IDC_STATIC,9,35,44,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    CTEXT           "",IDC_FRAME_SIZE,54,25,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_PROFILE,56,35,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
                     NOT WS_GROUP
-    RTEXT           "Profile",IDC_STATIC,7,35,44,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Frame Struct",IDC_STATIC,7,75,46,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    CTEXT           "",IDC_PROFILE,54,35,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
-                    NOT WS_GROUP
-    RTEXT           "Frame Struct",IDC_STATIC,5,75,46,9,SS_CENTERIMAGE | NOT 
-                    WS_GROUP
-    CTEXT           "",IDC_FRAME_STRUCTURE,54,75,59,9,SS_CENTERIMAGE | 
+    CTEXT           "",IDC_FRAME_STRUCTURE,56,75,59,9,SS_CENTERIMAGE | 
                     SS_SUNKEN | NOT WS_GROUP
-    RTEXT           "Field Order",IDC_STATIC,5,85,46,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Field Order",IDC_STATIC,7,85,46,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    CTEXT           "",IDC_FIELD_ORDER,54,85,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_FIELD_ORDER,56,85,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
                     NOT WS_GROUP
+    LTEXT           "Track 2",IDC_STATIC,131,25,23,9,SS_CENTERIMAGE | NOT 
+                    WS_GROUP
+    CTEXT           "",IDC_AUDIO_TYPE2,157,25,80,9,SS_CENTERIMAGE | 
+                    SS_SUNKEN | NOT WS_GROUP
+    LTEXT           "Track 3",IDC_STATIC,131,35,23,9,SS_CENTERIMAGE | NOT 
+                    WS_GROUP
+    CTEXT           "",IDC_AUDIO_TYPE3,157,35,80,9,SS_CENTERIMAGE | 
+                    SS_SUNKEN | NOT WS_GROUP
+    LTEXT           "Track 4",IDC_STATIC,131,45,23,9,SS_CENTERIMAGE | NOT 
+                    WS_GROUP
+    CTEXT           "",IDC_AUDIO_TYPE4,157,45,80,9,SS_CENTERIMAGE | 
+                    SS_SUNKEN | NOT WS_GROUP
+    LTEXT           "Track 5",IDC_STATIC,131,55,23,9,SS_CENTERIMAGE | NOT 
+                    WS_GROUP
+    CTEXT           "",IDC_AUDIO_TYPE5,157,55,80,9,SS_CENTERIMAGE | 
+                    SS_SUNKEN | NOT WS_GROUP
+    LTEXT           "Track 6",IDC_STATIC,131,65,23,9,SS_CENTERIMAGE | NOT 
+                    WS_GROUP
+    CTEXT           "",IDC_AUDIO_TYPE6,157,65,80,9,SS_CENTERIMAGE | 
+                    SS_SUNKEN | NOT WS_GROUP
+    LTEXT           "Track 7",IDC_STATIC,131,75,23,9,SS_CENTERIMAGE | NOT 
+                    WS_GROUP
+    CTEXT           "",IDC_AUDIO_TYPE7,157,75,80,9,SS_CENTERIMAGE | 
+                    SS_SUNKEN | NOT WS_GROUP
+    LTEXT           "Track 8",IDC_STATIC,131,85,23,9,SS_CENTERIMAGE | NOT 
+                    WS_GROUP
+    CTEXT           "",IDC_AUDIO_TYPE8,157,85,80,9,SS_CENTERIMAGE | 
+                    SS_SUNKEN | NOT WS_GROUP
 END
 
 IDD_FILELIST DIALOGEX 0, 0, 270, 151
 STYLE DS_MODALFRAME | DS_NOIDLEMSG | WS_POPUP | WS_CAPTION
 CAPTION "File List"
-FONT 10, "System", 0, 0, 0x1
+FONT 10, "System"
 BEGIN
     LISTBOX         IDC_LIST,7,7,207,141,NOT LBS_NOTIFY | 
                     LBS_DISABLENOSCROLL | WS_VSCROLL | WS_HSCROLL,
@@ -149,18 +177,6 @@ BEGIN
     PUSHBUTTON      "DEL ALL",ID_DELALL,223,83,39,14,NOT WS_TABSTOP
     PUSHBUTTON      "UP",ID_UP,223,26,39,14,NOT WS_TABSTOP
     PUSHBUTTON      "DOWN",ID_DOWN,223,45,39,14,NOT WS_TABSTOP
-END
-
-IDD_DELAY DIALOGEX 0, 0, 183, 26
-STYLE DS_MODALFRAME | DS_NOIDLEMSG | WS_POPUP | WS_CAPTION
-CAPTION "Delay Compensation"
-FONT 10, "System", 0, 0, 0x1
-BEGIN
-    RTEXT           "Input the DELAY value from filename",IDC_STATIC,6,8,120,
-                    8,NOT WS_GROUP
-    EDITTEXT        IDC_DELAY,131,6,32,13,ES_CENTER | ES_AUTOHSCROLL,
-                    WS_EX_STATICEDGE
-    LTEXT           "ms",IDC_STATIC,166,8,12,8,NOT WS_GROUP
 END
 
 IDD_LUMINANCE DIALOG DISCARDABLE  0, 0, 125, 43
@@ -178,6 +194,17 @@ BEGIN
                     TBS_AUTOTICKS,34,10,72,10
     CTEXT           "0",IDC_OFFSET,107,24,16,8,NOT WS_GROUP
     CTEXT           "0",IDC_GAIN,107,10,16,8,NOT WS_GROUP
+END
+
+IDD_SPEED DIALOG DISCARDABLE  0, 0, 166, 37
+STYLE DS_MODALFRAME | DS_NOIDLEMSG | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Playback Speed"
+FONT 10, "System"
+BEGIN
+    CONTROL         "Slider1",IDC_SPEED_SLIDER,"msctls_trackbar32",TBS_BOTH | 
+                    TBS_NOTICKS | WS_TABSTOP,3,9,159,9
+    LTEXT           "Slow",IDC_STATIC,5,20,35,10
+    RTEXT           "Fast",IDC_STATIC,123,20,35,10
 END
 
 IDD_NORM DIALOG DISCARDABLE  0, 0, 124, 29
@@ -239,10 +266,11 @@ CAPTION "Detect PIDs"
 FONT 10, "System"
 BEGIN
     LISTBOX         IDC_PID_LISTBOX,6,7,130,169,WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "Set Audio",IDC_SET_AUDIO,74,178,36,14
-    PUSHBUTTON      "Set Video",IDC_SET_VIDEO,31,178,36,14
+    PUSHBUTTON      "Set Audio",IDC_SET_AUDIO,53,178,36,14
+    PUSHBUTTON      "Set Video",IDC_SET_VIDEO,10,178,36,14
     CTEXT           "Select a line and use these buttons to set that PID as the audio or video PID.",
                     IDC_STATIC,6,194,130,17
+    PUSHBUTTON      "Done",IDC_SET_DONE,96,178,36,14
 END
 
 
@@ -315,18 +343,13 @@ BEGIN
 
     IDD_INFO, DIALOG
     BEGIN
-        RIGHTMARGIN, 119
-        BOTTOMMARGIN, 240
+        RIGHTMARGIN, 247
+        BOTTOMMARGIN, 194
     END
 
     IDD_FILELIST, DIALOG
     BEGIN
         RIGHTMARGIN, 262
-    END
-
-    IDD_DELAY, DIALOG
-    BEGIN
-        BOTTOMMARGIN, 25
     END
 
     IDD_LUMINANCE, DIALOG
@@ -379,7 +402,6 @@ BEGIN
     BEGIN
         MENUITEM "&Open\t[F2]",                 IDM_OPEN
         MENUITEM "Load Project",                IDM_LOAD_D2V
-        MENUITEM "Process WAV",                 IDM_PROCESS_WAV
         MENUITEM SEPARATOR
         MENUITEM "&Save Project\t[F4]",         IDM_SAVE_D2V
         MENUITEM "Save Project and Demux Video", IDM_SAVE_D2V_AND_DEMUX
@@ -409,9 +431,9 @@ BEGIN
         END
         POPUP "Field Operation"
         BEGIN
-            MENUITEM "None",                        IDM_FO_NONE
-            MENUITEM "Forced FILM",                 IDM_FO_FILM
-            MENUITEM "Raw Encoded Frames",          IDM_FO_RAW
+            MENUITEM "Honor Pulldown Flags",        IDM_FO_NONE
+            MENUITEM "Ignore Pulldown Flags",       IDM_FO_RAW
+            MENUITEM "Forced Film",                 IDM_FO_FILM
         END
         POPUP "YUV -> RGB"
         BEGIN
@@ -427,11 +449,9 @@ BEGIN
         POPUP "Output Method"
         BEGIN
             MENUITEM "Disable",                     IDM_AUDIO_NONE
-            MENUITEM SEPARATOR
-            MENUITEM "Demux (AC3, MPA, DTS, AAC)",  IDM_DEMUX
-            MENUITEM "Decode to WAV (AC3, LPCM)",   IDM_DECODE
-            MENUITEM SEPARATOR
-            MENUITEM "Demux All Tracks (AC3, MPA, DTS, AAC)", IDM_DEMUXALL
+            MENUITEM "Demux Track",                 IDM_DEMUX
+            MENUITEM "Demux All Tracks",            IDM_DEMUXALL
+            MENUITEM "Decode AC3 Track to WAV",     IDM_DECODE
         END
         POPUP "Track Number"
         BEGIN
@@ -458,7 +478,6 @@ BEGIN
             MENUITEM "Dolby Surround Downmix",      IDM_DSDOWN
             MENUITEM "Pre-Scale Decision\t[F9]",    IDM_PRESCALE
         END
-        MENUITEM SEPARATOR
         POPUP "48 -> 44.1KHz"
         BEGIN
             MENUITEM "Off",                         IDM_SRC_NONE
@@ -478,10 +497,16 @@ BEGIN
             MENUITEM "Normal",                      IDM_PP_NORMAL
             MENUITEM "Low",                         IDM_PP_LOW
         END
+        MENUITEM "Playback Speed",              IDM_SPEED
+    END
+    POPUP "&Tools"
+    BEGIN
+        MENUITEM "Parse D2V",                   IDM_PARSE_D2V
+        MENUITEM "Fix D2V",                     IDM_FIX_D2V
     END
     POPUP "&Help"
     BEGIN
-        POPUP "SIMD"
+        POPUP "Detected SIMD"
         BEGIN
             MENUITEM "MMX",                         IDM_MMX, INACTIVE
             MENUITEM "SSE MMX",                     IDM_SSEMMX, INACTIVE

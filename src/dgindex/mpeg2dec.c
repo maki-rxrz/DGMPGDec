@@ -141,14 +141,14 @@ do_rip_play:
 		_lseeki64(Infile[0], 0, SEEK_SET);
 		Initialize_Buffer();
 
-		// If the file does not contain a sequence header start code, it can't be an MPEG2 file.
+		// If the file does not contain a sequence header start code, it can't be an MPEG file.
 		// We're already byte aligned at the start of the file.
 		while ((show = Show_Bits(32)) != 0x1b3)
 		{
 			if (Stop_Flag)
 			{
 				// We reached EOF without ever seeing a sequence header.
-				MessageBox(hWnd, "MPEG2 decoders prefer to receive MPEG2 files!", NULL, MB_OK | MB_ICONERROR);
+				MessageBox(hWnd, "No video sequence header found!", NULL, MB_OK | MB_ICONERROR);
 				ThreadKill();
 			}
 			Flush_Buffer(8);
@@ -159,20 +159,25 @@ do_rip_play:
 		_lseeki64(Infile[0], 0, SEEK_SET);
 		Initialize_Buffer();
 
-		// Auto detect transport files.
-		// First try for standard MPEG streams.
+		// Determine the stream type and the MPEG type.
+
+		// First look for transport streams.
 		// Search for a sync byte. Gives some protection against emulation.
 		for(i = 0; i < 188; i++)
 		{
 			if (Get_Byte() != 0x47) continue;
 			if (Rdptr + 187 >= Rdbfr + BUFFER_SIZE && Rdptr[-189] == 0x47)
 			{
-				SystemStream_Flag = 2;
+				SystemStream_Flag = TRANSPORT_STREAM;
+				mpeg_type = IS_MPEG2;
+				is_program_stream = 0;
 				break;
 			}
 			else if (Rdptr + 187 < Rdbfr + BUFFER_SIZE && Rdptr[+187] == 0x47)
 			{
-				SystemStream_Flag = 2;
+				SystemStream_Flag = TRANSPORT_STREAM;
+				mpeg_type = IS_MPEG2;
+				is_program_stream = 0;
 				break;
 			}
 			else
@@ -180,7 +185,7 @@ do_rip_play:
 		}
 
 		// Now try for PVA streams. Look for a packet start in the first 1024 bytes.
-		if (SystemStream_Flag != 2)
+		if (SystemStream_Flag != TRANSPORT_STREAM)
 		{
 			CurrentFile = 0;
 			_lseeki64(Infile[0], 0, SEEK_SET);
@@ -190,10 +195,28 @@ do_rip_play:
 			{
 				if (Rdbfr[i] == 0x41 && Rdbfr[i+1] == 0x56 && (Rdbfr[i+2] == 0x01 || Rdbfr[i+2] == 0x02))
 				{
-					SystemStream_Flag = 3;
+					SystemStream_Flag = PVA_STREAM;
+					mpeg_type = IS_MPEG2;
+					is_program_stream = 0;
 					break;
 				}
 				Rdptr++;
+			}
+		}
+
+		// Determine whether this is an MPEG2 file and whether it is a program stream.
+		if (SystemStream_Flag != TRANSPORT_STREAM && SystemStream_Flag != PVA_STREAM)
+		{
+			mpeg_type = IS_NOT_MPEG;
+			is_program_stream = 0;
+			if (initial_parse(Infilename[0], &mpeg_type, &is_program_stream) == -1)
+			{
+				MessageBox(hWnd, "File open problem!", NULL, MB_OK | MB_ICONERROR);
+				return 0;
+			}
+			if (is_program_stream)
+			{
+				SystemStream_Flag = PROGRAM_STREAM;
 			}
 		}
 
@@ -201,71 +224,21 @@ do_rip_play:
 		_lseeki64(Infile[0], 0, SEEK_SET);
 		Initialize_Buffer();
 
+		// We know the stream type now, so our parsing is immune to
+		// emulated video sequence headers in the pack layer.
 		while (!Check_Flag)
 		{
 			// Move to the next video start code.
-			// Get byte aligned.
-			Flush_Buffer(BitsLeft & 7);
-			while ((show = Show_Bits(24)) != 0x000001)
-			{
-				if (Stop_Flag)
-				{
-					// We reached EOF without ever seeing a video start code.
-					MessageBox(hWnd, "No start codes! Are you sure this is an MPEG2 video stream?",
-								   NULL, MB_OK | MB_ICONERROR);
-					ThreadKill();
-				}
-				Flush_Buffer(8);
-			}
+			next_start_code();
 			code = Get_Bits(32);
-
 			switch (code)
 			{
-			case PACK_START_CODE:
-				// If we know it's a transport stream, we can't allow this.
-				// If the video pid is (erroneously) set to decode an AC3
-				// audio pid, then the private stream start code will look
-				// like a video pack start code.
-				if (SystemStream_Flag == 2)
-				{
-					MessageBox(hWnd, "Strange video data! Check your PIDs.",
-							   NULL, MB_OK | MB_ICONERROR);
-					return 0;
-				}
-				// We have a program stream.
-				SystemStream_Flag = 1;
-				break;
-
 			case SEQUENCE_HEADER_CODE:
-				// Can't currently decode MPEG1, so detect that.
 				if (Stop_Flag == true)
 					ThreadKill();
-				next_start_code();
-				code = Get_Bits(32);
-				if (code == EXTENSION_START_CODE && Get_Bits(4) == 1)
-				{
-					// The SEQUENCE_HEADER_CODE is real.
-					CurrentFile = 0;
-					_lseeki64(Infile[0], 0, SEEK_SET);
-					Initialize_Buffer();
-					for (;;)
-					{
-						if (Stop_Flag == true)
-							ThreadKill();
-						next_start_code();
-						code = Get_Bits(32);
-						if (code == SEQUENCE_HEADER_CODE) break;
-					}
-					sequence_header(0);
-					InitialDecoder();
-					Check_Flag = true;
-				}
-				else
-				{
-					MessageBox(hWnd, "MPEG1 streams not currently supported.",
-							   NULL, MB_OK | MB_ICONERROR);
-					return 0;
-				}
+				sequence_header(0);
+				InitialDecoder();
+				Check_Flag = true;
 				break;
 			}
 		}
@@ -309,7 +282,7 @@ do_rip_play:
 		// The first parameter is the format version number.
 		// It must be coordinated with the test in DGDecode
 		// and used to reject obsolete D2V files.
-		fprintf(D2VFile, "DGIndexProjectFile%s\n%d\n", "08", i);
+		fprintf(D2VFile, "DGIndexProjectFile%d\n%d\n", D2V_FILE_VERSION, i);
 		while (i)
 		{
 			fprintf(D2VFile, "%d %s\n", strlen(Infilename[NumLoadedFiles-i]), Infilename[NumLoadedFiles-i]);
@@ -317,34 +290,36 @@ do_rip_play:
 		}
 
 		fprintf(D2VFile, "\nStream_Type=%d\n", SystemStream_Flag);
-
-		if (SystemStream_Flag == 2)
+		if (SystemStream_Flag == TRANSPORT_STREAM)
 			fprintf(D2VFile, "MPEG2_Transport_PID=%x,%x\n", MPEG2_Transport_VideoPID, MPEG2_Transport_AudioPID);
 
-		fprintf(D2VFile, "iDCT_Algorithm=%d (1:MMX 2:SSEMMX 3:FPU 4:REF 5:SSE2MMX)\n", iDCT_Flag);
-		fprintf(D2VFile, "YUVRGB_Scale=%d (0:TVScale 1:PCScale)\n", Scale_Flag);
+		fprintf(D2VFile, "MPEG_Type=%d\n", mpeg_type == IS_MPEG2 ? 2 : 1);
+		fprintf(D2VFile, "iDCT_Algorithm=%d\n", iDCT_Flag);
+		fprintf(D2VFile, "YUVRGB_Scale=%d\n", Scale_Flag);
 		if (Luminance_Flag)
 		{
-			fprintf(D2VFile, "Luminance_Filter=%d,%d (Gamma, Offset)\n", LumGamma, LumOffset);
+			fprintf(D2VFile, "Luminance_Filter=%d,%d\n", LumGamma, LumOffset);
 		}
 		else
 		{
-			fprintf(D2VFile, "Luminance_Filter=0,0 (Gamma, Offset)\n");
+			fprintf(D2VFile, "Luminance_Filter=0,0\n");
 		}
 
 		if (ClipResize_Flag)
 		{
-			fprintf(D2VFile, "Clipping=%d,%d,%d,%d (ClipLeft, ClipRight, ClipTop, ClipBottom)\n", 
-				Clip_Left, Clip_Right, Clip_Top, Clip_Bottom);
+			fprintf(D2VFile, "Clipping=%d,%d,%d,%d\n", Clip_Left, Clip_Right, Clip_Top, Clip_Bottom);
 		}
 		else
 		{
-			fprintf(D2VFile, "Clipping=0,0,0,0 (ClipLeft, ClipRight, ClipTop, ClipBottom)\n");
+			fprintf(D2VFile, "Clipping=0,0,0,0\n");
 		}
 
-		fprintf(D2VFile, "Aspect_Ratio=%s\n", AspectRatio[aspect_ratio_information]);
+		if (mpeg_type == IS_MPEG2)
+			fprintf(D2VFile, "Aspect_Ratio=%s\n", AspectRatio[aspect_ratio_information]);
+		else
+			fprintf(D2VFile, "Aspect_Ratio=%s\n", AspectRatioMPEG1[aspect_ratio_information]);
 		fprintf(D2VFile, "Picture_Size=%dx%d\n", Coded_Picture_Width, Coded_Picture_Height);
-		fprintf(D2VFile, "Field_Operation=%d (0:None 1:ForcedFILM 2:RawFrames)\n", FO_Flag);
+		fprintf(D2VFile, "Field_Operation=%d\n", FO_Flag);
 		fprintf(D2VFile, "Frame_Rate=%d\n", (int)(Frame_Rate*1000));
 		fprintf(D2VFile, "Location=%d,%X,%d,%X\n\n", process.leftfile, (int)process.leftlba, 
 				process.rightfile, (int)process.rightlba);
@@ -471,7 +446,7 @@ static BOOL GOPBack()
 				process.startloc = d2v_current.lba * BUFFER_SIZE;
 				// This is a kludge. For PES streams, the pack start
 				// might be in the previous LBA!
-				if (SystemStream_Flag)
+				if (SystemStream_Flag != ELEMENTARY_STREAM)
 					process.startloc -= BUFFER_SIZE;
 				return true;
 			}

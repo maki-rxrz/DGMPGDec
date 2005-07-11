@@ -89,10 +89,6 @@ void CMPEG2Decoder::group_of_pictures_header()
 void CMPEG2Decoder::picture_header()
 {
 	int vbv_delay;
-	int full_pel_forward_vector;
-	int forward_f_code;
-	int full_pel_backward_vector;
-	int backward_f_code;
 	int Extra_Information_Byte_Count;
 
 	temporal_reference  = Get_Bits(10);
@@ -110,6 +106,20 @@ void CMPEG2Decoder::picture_header()
 		full_pel_backward_vector = Get_Bits(1);
 		backward_f_code = Get_Bits(3);
 	}
+
+	// MPEG1 defaults. May be overriden by picture coding extension.
+	intra_dc_precision = 0;
+	picture_structure = FRAME_PICTURE;
+	top_field_first = 1;
+	frame_pred_frame_dct = 1;
+	concealment_motion_vectors = 0;
+	q_scale_type = 0;
+	intra_vlc_format = 0;
+	alternate_scan = 0;
+	repeat_first_field = 0;
+	progressive_frame = 1;
+
+	pf_current = progressive_frame;
 
 	Extra_Information_Byte_Count = extra_bit_information();
 	extension_and_user_data();
@@ -163,6 +173,13 @@ void CMPEG2Decoder::sequence_header()
 		chroma_intra_quantizer_matrix[i] = intra_quantizer_matrix[i];
 		chroma_non_intra_quantizer_matrix[i] = non_intra_quantizer_matrix[i];
 	}
+
+	// These are MPEG1 defaults. These will be overridden if we have MPEG2
+	// when the sequence header extension is parsed.
+	progressive_sequence = 1;
+	chroma_format = CHROMA420;
+	matrix_coefficients = 5;
+
 	extension_and_user_data();
 }
 
@@ -176,22 +193,18 @@ int CMPEG2Decoder::slice_header()
 	int slice_picture_id = 0;
 	int extra_information_slice = 0;
 
-	slice_vertical_position_extension = vertical_size>2800 ? Get_Bits(3) : 0;
+	if (mpeg_type == IS_MPEG2)
+		slice_vertical_position_extension = vertical_size>2800 ? Get_Bits(3) : 0;
+	else
+		slice_vertical_position_extension = 0;
 
 	quantizer_scale_code = Get_Bits(5);
-	quantizer_scale = q_scale_type ? Non_Linear_quantizer_scale[quantizer_scale_code] : quantizer_scale_code<<1;
+	if (mpeg_type == IS_MPEG2)
+		quantizer_scale = q_scale_type ? Non_Linear_quantizer_scale[quantizer_scale_code] : quantizer_scale_code<<1;
+	else
+		quantizer_scale = quantizer_scale_code;
 
-	/* slice_id introduced in March 1995 as part of the video corridendum
-	   (after the IS was drafted in November 1994) */
-	if (Get_Bits(1))
-	{
-		Get_Bits(1);	// intra slice
-
-		slice_picture_id_enable = Get_Bits(1);
-		slice_picture_id = Get_Bits(6);
-
-		extra_information_slice = extra_bit_information();
-	}
+	while (Get_Bits(1)) Flush_Buffer(8);
 
 	return slice_vertical_position_extension;
 }
@@ -287,7 +300,6 @@ void CMPEG2Decoder::sequence_display_extension()
 	int color_description;
 	int color_primaries;
 	int transfer_characteristics;
-	int matrix_coefficients;
 	int display_horizontal_size;
 	int display_vertical_size;
 
@@ -301,7 +313,6 @@ void CMPEG2Decoder::sequence_display_extension()
 		transfer_characteristics = Get_Bits(8);
 		matrix_coefficients      = Get_Bits(8);
 	}
-	Matrix = matrix_coefficients;
 
 	display_horizontal_size = Get_Bits(14);
 	Flush_Buffer(1);	// marker bit

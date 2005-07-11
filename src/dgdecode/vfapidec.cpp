@@ -37,7 +37,6 @@ CMPEG2Decoder::CMPEG2Decoder()
   VF_FrameLimit = 0;
   VF_GOPLimit = 0;
   VF_FrameRate = 0;
-  Matrix = 1;
   prev_frame = 0xfffffffe;
   memset(Rdbfr, 0, sizeof(Rdbfr));
   Rdptr = Rdmax = 0;
@@ -63,22 +62,21 @@ CMPEG2Decoder::CMPEG2Decoder()
   upConv = false;
   i420 = false;
   AVSenv = NULL;
-  u422 = v422 = u444 = v444 = lum = NULL;
-  for (int i=0; i<MAX_FRAME_NUMBER; ++i)
-  {
-    GOPList[i] = NULL;
-  }
+  u422 = v422 = u444 = v444 = NULL;
+  DirectAccess = NULL;
+  FrameList = NULL;
+  GOPList = NULL;
+  GOPListSize = 0;
 }
 
 // Open function modified by Donald Graft as part of fix for dropped frames and random frame access.
-int CMPEG2Decoder::Open(const char *path, DstFormat dstFormat)
+int CMPEG2Decoder::Open(const char *path)
 {
 	char buf[2048], *buf_p;
 
 	Choose_Prediction(this->fastMC);
 
-	m_dstFormat = dstFormat;
-	char ID[80], PASS[80] = "DGIndexProjectFile08";
+	char ID[80], PASS[80] = "DGIndexProjectFile10";
 	DWORD i, j, size, code, type, tff, rff, film, ntsc, gop, top, bottom, mapping;
 	int repeat_on, repeat_off, repeat_init;
 	int vob_id, cell_id;
@@ -108,16 +106,8 @@ int CMPEG2Decoder::Open(const char *path, DstFormat dstFormat)
 	fscanf(out->VF_File, "\nStream_Type=%d\n", &SystemStream_Flag);
 	if ( SystemStream_Flag == 2 )
 		fscanf(out->VF_File, "MPEG2_Transport_PID=%x,%x\n", &MPEG2_Transport_VideoPID,	&MPEG2_Transport_AudioPID);
-
-	long nCurrentPos = ftell(out->VF_File);
-	char szTempText[50];
-
-	fscanf(out->VF_File, "iDCT_Algorithm=%d", &IDCT_Flag);
-	fscanf(out->VF_File, "%s", szTempText);
-	
-	fseek(out->VF_File, nCurrentPos, SEEK_SET);
-
-	fscanf(out->VF_File, "iDCT_Algorithm=%d (1:MMX 2:SSEMMX 3:FPU 4:REF 5:SSE2MMX)\n", &IDCT_Flag);
+	fscanf(out->VF_File, "MPEG_Type=%d\n", &mpeg_type);
+	fscanf(out->VF_File, "iDCT_Algorithm=%d\n", &IDCT_Flag);
 
 	switch (IDCT_Flag)
 	{
@@ -146,7 +136,6 @@ int CMPEG2Decoder::Open(const char *path, DstFormat dstFormat)
 		case IDCT_REF:
 			if (!refinit) 
 			{
-				Initialize_REF_IDCT();
 				refinit = true;
 			}
 			idctFunc = REF_IDCT;
@@ -202,7 +191,7 @@ int CMPEG2Decoder::Open(const char *path, DstFormat dstFormat)
 	mb_width = (horizontal_size+15)/16;
 	mb_height = progressive_sequence ? (vertical_size+15)/16 : 2*((vertical_size+31)/32);
 
-	QP = (int*)aligned_malloc(sizeof(int)*mb_width*mb_height, 128);
+	QP = (int*)aligned_malloc(sizeof(int)*mb_width*mb_height, 32);
 
 	Coded_Picture_Width = 16 * mb_width;
 	Coded_Picture_Height = 16 * mb_height;
@@ -214,11 +203,11 @@ int CMPEG2Decoder::Open(const char *path, DstFormat dstFormat)
 
 	for (i=0; i<8; i++)
 	{
-		p_block[i] = (short *)aligned_malloc(sizeof(short)*64 + 64, 128);
+		p_block[i] = (short *)aligned_malloc(sizeof(short)*64 + 64, 32);
 		block[i]   = (short *)((long)p_block[i] + 64 - (long)p_block[i]%64);
 	}
 
-	p_fTempArray = (void *)aligned_malloc(sizeof(float)*128 + 64, 128);
+	p_fTempArray = (void *)aligned_malloc(sizeof(float)*128 + 64, 32);
 	fTempArray = (void *)((long)p_fTempArray + 64 - (long)p_fTempArray%64);
 
 	for (i=0; i<3; i++)
@@ -228,12 +217,12 @@ int CMPEG2Decoder::Open(const char *path, DstFormat dstFormat)
 		else
 			size = Chroma_Width * Chroma_Height;
 
-		backward_reference_frame[i] = (unsigned char*)aligned_malloc(2*size+4096, 128);  //>>> cheap safety bump
-		forward_reference_frame[i] = (unsigned char*)aligned_malloc(2*size+4096, 128);
-		auxframe[i] = (unsigned char*)aligned_malloc(2*size+4096, 128);
+		backward_reference_frame[i] = (unsigned char*)aligned_malloc(2*size+4096, 32);  //>>> cheap safety bump
+		forward_reference_frame[i] = (unsigned char*)aligned_malloc(2*size+4096, 32);
+		auxframe[i] = (unsigned char*)aligned_malloc(2*size+4096, 32);
 	}
 
-	fscanf(out->VF_File, "YUVRGB_Scale=%d (0:TVScale 1:PCScale)\n", &i);
+	fscanf(out->VF_File, "YUVRGB_Scale=%d\n", &i);
 
 	if (i)
 	{
@@ -252,54 +241,31 @@ int CMPEG2Decoder::Open(const char *path, DstFormat dstFormat)
 		RGB_CRV = 0x00002CDD00002CDD;
 	}
 
-	fscanf(out->VF_File, "Luminance_Filter=%d,%d (Gamma, Offset)\n", &i, &j);
-	i+=128;
-
-	if (i==128 && j==0) Luminance_Flag = 0;
+	fscanf(out->VF_File, "Luminance_Filter=%d,%d\n", &i, &j);
+	if (i==0 && j==0)
+		Luminance_Flag = 0;
 	else
 	{
 		Luminance_Flag = 1;
-		LumGainMask = ((__int64)i<<48) + ((__int64)i<<32) + ((__int64)i<<16) + (__int64)i;
-		LumOffsetMask = ((__int64)j<<48) + ((__int64)j<<32) + ((__int64)j<<16) + (__int64)j;
-
-		nLumSize = Coded_Picture_Width * Coded_Picture_Height;
-
-		// Luminance Gain on old DVD2AVI used to be set at 128 as default
-		// But we use the new Luminance Filter, so 128 would equal 0
-		i -= 128;
-
 		InitializeLuminanceFilter(i, j);
-
-		lum = (unsigned char*)aligned_malloc(Coded_Picture_Width * Coded_Picture_Height, 128);
 	}
 
-	fscanf(out->VF_File, "Clipping=%d,%d,%d,%d (ClipLeft, ClipRight, ClipTop, ClipBottom)\n", 
+	fscanf(out->VF_File, "Clipping=%d,%d,%d,%d\n", 
 		   &Clip_Left, &Clip_Right, &Clip_Top, &Clip_Bottom);
 	fscanf(out->VF_File, "Aspect_Ratio=%s\n", Aspect_Ratio);
 	fscanf(out->VF_File, "Picture_Size=%s\n", &m, &n);
 
 	Clip_Width = Coded_Picture_Width;
 	Clip_Height = Coded_Picture_Height;
-	CLIP_AREA = HALF_CLIP_AREA = CLIP_STEP = 0;
-
-	LUM_AREA = Coded_Picture_Width * Clip_Height;
-	PROGRESSIVE_HEIGHT = (Coded_Picture_Height>>1) - 2;
-	INTERLACED_HEIGHT = (Coded_Picture_Height>>2) - 2;
-	HALF_WIDTH = Coded_Picture_Width>>1;
-	HALF_WIDTH_D8 = (Coded_Picture_Width>>1) - 8;
-	DOUBLE_WIDTH = Coded_Picture_Width<<1;
-
-	// these don't seem to be used anywhere anymore  (tritical -- 1/05/2005)
-	//u444 = (unsigned char*)aligned_malloc(Coded_Picture_Width * Coded_Picture_Height, 128);
-	//v444 = (unsigned char*)aligned_malloc(Coded_Picture_Width * Coded_Picture_Height, 128);
 
 	if (upConv && chroma_format == 1)
 	{
 		// these are labeled u422 and v422, but I'm only using them as a temporary
 		// storage place for YV12 chroma before upsampling to 4:2:2 so that's why its
 		// /4 and not /2  --  (tritical - 1/05/2005)
-		u422 = (unsigned char*)aligned_malloc((Coded_Picture_Width * Coded_Picture_Height / 4)+2048, 128);
-		v422 = (unsigned char*)aligned_malloc((Coded_Picture_Width * Coded_Picture_Height / 4)+2048, 128);
+		int tpitch = (((Chroma_Width+15)>>4)<<4); // mod 16 chroma pitch needed to work with YV12PICTs
+		u422 = (unsigned char*)aligned_malloc((tpitch * Coded_Picture_Height / 2)+2048, 32);
+		v422 = (unsigned char*)aligned_malloc((tpitch * Coded_Picture_Height / 2)+2048, 32);
 		auxFrame1 = create_YV12PICT(Coded_Picture_Height,Coded_Picture_Width,chroma_format+1);
 		auxFrame2 = create_YV12PICT(Coded_Picture_Height,Coded_Picture_Width,chroma_format+1);
 	}
@@ -311,13 +277,22 @@ int CMPEG2Decoder::Open(const char *path, DstFormat dstFormat)
 	saved_active = auxFrame1;
 	saved_store = auxFrame2;
 
-	fscanf(out->VF_File, "Field_Operation=%d (0:None 1:ForcedFILM 2:RawFrames)\n", &FO_Flag);
-
+	fscanf(out->VF_File, "Field_Operation=%d\n", &FO_Flag);
 	fscanf(out->VF_File, "Frame_Rate=%d\n", &(out->VF_FrameRate));
 	fscanf(out->VF_File, "Location=%d,%X,%d,%X\n", &i, &j, &i, &j);
 
 	ntsc = film = top = bottom = gop = mapping = repeat_on = repeat_off = repeat_init = 0;
 	HaveRFFs = false;
+
+	// These start with sizes of 1000000 (the old fixed default).  If it 
+	// turns out that that is too small, the memory spaces are enlarged 
+	// 500000 at a time using realloc.  -- tritical May 16, 2005
+	DirectAccess = (char *)calloc(1000000, sizeof(char));
+	FrameList = (FRAMELIST*)calloc(1000000, sizeof(FRAMELIST));
+	GOPList = (GOPLIST**)calloc(1000000, sizeof(GOPLIST*));
+	GOPListSize = 1000000;
+	int DirectAccessSize = 1000000;
+	int FrameListSize = 1000000;
 
 	fgets(buf, 2047, out->VF_File);
 	buf_p = buf;
@@ -326,8 +301,14 @@ int CMPEG2Decoder::Open(const char *path, DstFormat dstFormat)
 		sscanf(buf_p, "%x", &type);
 		if (type == 0xff)
 			break;
-		if (type & 0x800)	// GOP line start.
+		if (type & 0x800)	// New I-frame line start.
 		{
+			if ((int)gop >= GOPListSize)
+			{
+				GOPList = (GOPLIST**)realloc(GOPList, (GOPListSize+500000)*sizeof(GOPLIST*));
+				for (int k=GOPListSize; k<GOPListSize+500000; ++k) GOPList[k] = NULL;
+				GOPListSize += 500000;
+			}
 			GOPList[gop] = reinterpret_cast<GOPLIST*>(calloc(1, sizeof(GOPLIST)));
 			GOPList[gop]->number = film;
 			while (*buf_p++ != ' ');
@@ -368,6 +349,19 @@ int CMPEG2Decoder::Open(const char *path, DstFormat dstFormat)
 				Field_Order = 1;
 			else
 				Field_Order = 0;
+		}
+
+		if (((int)mapping)+2 >= FrameListSize || ((int)ntsc)+2 >= FrameListSize ||
+			((int)film)+2 >= FrameListSize)
+		{
+			FrameList = (FRAMELIST*)realloc(FrameList, (FrameListSize+500000)*sizeof(FRAMELIST));
+			FrameListSize += 500000;
+		}
+
+		if (((int)film)+2 >= DirectAccessSize)
+		{
+			DirectAccess = (char*)realloc(DirectAccess, (DirectAccessSize+500000)*sizeof(char));
+			DirectAccessSize += 500000;
 		}
 
 		if (FO_Flag==FO_FILM)
@@ -796,10 +790,8 @@ void CMPEG2Decoder::Close()
 	{
 		File_Limit--;
 		_close(Infile[File_Limit]);
+		aligned_free(Infilename[File_Limit]);
 	}
-
-	for (i=0; i<File_Limit; i++)
-		aligned_free(Infilename[i]);
 
 	for (i=0; i<3; i++)
 	{
@@ -818,18 +810,24 @@ void CMPEG2Decoder::Close()
 	destroy_YV12PICT(auxFrame1);
 	destroy_YV12PICT(auxFrame2);
 
-	if(Luminance_Flag && lum != NULL)
-		aligned_free(lum);
-
 	for (i=0; i<8; i++)
 		aligned_free(p_block[i]);
 
 	aligned_free(p_fTempArray);
 
-	for (i=0; i<MAX_FRAME_NUMBER; ++i)
+	if (GOPList != NULL)
 	{
-		if (GOPList[i] != NULL) { free(GOPList[i]); GOPList[i] = NULL; }
+		for (i=0; i<GOPListSize; ++i)
+		{
+			if (GOPList[i] != NULL) { free(GOPList[i]); GOPList[i] = NULL; }
+		}
+		free(GOPList);
 	}
+	GOPListSize = 0;
+
+	if (FrameList != NULL) free(FrameList);
+
+	if (DirectAccess != NULL) free(DirectAccess);
 }
 
 // mmx YV12 framecpy by MarcFD 25 nov 2002 (okay the macros are ugly, but it's fast ^^)
@@ -885,12 +883,13 @@ __asm jnz row_loop##n      \
 __asm emms                \
 
 
-#define cpy_oddeven(_odd,_oddoffset,_even,_evenoffset,_dst,_dststride,_lines,n) \
+#define cpy_oddeven(_odd,_oddoffset,_even,_evenoffset,_dst,_dstoffset,_dststride,_lines,n) \
 unsigned char *odd##n = _odd; \
 int oddoffset##n = _oddoffset; \
 unsigned char *even##n = _even; \
 int evenoffset##n = _evenoffset; \
 unsigned char *dst##n = _dst; \
+int dstoffset##n = _dstoffset; \
 int dststride##n = _dststride; \
 int lines##n = _lines; \
 __asm mov eax,odd##n \
@@ -898,9 +897,9 @@ __asm mov ebx,even##n \
 __asm mov edx,dst##n \
 __asm row_loop##n: \
 __asm cpylinemmx(eax,edx,dststride##n,n) \
-__asm add edx,dststride##n \
+__asm add edx,dstoffset##n \
 __asm cpylinemmx(ebx,edx,dststride##n,##n##n) \
-__asm add edx,dststride##n \
+__asm add edx,dstoffset##n \
 __asm add eax,oddoffset##n \
 __asm add ebx,evenoffset##n \
 __asm mov ecx,lines##n \
@@ -914,15 +913,15 @@ void CMPEG2Decoder::Copyall(YV12PICT *src, YV12PICT *dst)
 	int tChroma_Height = (upConv && chroma_format == 1) ? Chroma_Height*2 : Chroma_Height;
 	if ( AVSenv )
 	{
-		AVSenv->BitBlt(dst->y, dst->ypitch, src->y, src->ypitch, src->ypitch, Coded_Picture_Height);
-		AVSenv->BitBlt(dst->u, dst->uvpitch, src->u, src->uvpitch, src->uvpitch, tChroma_Height);
-		AVSenv->BitBlt(dst->v, dst->uvpitch, src->v, src->uvpitch, src->uvpitch, tChroma_Height);
+		AVSenv->BitBlt(dst->y, dst->ypitch, src->y, src->ypitch, src->ywidth, Coded_Picture_Height);
+		AVSenv->BitBlt(dst->u, dst->uvpitch, src->u, src->uvpitch, src->uvwidth, tChroma_Height);
+		AVSenv->BitBlt(dst->v, dst->uvpitch, src->v, src->uvpitch, src->uvwidth, tChroma_Height);
 	}
 	else
 	{
-		cpy_offset(src->y,src->ypitch,dst->y,dst->ypitch,dst->ypitch,Coded_Picture_Height,0);
-		cpy_offset(src->u,src->uvpitch,dst->u,dst->uvpitch,dst->uvpitch,tChroma_Height,1);
-		cpy_offset(src->v,src->uvpitch,dst->v,dst->uvpitch,dst->uvpitch,tChroma_Height,2);
+		cpy_offset(src->y,src->ypitch,dst->y,dst->ypitch,dst->ywidth,Coded_Picture_Height,0);
+		cpy_offset(src->u,src->uvpitch,dst->u,dst->uvpitch,dst->uvwidth,tChroma_Height,1);
+		cpy_offset(src->v,src->uvpitch,dst->v,dst->uvpitch,dst->uvwidth,tChroma_Height,2);
 	}
 }
 
@@ -931,15 +930,15 @@ void CMPEG2Decoder::Copyodd(YV12PICT *src, YV12PICT *dst)
 	int tChroma_Height = (upConv && chroma_format == 1) ? Chroma_Height*2 : Chroma_Height;
 	if ( AVSenv )
 	{
-		AVSenv->BitBlt(dst->y, dst->ypitch*2, src->y,src->ypitch*2, src->ypitch, Coded_Picture_Height>>1);
-		AVSenv->BitBlt(dst->u, dst->uvpitch*2, src->u,src->uvpitch*2, src->uvpitch, tChroma_Height>>1);
-		AVSenv->BitBlt(dst->v, dst->uvpitch*2, src->v,src->uvpitch*2, src->uvpitch, tChroma_Height>>1);
+		AVSenv->BitBlt(dst->y, dst->ypitch*2, src->y,src->ypitch*2, src->ywidth, Coded_Picture_Height>>1);
+		AVSenv->BitBlt(dst->u, dst->uvpitch*2, src->u,src->uvpitch*2, src->uvwidth, tChroma_Height>>1);
+		AVSenv->BitBlt(dst->v, dst->uvpitch*2, src->v,src->uvpitch*2, src->uvwidth, tChroma_Height>>1);
 	}
 	else
 	{
-		cpy_offset(src->y,src->ypitch*2,dst->y,dst->ypitch*2,dst->ypitch,Coded_Picture_Height>>1,0);
-		cpy_offset(src->u,src->uvpitch*2,dst->u,dst->uvpitch*2,dst->uvpitch,tChroma_Height>>1,1);
-		cpy_offset(src->v,src->uvpitch*2,dst->v,dst->uvpitch*2,dst->uvpitch,tChroma_Height>>1,2);
+		cpy_offset(src->y,src->ypitch*2,dst->y,dst->ypitch*2,dst->ywidth,Coded_Picture_Height>>1,0);
+		cpy_offset(src->u,src->uvpitch*2,dst->u,dst->uvpitch*2,dst->uvwidth,tChroma_Height>>1,1);
+		cpy_offset(src->v,src->uvpitch*2,dst->v,dst->uvpitch*2,dst->uvwidth,tChroma_Height>>1,2);
 	}
 }
 
@@ -948,22 +947,22 @@ void CMPEG2Decoder::Copyeven(YV12PICT *src, YV12PICT *dst)
 	int tChroma_Height = (upConv && chroma_format == 1) ? Chroma_Height*2 : Chroma_Height;
 	if ( AVSenv )
 	{
-		AVSenv->BitBlt(dst->y+dst->ypitch, dst->ypitch*2, src->y+src->ypitch, src->ypitch*2, src->ypitch, Coded_Picture_Height>>1);
-		AVSenv->BitBlt(dst->u+dst->uvpitch, dst->uvpitch*2, src->u+src->uvpitch, src->uvpitch*2, src->uvpitch, tChroma_Height>>1);
-		AVSenv->BitBlt(dst->v+dst->uvpitch, dst->uvpitch*2, src->v+src->uvpitch, src->uvpitch*2, src->uvpitch, tChroma_Height>>1);
+		AVSenv->BitBlt(dst->y+dst->ypitch, dst->ypitch*2, src->y+src->ypitch, src->ypitch*2, src->ywidth, Coded_Picture_Height>>1);
+		AVSenv->BitBlt(dst->u+dst->uvpitch, dst->uvpitch*2, src->u+src->uvpitch, src->uvpitch*2, src->uvwidth, tChroma_Height>>1);
+		AVSenv->BitBlt(dst->v+dst->uvpitch, dst->uvpitch*2, src->v+src->uvpitch, src->uvpitch*2, src->uvwidth, tChroma_Height>>1);
 	}
 	else
 	{
-		cpy_offset(src->y+src->ypitch,src->ypitch*2,dst->y+dst->ypitch,dst->ypitch*2,dst->ypitch,Coded_Picture_Height>>1,0);
-		cpy_offset(src->u+src->uvpitch,src->uvpitch*2,dst->u+dst->uvpitch,dst->uvpitch*2,dst->uvpitch,tChroma_Height>>1,1);
-		cpy_offset(src->v+src->uvpitch,src->uvpitch*2,dst->v+dst->uvpitch,dst->uvpitch*2,dst->uvpitch,tChroma_Height>>1,2);
+		cpy_offset(src->y+src->ypitch,src->ypitch*2,dst->y+dst->ypitch,dst->ypitch*2,dst->ywidth,Coded_Picture_Height>>1,0);
+		cpy_offset(src->u+src->uvpitch,src->uvpitch*2,dst->u+dst->uvpitch,dst->uvpitch*2,dst->uvwidth,tChroma_Height>>1,1);
+		cpy_offset(src->v+src->uvpitch,src->uvpitch*2,dst->v+dst->uvpitch,dst->uvpitch*2,dst->uvwidth,tChroma_Height>>1,2);
 	}
 }
 
 void CMPEG2Decoder::Copyoddeven(YV12PICT *odd, YV12PICT *even, YV12PICT *dst)
 {
 	int tChroma_Height = (upConv && chroma_format == 1) ? Chroma_Height*2 : Chroma_Height;
-	cpy_oddeven(odd->y,odd->ypitch*2,even->y+even->ypitch,even->ypitch*2,dst->y,dst->ypitch,Coded_Picture_Height>>1,0);
-	cpy_oddeven(odd->u,odd->uvpitch*2,even->u+even->uvpitch,even->uvpitch*2,dst->u,dst->uvpitch,tChroma_Height>>1,1);
-	cpy_oddeven(odd->v,odd->uvpitch*2,even->v+even->uvpitch,even->uvpitch*2,dst->v,dst->uvpitch,tChroma_Height>>1,2);
+	cpy_oddeven(odd->y,odd->ypitch*2,even->y+even->ypitch,even->ypitch*2,dst->y,dst->ypitch,dst->ywidth,Coded_Picture_Height>>1,0);
+	cpy_oddeven(odd->u,odd->uvpitch*2,even->u+even->uvpitch,even->uvpitch*2,dst->u,dst->uvpitch,dst->uvwidth,tChroma_Height>>1,1);
+	cpy_oddeven(odd->v,odd->uvpitch*2,even->v+even->uvpitch,even->uvpitch*2,dst->v,dst->uvpitch,dst->uvwidth,tChroma_Height>>1,2);
 }
