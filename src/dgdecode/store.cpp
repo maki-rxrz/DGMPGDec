@@ -150,12 +150,10 @@ void CMPEG2Decoder::assembleFrame(unsigned char *src[], int pf, YV12PICT *dst)
 
 	dst->pf = pf;
 
-	if (Fault_Flag) Fault_Flag = 0;
-
 	if (pp_mode != 0)
 	{
 		uc* ppptr[3];
-		if (!(upConv && chroma_format == 1))
+		if (!(upConv > 0 && chroma_format == 1))
 		{
 			ppptr[0] = dst->y;
 			ppptr[1] = dst->u;
@@ -173,10 +171,18 @@ void CMPEG2Decoder::assembleFrame(unsigned char *src[], int pf, YV12PICT *dst)
 		postprocess(src, this->Coded_Picture_Width, ppptr, dst->ypitch, this->Coded_Picture_Width,
 				this->Coded_Picture_Height, this->QP, this->mb_width, pp_mode, moderate_h, moderate_v, 
 				chroma_format == 1 ? false : true, iPPt);
-		if (upConv && chroma_format == 1)
+		if (upConv > 0 && chroma_format == 1)
 		{
-			conv420to422(ppptr[1],dst->u,pf,dst->uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
-			conv420to422(ppptr[2],dst->v,pf,dst->uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
+			if (iCC == 1 || (iCC == -1 && pf == 0))
+			{
+				conv420to422(ppptr[1],dst->u,0,dst->uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
+				conv420to422(ppptr[2],dst->v,0,dst->uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
+			}
+			else
+			{
+				conv420to422(ppptr[1],dst->u,1,dst->uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
+				conv420to422(ppptr[2],dst->v,1,dst->uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
+			}
 		}
 	} 
 	else
@@ -187,11 +193,19 @@ void CMPEG2Decoder::assembleFrame(unsigned char *src[], int pf, YV12PICT *dst)
 		psrc.uvpitch = psrc.uvwidth = Chroma_Width;
 		psrc.yheight = Coded_Picture_Height;
 		psrc.uvheight = Chroma_Height;
-		if (upConv && chroma_format == 1)
+		if (upConv > 0 && chroma_format == 1)
 		{
-			AVSenv->BitBlt(dst->y,dst->ypitch,psrc.y,psrc.ypitch,dst->ywidth,dst->yheight);
-			conv420to422(psrc.u,dst->u,pf,psrc.uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
-			conv420to422(psrc.v,dst->v,pf,psrc.uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
+			CopyPlane(psrc.y,psrc.ypitch,dst->y,dst->ypitch,psrc.ywidth,psrc.yheight);
+			if (iCC == 1 || (iCC == -1 && pf == 0))
+			{
+				conv420to422(psrc.u,dst->u,0,psrc.uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
+				conv420to422(psrc.v,dst->v,0,psrc.uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
+			}
+			else
+			{
+				conv420to422(psrc.u,dst->u,1,psrc.uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
+				conv420to422(psrc.v,dst->v,1,psrc.uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
+			}
 		}
 		else Copyall(&psrc,dst);
 	}

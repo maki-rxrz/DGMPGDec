@@ -59,10 +59,16 @@ CMPEG2Decoder::CMPEG2Decoder()
   q_scale_type =
   alternate_scan =
   quantizer_scale = 0;
-  upConv = false;
+  upConv = 0;
+  iPP = -1;
+  iCC = -1;
+  moderate_h = 20;
+  moderate_v = 40;
   i420 = false;
+  pc_scale = 1;
+  maxquant = minquant = avgquant = 0;
   AVSenv = NULL;
-  u422 = v422 = u444 = v444 = NULL;
+  u422 = v422 = NULL;
   DirectAccess = NULL;
   FrameList = NULL;
   GOPList = NULL;
@@ -76,7 +82,7 @@ int CMPEG2Decoder::Open(const char *path)
 
 	Choose_Prediction(this->fastMC);
 
-	char ID[80], PASS[80] = "DGIndexProjectFile10";
+	char ID[80], PASS[80] = "DGIndexProjectFile11";
 	DWORD i, j, size, code, type, tff, rff, film, ntsc, gop, top, bottom, mapping;
 	int repeat_on, repeat_off, repeat_init;
 	int vob_id, cell_id;
@@ -91,13 +97,14 @@ int CMPEG2Decoder::Open(const char *path)
 	if (strncmp(ID, PASS, 20))
 		return 0;
 
-	fscanf(out->VF_File, "%d", &File_Limit);
+	fscanf(out->VF_File, "%d\n", &File_Limit);
 	i = File_Limit;
 	while (i)
 	{
-		fscanf(out->VF_File, "%d ", &j);
 		Infilename[File_Limit-i] = (char*)aligned_malloc(_MAX_PATH, 16);
-		fgets(Infilename[File_Limit-i], j+1, out->VF_File);
+		fgets(Infilename[File_Limit-i], _MAX_PATH - 1, out->VF_File);
+		// Strip newline.
+		Infilename[File_Limit-i][strlen(Infilename[File_Limit-i])-1] = 0;
 		if ((Infile[File_Limit-i] = _open(Infilename[File_Limit-i], _O_RDONLY | _O_BINARY))==-1)
 			return 0;
 		i--;
@@ -222,24 +229,7 @@ int CMPEG2Decoder::Open(const char *path)
 		auxframe[i] = (unsigned char*)aligned_malloc(2*size+4096, 32);
 	}
 
-	fscanf(out->VF_File, "YUVRGB_Scale=%d\n", &i);
-
-	if (i)
-	{
-		RGB_Scale = 0x1000254310002543;
-		RGB_Offset = 0x0010001000100010;
-		RGB_CBU = 0x0000408D0000408D;
-		RGB_CGX = 0xF377E5FCF377E5FC;
-		RGB_CRV = 0x0000331300003313;
-	}
-	else
-	{
-		RGB_Scale = 0x1000200010002000;
-		RGB_Offset = 0x0000000000000000;
-		RGB_CBU = 0x000038B4000038B4;
-		RGB_CGX = 0xF4FDE926F4FDE926;
-		RGB_CRV = 0x00002CDD00002CDD;
-	}
+	fscanf(out->VF_File, "YUVRGB_Scale=%d\n", &pc_scale);
 
 	fscanf(out->VF_File, "Luminance_Filter=%d,%d\n", &i, &j);
 	if (i==0 && j==0)
@@ -253,12 +243,12 @@ int CMPEG2Decoder::Open(const char *path)
 	fscanf(out->VF_File, "Clipping=%d,%d,%d,%d\n", 
 		   &Clip_Left, &Clip_Right, &Clip_Top, &Clip_Bottom);
 	fscanf(out->VF_File, "Aspect_Ratio=%s\n", Aspect_Ratio);
-	fscanf(out->VF_File, "Picture_Size=%s\n", &m, &n);
+	fscanf(out->VF_File, "Picture_Size=%dx%d\n", &m, &n);
 
 	Clip_Width = Coded_Picture_Width;
 	Clip_Height = Coded_Picture_Height;
 
-	if (upConv && chroma_format == 1)
+	if (upConv > 0 && chroma_format == 1)
 	{
 		// these are labeled u422 and v422, but I'm only using them as a temporary
 		// storage place for YV12 chroma before upsampling to 4:2:2 so that's why its
@@ -508,7 +498,7 @@ int CMPEG2Decoder::Open(const char *path)
 		Get_Hdr();
 		if (picture_coding_type == I_TYPE) break;
 	}
-	if (closed_gop != 1)
+	if (GOPList[0]->closed != 1)
 	{
 		// Leading B frames are non-decodable.
 		while (true)
@@ -804,8 +794,6 @@ void CMPEG2Decoder::Close()
 
 	if (u422 != NULL) aligned_free(u422);
 	if (v422 != NULL) aligned_free(v422);
-	if (u444 != NULL) aligned_free(u444);
-	if (v444 != NULL) aligned_free(v444);
 	
 	destroy_YV12PICT(auxFrame1);
 	destroy_YV12PICT(auxFrame2);
@@ -908,9 +896,19 @@ __asm mov lines##n,ecx \
 __asm jnz row_loop##n \
 __asm emms   \
 
+void CMPEG2Decoder::CopyPlane(unsigned char *src, int src_pitch, unsigned char *dst, int dst_pitch,
+							  int width, int height)
+{
+	if (AVSenv) AVSenv->BitBlt(dst, dst_pitch, src, src_pitch, width, height);
+	else 
+	{
+		cpy_offset(src,src_pitch,dst,dst_pitch,width,height,0);
+	}
+}
+
 void CMPEG2Decoder::Copyall(YV12PICT *src, YV12PICT *dst)
 {
-	int tChroma_Height = (upConv && chroma_format == 1) ? Chroma_Height*2 : Chroma_Height;
+	int tChroma_Height = (upConv > 0 && chroma_format == 1) ? Chroma_Height*2 : Chroma_Height;
 	if ( AVSenv )
 	{
 		AVSenv->BitBlt(dst->y, dst->ypitch, src->y, src->ypitch, src->ywidth, Coded_Picture_Height);
@@ -927,7 +925,7 @@ void CMPEG2Decoder::Copyall(YV12PICT *src, YV12PICT *dst)
 
 void CMPEG2Decoder::Copyodd(YV12PICT *src, YV12PICT *dst)
 {
-	int tChroma_Height = (upConv && chroma_format == 1) ? Chroma_Height*2 : Chroma_Height;
+	int tChroma_Height = (upConv > 0 && chroma_format == 1) ? Chroma_Height*2 : Chroma_Height;
 	if ( AVSenv )
 	{
 		AVSenv->BitBlt(dst->y, dst->ypitch*2, src->y,src->ypitch*2, src->ywidth, Coded_Picture_Height>>1);
@@ -944,7 +942,7 @@ void CMPEG2Decoder::Copyodd(YV12PICT *src, YV12PICT *dst)
 
 void CMPEG2Decoder::Copyeven(YV12PICT *src, YV12PICT *dst)
 {
-	int tChroma_Height = (upConv && chroma_format == 1) ? Chroma_Height*2 : Chroma_Height;
+	int tChroma_Height = (upConv > 0 && chroma_format == 1) ? Chroma_Height*2 : Chroma_Height;
 	if ( AVSenv )
 	{
 		AVSenv->BitBlt(dst->y+dst->ypitch, dst->ypitch*2, src->y+src->ypitch, src->ypitch*2, src->ywidth, Coded_Picture_Height>>1);
@@ -961,7 +959,7 @@ void CMPEG2Decoder::Copyeven(YV12PICT *src, YV12PICT *dst)
 
 void CMPEG2Decoder::Copyoddeven(YV12PICT *odd, YV12PICT *even, YV12PICT *dst)
 {
-	int tChroma_Height = (upConv && chroma_format == 1) ? Chroma_Height*2 : Chroma_Height;
+	int tChroma_Height = (upConv > 0 && chroma_format == 1) ? Chroma_Height*2 : Chroma_Height;
 	cpy_oddeven(odd->y,odd->ypitch*2,even->y+even->ypitch,even->ypitch*2,dst->y,dst->ypitch,dst->ywidth,Coded_Picture_Height>>1,0);
 	cpy_oddeven(odd->u,odd->uvpitch*2,even->u+even->uvpitch,even->uvpitch*2,dst->u,dst->uvpitch,dst->uvwidth,tChroma_Height>>1,1);
 	cpy_oddeven(odd->v,odd->uvpitch*2,even->v+even->uvpitch,even->uvpitch*2,dst->v,dst->uvpitch,dst->uvwidth,tChroma_Height>>1,2);

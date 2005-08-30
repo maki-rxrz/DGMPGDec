@@ -48,21 +48,7 @@ static char *FrameType[] = {
 void Write_Frame(unsigned char *src[], D2VData d2v, DWORD frame)
 {
 	int repeat;
-
-	if (Fault_Flag)
-	{
-		if (Fault_Flag < CRITICAL_ERROR_LEVEL)
-		{
-			char fault[10];
-			sprintf(fault, "video error %d", Fault_Flag);
-			SetDlgItemText(hDlg, IDC_INFO, fault);
-			Fault_Flag = 0;		// fault tolerance
-		}
-		else
-		{
-			ThreadKill();
-		}
-	}
+	char *ext, szTemp[_MAX_PATH];
 
 	frame_type = d2v.pf;
 	TFF = d2v.trf>>1;
@@ -71,10 +57,21 @@ void Write_Frame(unsigned char *src[], D2VData d2v, DWORD frame)
 	else
 		RFF = d2v.trf & 0x01;
 
+	// Update the main window title bar.
+	sprintf(szBuffer, "DGIndex - ");
+	ext = strrchr(Infilename[CurrentFile], '\\');
+	strncat(szBuffer, ext+1, strlen(Infilename[0])-(int)(ext-Infilename[0]));
+	sprintf(szTemp, " [%dx%d] [File %d/%d]", Clip_Width, Clip_Height, CurrentFile+1, NumLoadedFiles);
+	strcat(szBuffer, szTemp);
+	if (VOB_ID && CELL_ID)
+	{
+		sprintf(szTemp, " [Vob %d] [Cell %d]", VOB_ID, CELL_ID);
+		strcat(szBuffer, szTemp);
+	}
+	SetWindowText(hWnd, szBuffer);
+
 	if (!frame)
 	{
-		char *ext, szTemp[_MAX_PATH];
-
 		TFB = BFB = false;
 		playback = Old_Playback = 0;
 		frame_size = 0;
@@ -114,33 +111,6 @@ void Write_Frame(unsigned char *src[], D2VData d2v, DWORD frame)
 		INTERLACED_HEIGHT = (Coded_Picture_Height>>2) - 2;
 		RGB_DOWN1 = Clip_Width * (Clip_Height - 1) * 3;
 		RGB_DOWN2 = Clip_Width * (Clip_Height - 2) * 3;
-
-		sprintf(szBuffer, "DGIndex - [%d / %d] ", CurrentFile+1, NumLoadedFiles);
-		ext = strrchr(Infilename[CurrentFile], '\\');
-		strncat(szBuffer, ext+1, strlen(Infilename[0])-(int)(ext-Infilename[0]));
-
-		sprintf(szTemp, " %d x %d", Clip_Width, Clip_Height);
-		strcat(szBuffer, szTemp);
-
-		if (Clip_Width%32 == 0)
-			strcat(szBuffer, " [32X]");
-		else if (Clip_Width%16 == 0)
-			strcat(szBuffer, " [16X]");
-		else if (Clip_Width%8 == 0)
-			strcat(szBuffer, " [8X]");
-		else
-			strcat(szBuffer, " [ ]");
-
-		if (Clip_Height%32 == 0)
-			strcat(szBuffer, "[32X]");
-		else if (Clip_Height%16 == 0)
-			strcat(szBuffer, "[16X]");
-		else if (Clip_Height%8 == 0)
-			strcat(szBuffer, "[8X]");
-		else
-			strcat(szBuffer, "[ ]");
-
-		SetWindowText(hWnd, szBuffer);
 
 		if (Clip_Width > MAX_WINDOW_WIDTH || Clip_Height > MAX_WINDOW_HEIGHT)
 			ResizeWindow(Clip_Width/2, Clip_Height/2);
@@ -200,11 +170,18 @@ void Write_Frame(unsigned char *src[], D2VData d2v, DWORD frame)
 		sprintf(szBuffer, "%s", FrameType[frame_type]);
 		SetDlgItemText(hDlg, IDC_FRAME_TYPE, szBuffer);
 
+		sprintf(szBuffer, "%s", matrix_coefficients == 7 ? "SMPTE 240M" :
+								matrix_coefficients == 6 ? "SMPTE 170M" :
+								matrix_coefficients == 5 ? "ITU-R BT.470-2" :
+								matrix_coefficients == 4 ? "FCC" : "ITU-R BT.709");
+		SetDlgItemText(hDlg, IDC_COLORIMETRY, szBuffer);
+
 		sprintf(szBuffer, "%s", picture_structure == 3 ? "Frame" : "Field");
 		SetDlgItemText(hDlg, IDC_FRAME_STRUCTURE, szBuffer);
 
 		sprintf(szBuffer, "%d", frame+1);
 		SetDlgItemText(hDlg, IDC_CODED_NUMBER, szBuffer);
+
 		sprintf(szBuffer, "%d", playback);
 		SetDlgItemText(hDlg, IDC_PLAYBACK_NUMBER, szBuffer);
 
@@ -213,7 +190,7 @@ void Write_Frame(unsigned char *src[], D2VData d2v, DWORD frame)
 			double rate;
 			timing.ed = timeGetTime();
 
-			sprintf(szBuffer, "%.1f", 1000.0*(playback-Old_Playback)/(timing.ed-timing.mi+1));
+			sprintf(szBuffer, "%.2f", 1000.0*(playback-Old_Playback)/(timing.ed-timing.mi+1));
 			SetDlgItemText(hDlg, IDC_FPS, szBuffer);
 			rate = ((double) (Bitrate_Monitor * 8 * Frame_Rate) / (playback-Old_Playback)) / 1000000.0;
 			sprintf(szBuffer, "%.3f Mbps", rate);
@@ -285,11 +262,69 @@ static void Store_RGB24(unsigned char *src[])
 
 static void FlushRGB24()
 {
+	static float DisplayTime = 0;
+	static unsigned int timeOffset = 0;
+	static old_speed;
+	float rate;
+	int sleep_time;
+	int elapsed;
+	
 	if (TFB & BFB)
 	{
-		if (PlaybackDelay)
-			Sleep(PlaybackDelay);
-		ShowFrame(false);
+		if (PlaybackSpeed == SPEED_MAXIMUM)
+		{
+			// maximum
+			ShowFrame(false);
+			old_speed = PlaybackSpeed;
+		}
+		else if (PlaybackSpeed == SPEED_SINGLE_STEP)
+		{
+			ShowFrame(false);
+			old_speed = PlaybackSpeed;
+			if (process.locate == LOCATE_RIP)
+			{
+				for (;;)
+				{
+					// Wait for right arrow to be hit before displaying
+					// the next frame.
+					Sleep(100);
+					if (Stop_Flag || RightArrowHit == true)
+						break;
+				}
+				RightArrowHit = false;
+			}
+		}
+		else
+		{
+			if (playback == 0 || PlaybackSpeed != old_speed)
+			{
+				DisplayTime = 0;
+				timeOffset = timeGetTime();
+			}
+			old_speed = PlaybackSpeed;
+			elapsed = timeGetTime() - timeOffset;
+			sleep_time = (int) (DisplayTime - elapsed);
+			if (sleep_time >= 0)
+				Sleep(sleep_time);
+			ShowFrame(false);
+			switch (PlaybackSpeed)
+			{
+				case SPEED_SUPER_SLOW: // super slow
+					rate = 5.0;
+					break;
+				case SPEED_SLOW: // slow
+					rate = 10.0;
+					break;
+				default:
+				case SPEED_NORMAL: // normal
+					rate = Frame_Rate;
+					break;
+				case SPEED_FAST: // fast
+					rate = 2 * Frame_Rate;
+					break;
+			}
+			DisplayTime += (float) 1000.0 / rate;
+		}
 		playback++;
 		TFB = BFB = false;
 	}
@@ -371,11 +406,11 @@ int DetectVideoType(int frame, int trf)
 		if ((trf & 3) == ((Old_TRF+1) & 3))
 			FILM_Purity++;
 		else
-			NTSC_Purity++;
+			VIDEO_Purity++;
 	}
 	else
 	{
-		FILM_Purity = NTSC_Purity = Repeat_On = Repeat_Off = 0;
+		FILM_Purity = VIDEO_Purity = Repeat_On = Repeat_Off = 0;
 		Repeat_Init = false;
 	}
 

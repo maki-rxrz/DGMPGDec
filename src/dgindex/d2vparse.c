@@ -310,7 +310,7 @@ int fix_d2v(HWND hWnd, char *szInput)
 					while (*q != '\n') q++;
 					while (!((*q >= '0' && *q <= '9') || (*q >= 'a' && *q <= 'f'))) q--;
 				}
-				*q = fix + '0';
+				*q = (char) fix + '0';
 				fprintf(dfp, "corrected...\n");
 				fprintf(dfp, prev_line);
 				fprintf(dfp, line);

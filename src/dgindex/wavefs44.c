@@ -192,7 +192,7 @@ bool CheckWAV()
 		return true;
 }
 
-void Wavefs44File(int delay)
+void Wavefs44File(int channel, int delay)
 {
 	FILE *WaveIn, *WaveOut;
 	int i, DataSize, WaveInPos, rsize, wsize = 0;
@@ -231,8 +231,8 @@ void Wavefs44File(int delay)
 	else
 		sprintf(szBuffer, "%s 48KHz", szOutput);
 
-	sprintf(pcm.filename, "%s DELAY %dms compensated.wav", szBuffer, delay);
-	WaveOut = fopen(pcm.filename, "wb");
+	sprintf(pcm[channel].filename, "%s DELAY %dms compensated.wav", szBuffer, delay);
+	WaveOut = fopen(pcm[channel].filename, "wb");
 
 	StartWAV(WaveOut, 0x01);	// 48K, 16bit, 2ch
 
@@ -339,7 +339,7 @@ void Wavefs44File(int delay)
 
 		DataSize = (int)(0.91875*(DataSize-rsize));
 
-		Normalize(NULL, 44+wsize, pcm.filename, WaveOut, 44+wsize, DataSize);
+		Normalize(NULL, 44+wsize, pcm[channel].filename, WaveOut, 44+wsize, DataSize);
 	}
 	else
 		Normalize(WaveIn, WaveInPos, NULL, WaveOut, 44+wsize, DataSize);

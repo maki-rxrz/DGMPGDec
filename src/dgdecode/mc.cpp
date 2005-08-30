@@ -56,22 +56,33 @@ void Choose_Prediction(bool fastMC)
 		ppppf_motion[0][0][0] = MC_put_8_3dnow;
 		ppppf_motion[0][0][1] = MC_put_y8_3dnow;
 		ppppf_motion[0][0][2] = MC_put_x8_3dnow;
-		ppppf_motion[0][0][3] = MC_put_xy8_3dnow_AC;
 
 		ppppf_motion[0][1][0] = MC_put_16_3dnow;
 		ppppf_motion[0][1][1] = MC_put_y16_3dnow;
 		ppppf_motion[0][1][2] = MC_put_x16_3dnow;
-		ppppf_motion[0][1][3] = MC_put_xy16_3dnow_AC;
 
   		ppppf_motion[1][0][0] = MC_avg_8_3dnow;
 		ppppf_motion[1][0][1] = MC_avg_y8_3dnow;
 		ppppf_motion[1][0][2] = MC_avg_x8_3dnow;
-		ppppf_motion[1][0][3] = MC_avg_xy8_3dnow_AC;
 
 		ppppf_motion[1][1][0] = MC_avg_16_3dnow;
 		ppppf_motion[1][1][1] = MC_avg_y16_3dnow;
 		ppppf_motion[1][1][2] = MC_avg_x16_3dnow;
-		ppppf_motion[1][1][3] = MC_avg_xy16_3dnow_AC;
+
+		if (fastMC)
+		{
+			ppppf_motion[0][0][3] = MC_put_xy8_3dnow_FAST;
+			ppppf_motion[0][1][3] = MC_put_xy16_3dnow_FAST;
+			ppppf_motion[1][0][3] = MC_avg_xy8_3dnow_FAST;
+			ppppf_motion[1][1][3] = MC_avg_xy16_3dnow_FAST;
+		}
+		else
+		{
+			ppppf_motion[0][0][3] = MC_put_xy8_3dnow_AC;
+			ppppf_motion[0][1][3] = MC_put_xy16_3dnow_AC;
+			ppppf_motion[1][0][3] = MC_avg_xy8_3dnow_AC;
+			ppppf_motion[1][1][3] = MC_avg_xy16_3dnow_AC;
+		}
 	}
 
 	if (cpu.ssemmx)

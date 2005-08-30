@@ -116,7 +116,7 @@ static void video_parser(int *mpeg_type_p)
 
 	// Let's go! Start by assuming it's not MPEG at all.
 	*mpeg_type_p = IS_NOT_MPEG;
-	while(1)
+	for (;;)
 	{
 		// Parse for start codes.
 		val = get_byte();
@@ -210,7 +210,7 @@ static void pack_parser(void)
 
 	// Look for start codes.
 	state = NEED_FIRST_0;
-	while (1)
+	for (;;)
 	{
 		if (_read(file, &val, 1) != 1) { EOF_reached = 1; return; }
 		switch (state)
@@ -249,32 +249,32 @@ static void pack_parser(void)
 				if (stream_type == MPEG1_PROGRAM_STREAM)
 				{
 					// MPEG1 program stream.
-					if (_read(file, &buffer, 7) != 7) { EOF_reached = 1; return; }
+					if (_read(file, buffer, 7) != 7) { EOF_reached = 1; return; }
 				}
 				else
 				{
 					// MPEG2 program stream.
-					if (_read(file, &buffer, 8) != 8) { EOF_reached = 1; return; }
+					if (_read(file, buffer, 8) != 8) { EOF_reached = 1; return; }
 					if (_read(file, &pack_stuffing_length, 1) != 1) { EOF_reached = 1; return; }
 					pack_stuffing_length &= 0x03;
-					if (_read(file, &buffer, pack_stuffing_length) != pack_stuffing_length) { EOF_reached = 1; return; }
+					if (_read(file, buffer, pack_stuffing_length) != pack_stuffing_length) { EOF_reached = 1; return; }
 				}
 			}
 			if (val == 0xbb)
 			{
 				// System header. Skip it.
 				if (_read(file, &val, 1) != 1)  { EOF_reached = 1; return; }
-				system_header_length = val << 8;
+				system_header_length = (unsigned short) (val << 8);
 				if (_read(file, &val2, 1) != 1)  { EOF_reached = 1; return; }
 				system_header_length |= val2;
-				if (_read(file, &buffer, system_header_length) != system_header_length) { EOF_reached = 1; return; }
+				if (_read(file, buffer, system_header_length) != system_header_length) { EOF_reached = 1; return; }
 			}
 			else if (val >= 0xE0 && val <= 0xEF)
 			{
 				// Video stream.
 				// Packet length.
 				if (_read(file, &val, 1) != 1)  { EOF_reached = 1; return; }
-				pes_packet_length = val << 8;
+				pes_packet_length = (unsigned short) (val << 8);
 				if (_read(file, &val2, 1) != 1)  { EOF_reached = 1; return; }
 				pes_packet_length |= val2;
 				if (stream_type == MPEG1_PROGRAM_STREAM)
@@ -297,13 +297,13 @@ static void pack_parser(void)
 					if ((val & 0xf0) == 0x20)
 					{
 						// PTS bytes.
-						if (_read(file, &buffer, 4) != 4)  { EOF_reached = 1; return; }
+						if (_read(file, buffer, 4) != 4)  { EOF_reached = 1; return; }
 						pes_packet_header_length += 4;
 					}
 					else if ((val & 0xf0) == 0x30)
 					{
 						// PTS/DTS bytes.
-						if (_read(file, &buffer, 9) != 9)  { EOF_reached = 1; return; }
+						if (_read(file, buffer, 9) != 9)  { EOF_reached = 1; return; }
 						pes_packet_header_length += 9;
 					}
 					// Send the video elementary data down the pipe to the video parser.
@@ -344,7 +344,7 @@ static void pack_parser(void)
 			{
 				// Not a stream that we are interested in. Skip it.
 				if (_read(file, &val, 1) != 1)  { EOF_reached = 1; return; }
-				pes_packet_length = val << 8;
+				pes_packet_length = (unsigned short) (val << 8);
 				if (_read(file, &val2, 1) != 1)  { EOF_reached = 1; return; }
 				pes_packet_length |= val2;
 				length = pes_packet_length;

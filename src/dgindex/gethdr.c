@@ -66,6 +66,7 @@ static void picture_coding_extension(void);
 static void copyright_extension(void);
 static int  extra_bit_information(void);
 static void extension_and_user_data(void);
+void StartVideoDemux(void);
 
 // Decode headers up to a picture header and then return.
 // There are two modes of operation. Normally, we return only
@@ -80,7 +81,6 @@ int Get_Hdr(int mode)
 	__int64 position = 0;
 	boolean HadSequenceHeader = false;
 	boolean HadGopHeader = false;
-	void StartVideoDemux(void);
 
 	for (;;)
 	{
@@ -93,7 +93,7 @@ int Get_Hdr(int mode)
 		switch (code)
 		{
 			case SEQUENCE_HEADER_CODE:
-				if (MuxFile == 0)
+				if (process.locate == LOCATE_RIP && MuxFile == 0)
 					StartVideoDemux();
 				position = PackHeaderPosition;
 				Get_Bits(32);
@@ -102,8 +102,10 @@ int Get_Hdr(int mode)
 				break;
 
 			case SEQUENCE_END_CODE:
+				Get_Bits(32);
 				if (mode == 1)
 					return 1;
+				break;
 
 			case GROUP_START_CODE:
 				Get_Bits(32);
@@ -151,7 +153,7 @@ void sequence_header(__int64 start)
 	aspect_ratio_information    = Get_Bits(4);
 	frame_rate_code             = Get_Bits(4);
 	if (mpeg_type == IS_MPEG1)
-		Frame_Rate = frame_rate = (float) frame_rate_Table[frame_rate_code];
+		frame_rate = (float) frame_rate_Table[frame_rate_code];
 	bit_rate_value              = Get_Bits(18);
 	Flush_Buffer(1);	// marker bit
 	vbv_buffer_size             = Get_Bits(10);
@@ -186,11 +188,59 @@ void sequence_header(__int64 start)
 		chroma_non_intra_quantizer_matrix[i] = non_intra_quantizer_matrix[i];
 	}
 
+	if (D2V_Flag && LogQuants_Flag)
+	{
+		// Log the quant matrix changes.
+		// Intra luma.
+		for (i=0; i<64; i++)
+		{
+			if (intra_quantizer_matrix[i] != intra_quantizer_matrix_log[i])
+				break;
+		}
+		if (i < 64)
+		{
+			// The matrix changed, so log it.
+			fprintf(Quants, "Intra Luma and Chroma Matrix:\n");
+			for (i=0; i<64; i++)
+			{
+				fprintf(Quants, "%d ", intra_quantizer_matrix[i]);
+				if ((i % 8) == 7)
+					fprintf(Quants, "\n");
+			}
+			fprintf(Quants, "\n");
+			// Record the new matrix for change detection.
+			memcpy(intra_quantizer_matrix_log, intra_quantizer_matrix, sizeof(intra_quantizer_matrix));
+			memcpy(chroma_intra_quantizer_matrix_log, chroma_intra_quantizer_matrix, sizeof(chroma_intra_quantizer_matrix));
+		}
+		// Non intra luma.
+		for (i=0; i<64; i++)
+		{
+			if (non_intra_quantizer_matrix[i] != non_intra_quantizer_matrix_log[i])
+				break;
+		}
+		if (i < 64)
+		{
+			// The matrix changed, so log it.
+			fprintf(Quants, "NonIntra Luma and Chroma Matrix:\n");
+			for (i=0; i<64; i++)
+			{
+				fprintf(Quants, "%d ", non_intra_quantizer_matrix[i]);
+				if ((i % 8) == 7)
+					fprintf(Quants, "\n");
+			}
+			fprintf(Quants, "\n");
+			// Record the new matrix for change detection.
+			memcpy(non_intra_quantizer_matrix_log, non_intra_quantizer_matrix, sizeof(non_intra_quantizer_matrix));
+			memcpy(chroma_non_intra_quantizer_matrix_log, chroma_non_intra_quantizer_matrix, sizeof(chroma_non_intra_quantizer_matrix));
+		}
+	}
+
 	// These are MPEG1 defaults. These will be overridden if we have MPEG2
 	// when the sequence header extension is parsed.
 	progressive_sequence = 1;
 	chroma_format = CHROMA420;
 	matrix_coefficients = 5;
+	setRGBValues();
 
 	extension_and_user_data();
 }
@@ -299,8 +349,7 @@ static void picture_header(__int64 start, boolean HadSequenceHeader, boolean Had
 		// This triggers if we reach the right marker position.
 		if (CurrentFile==process.endfile && process.startloc>=process.endloc)		// D2V END
 		{
-			Fault_Flag = 97;
-			Write_Frame(NULL, d2v_current, 0);
+			ThreadKill();
 		}
 
 		if (Info_Flag)
@@ -353,9 +402,6 @@ int slice_header()
 {
 	int slice_vertical_position_extension;
 	int quantizer_scale_code;
-	int slice_picture_id_enable = 0;
-	int slice_picture_id = 0;
-	int extra_information_slice = 0;
 
 	if (mpeg_type == IS_MPEG2)
 		slice_vertical_position_extension = vertical_size>2800 ? Get_Bits(3) : 0;
@@ -477,6 +523,7 @@ static void sequence_display_extension()
 		color_primaries          = Get_Bits(8);
 		transfer_characteristics = Get_Bits(8);
 		matrix_coefficients      = Get_Bits(8);
+		setRGBValues();
 	}
 
 	display_horizontal_size = Get_Bits(14);
@@ -507,6 +554,91 @@ static void quant_matrix_extension()
 	if (load_chroma_non_intra_quantizer_matrix = Get_Bits(1))
 		for (i=0; i<64; i++)
 			chroma_non_intra_quantizer_matrix[scan[ZIG_ZAG][i]] = Get_Bits(8);
+
+	if (D2V_Flag && LogQuants_Flag)
+	{
+		// Log the quant matrix changes.
+		// Intra luma.
+		for (i=0; i<64; i++)
+		{
+			if (intra_quantizer_matrix[i] != intra_quantizer_matrix_log[i])
+				break;
+		}
+		if (i < 64)
+		{
+			// The matrix changed, so log it.
+			fprintf(Quants, "Intra Luma Matrix:\n");
+			for (i=0; i<64; i++)
+			{
+				fprintf(Quants, "%d ", intra_quantizer_matrix[i]);
+				if ((i % 8) == 7)
+					fprintf(Quants, "\n");
+			}
+			fprintf(Quants, "\n");
+			// Record the new matrix for change detection.
+			memcpy(intra_quantizer_matrix_log, intra_quantizer_matrix, sizeof(intra_quantizer_matrix));
+		}
+		// Non intra luma.
+		for (i=0; i<64; i++)
+		{
+			if (non_intra_quantizer_matrix[i] != non_intra_quantizer_matrix_log[i])
+				break;
+		}
+		if (i < 64)
+		{
+			// The matrix changed, so log it.
+			fprintf(Quants, "NonIntra Luma Matrix:\n");
+			for (i=0; i<64; i++)
+			{
+				fprintf(Quants, "%d ", non_intra_quantizer_matrix[i]);
+				if ((i % 8) == 7)
+					fprintf(Quants, "\n");
+			}
+			fprintf(Quants, "\n");
+			// Record the new matrix for change detection.
+			memcpy(non_intra_quantizer_matrix_log, non_intra_quantizer_matrix, sizeof(non_intra_quantizer_matrix));
+		}
+		// Intra chroma.
+		for (i=0; i<64; i++)
+		{
+			if (chroma_intra_quantizer_matrix[i] != chroma_intra_quantizer_matrix_log[i])
+				break;
+		}
+		if (i < 64)
+		{
+			// The matrix changed, so log it.
+			fprintf(Quants, "Intra Chroma Matrix:\n");
+			for (i=0; i<64; i++)
+			{
+				fprintf(Quants, "%d ", chroma_intra_quantizer_matrix[i]);
+				if ((i % 8) == 7)
+					fprintf(Quants, "\n");
+			}
+			fprintf(Quants, "\n");
+			// Record the new matrix for change detection.
+			memcpy(chroma_intra_quantizer_matrix_log, chroma_intra_quantizer_matrix, sizeof(chroma_intra_quantizer_matrix));
+		}
+		// Non intra chroma.
+		for (i=0; i<64; i++)
+		{
+			if (chroma_non_intra_quantizer_matrix[i] != chroma_non_intra_quantizer_matrix_log[i])
+				break;
+		}
+		if (i < 64)
+		{
+			// The matrix changed, so log it.
+			fprintf(Quants, "NonIntra Chroma Matrix:\n");
+			for (i=0; i<64; i++)
+			{
+				fprintf(Quants, "%d ", chroma_non_intra_quantizer_matrix[i]);
+				if ((i % 8) == 7)
+					fprintf(Quants, "\n");
+			}
+			fprintf(Quants, "\n");
+			// Record the new matrix for change detection.
+			memcpy(chroma_non_intra_quantizer_matrix_log, chroma_non_intra_quantizer_matrix, sizeof(chroma_non_intra_quantizer_matrix));
+		}
+	}
 }
 
 /* decode picture display extension */

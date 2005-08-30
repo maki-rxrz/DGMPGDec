@@ -193,10 +193,18 @@ SOURCE=.\pat.h
 
 SOURCE=.\resource.h
 # End Source File
+# Begin Source File
+
+SOURCE=.\skl_nasm.h
+# End Source File
 # End Group
 # Begin Group "Resource Files"
 
 # PROP Default_Filter "ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"
+# Begin Source File
+
+SOURCE=.\ball.bmp
+# End Source File
 # Begin Source File
 
 SOURCE=.\gui.rc
@@ -286,6 +294,68 @@ InputName=idctmmx
 
 "$(InputName).obj" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
 	ml /c /coff /Cx /nologo $(InputName).asm
+
+# End Custom Build
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
+SOURCE=.\simple_idct_mmx.asm
+
+!IF  "$(CFG)" == "DGIndex - Win32 Release"
+
+# Begin Custom Build
+IntDir=.\Release
+InputPath=.\simple_idct_mmx.asm
+InputName=simple_idct_mmx
+
+"$(IntDir)\$(InputName).obj" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	d:\dosbin\nasm -f win32 -DPREFIX -DWIN32 -o $(IntDir)\$(InputName).obj $(InputPath)
+
+# End Custom Build
+
+!ELSEIF  "$(CFG)" == "DGIndex - Win32 Debug"
+
+# Begin Custom Build
+IntDir=.\Debug
+InputPath=.\simple_idct_mmx.asm
+InputName=simple_idct_mmx
+
+"$(IntDir)\$(InputName).obj" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	d:\dosbin\nasm -f win32 -DPREFIX -DWIN32 -o $(IntDir)\$(InputName).obj $(InputPath)
+
+# End Custom Build
+
+!ENDIF 
+
+# End Source File
+# Begin Source File
+
+SOURCE=.\skl_dct_sse.asm
+
+!IF  "$(CFG)" == "DGIndex - Win32 Release"
+
+# Begin Custom Build
+IntDir=.\Release
+InputPath=.\skl_dct_sse.asm
+InputName=skl_dct_sse
+
+"$(IntDir)\$(InputName).obj" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	d:\dosbin\nasm -f win32 -DPREFIX -DWIN32 -o $(IntDir)\$(InputName).obj $(InputPath)
+
+# End Custom Build
+
+!ELSEIF  "$(CFG)" == "DGIndex - Win32 Debug"
+
+# Begin Custom Build
+IntDir=.\Debug
+InputPath=.\skl_dct_sse.asm
+InputName=skl_dct_sse
+
+"$(IntDir)\$(InputName).obj" : $(SOURCE) "$(INTDIR)" "$(OUTDIR)"
+	d:\dosbin\nasm -f win32 -DPREFIX -DWIN32 -o $(IntDir)\$(InputName).obj $(InputPath)
 
 # End Custom Build
 

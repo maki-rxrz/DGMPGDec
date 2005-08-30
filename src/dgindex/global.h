@@ -129,6 +129,8 @@
 #define IDCT_SSE2MMX	3
 #define	IDCT_FPU		4
 #define IDCT_REF		5
+#define IDCT_SKAL		6
+#define IDCT_SIMPLE		7
 
 #define LOCATE_INIT			0
 #define LOCATE_FORWARD		1
@@ -176,8 +178,6 @@
 
 #define TRACK_PITCH		30000
 
-#define CRITICAL_ERROR_LEVEL	50
-
 typedef struct {
 	int			gop_start;
 	int			type;
@@ -205,14 +205,19 @@ typedef struct {
 }	RAWStream;
 RAWStream mpa[CHANNEL], dts[CHANNEL];
 
-struct PCMStream {
+// Currently, because the AC3 decoder uses global variables,
+// only one instance of pcm can be active. However, I allow for
+// multiple instances in the data structure in case the decoding
+// is ever changed to support multiple instances.
+typedef struct {
 	FILE					*file;
 	char					filename[_MAX_PATH];
 	bool					rip;
 	int						size;
 	int						delay;
 	unsigned char			format;
-}	pcm;
+}	PCMStream;
+PCMStream pcm[CHANNEL];
 
 struct PROCESS {
 	__int64					run;
@@ -271,12 +276,15 @@ int SystemStream_Flag;
 __int64 PackHeaderPosition;
 
 int LeadingBFrames;
+int ForceOpenGops;
 
 bool Luminance_Flag;
 bool ClipResize_Flag;
 
 int Method_Flag;
-unsigned int Track_Flag;
+// Track_Flag is now bit-mapped: bit 0 means track 1 enabled,
+// bit 1 means track 2 enabled, etc.
+unsigned char Track_Flag;
 int DRC_Flag;
 bool DSDown_Flag;
 bool Decision_Flag;
@@ -299,7 +307,7 @@ FILE *D2VFile;
 char D2VFilePath[_MAX_PATH];
 int VOB_ID, CELL_ID;
 FILE *MuxFile;
-#define D2V_FILE_VERSION 10
+#define D2V_FILE_VERSION 11
 
 HWND hWnd, hDlg, hTrack;
 char szInput[10*_MAX_PATH], szOutput[_MAX_PATH], szBuffer[_MAX_PATH], szSave[_MAX_PATH];
@@ -309,7 +317,15 @@ unsigned char *auxframe[3], *current_frame[3];
 unsigned char *u422, *v422, *u444, *v444, *rgb24, *rgb24small, *yuy2, *lum;
 __int64 RGB_Scale, RGB_Offset, RGB_CRV, RGB_CBU, RGB_CGX;
 int LumGamma, LumOffset;
-int PlaybackSpeed, PlaybackDelay;
+
+int PlaybackSpeed;
+bool RightArrowHit;
+#define SPEED_SINGLE_STEP	0
+#define SPEED_SUPER_SLOW	1
+#define SPEED_SLOW			2
+#define SPEED_NORMAL		3
+#define SPEED_FAST			4
+#define SPEED_MAXIMUM		5
 
 unsigned int Frame_Number;
 int Coded_Picture_Width, Coded_Picture_Height, Chroma_Width, Chroma_Height;
@@ -317,7 +333,7 @@ int block_count, Second_Field;
 int horizontal_size, vertical_size, mb_width, mb_height;
 
 float frame_rate, Frame_Rate;
-int FILM_Purity, NTSC_Purity, Bitrate_Monitor;
+int FILM_Purity, VIDEO_Purity, Bitrate_Monitor;
 
 int Clip_Left, Clip_Right, Clip_Top, Clip_Bottom;
 
@@ -328,9 +344,13 @@ __int64 Infilelength[MAX_FILE_NUMBER];
 __int64	Infiletotal;
 
 int intra_quantizer_matrix[64];
+int intra_quantizer_matrix_log[64];
 int non_intra_quantizer_matrix[64];
+int non_intra_quantizer_matrix_log[64];
 int chroma_intra_quantizer_matrix[64];
+int chroma_intra_quantizer_matrix_log[64];
 int chroma_non_intra_quantizer_matrix[64];
+int chroma_non_intra_quantizer_matrix_log[64];
 int full_pel_forward_vector;
 int full_pel_backward_vector;
 int forward_f_code;
@@ -390,6 +410,8 @@ void ThreadKill(void);
 void CheckDirectDraw(void);
 void ResizeWindow(int width, int height);
 bool gop_warned;
+int LogQuants_Flag;
+FILE *Quants;
 
 /* idct */
 extern void __fastcall MMX_IDCT(short *block);
@@ -398,6 +420,8 @@ extern void __fastcall SSE2MMX_IDCT(short *block);
 void Initialize_FPU_IDCT(void);
 void FPU_IDCT(short *block);
 void __fastcall REF_IDCT(short *block);
+void __fastcall Skl_IDct16_Sparse_SSE(short *block);
+void __fastcall simple_idct_mmx(short *block);
 
 /* motion.c */
 void motion_vectors(int PMV[2][2][2], int dmvector[2], int motion_vertical_field_select[2][2], 
@@ -407,6 +431,7 @@ void Dual_Prime_Arithmetic(int DMV[][2], int *dmvector, int mvx, int mvy);
 /* mpeg2dec.c */
 DWORD WINAPI MPEG2Dec(LPVOID n);
 int initial_parse(char *input_file, int *mpeg_type_p, int *is_pgrogram_stream_p);
+void setRGBValues();
 #define IS_NOT_MPEG 0
 #define IS_MPEG1 1
 #define IS_MPEG2 2
@@ -425,7 +450,7 @@ void ShowFrame(bool move);
 void InitialSRC(void);
 void Wavefs44(FILE *file, int size, unsigned char *buffer);
 void EndSRC(FILE *file);
-void Wavefs44File(int delay);
+void Wavefs44File(int channel, int delay);
 void StartWAV(FILE *file, unsigned char format);
 void CloseWAV(FILE *file, int size);
 void DownWAV(FILE *file);
@@ -436,7 +461,7 @@ static char *AspectRatio[] = {
 };
 
 static char *AspectRatioMPEG1[] = {
-	"", "1:1", "0.6735", "16:9, 625", "0.7615", "0.8055", "16:9,525", "0.8935", "4:3,625", "0.9815", "1.0255",
+	"", "1:1", "0.6735", "16:9,625", "0.7615", "0.8055", "16:9,525", "0.8935", "4:3,625", "0.9815", "1.0255",
 	"1.0695", "4:3,525", "1.575", "1.2015"
 };
 

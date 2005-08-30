@@ -37,7 +37,7 @@ static int cc_table[12] = {
 /* private prototypes*/
 __forceinline static void Update_Picture_Buffers(void);
 __forceinline static void picture_data(void);
-__forceinline static int slice(int MBAmax);
+__forceinline static void slice(int MBAmax, unsigned int code);
 __forceinline static void macroblock_modes(int *pmacroblock_type, int *pmotion_type,
 	int *pmotion_vector_count, int *pmv_format, int *pdmv, int *pmvscale, int *pdct_type);
 __forceinline static void Clear_Block(int count);
@@ -46,8 +46,7 @@ __forceinline static void motion_compensation(int MBA, int macroblock_type, int 
 	int PMV[2][2][2], int motion_vertical_field_select[2][2], int dmvector[2], int dct_type);
 __forceinline static void skipped_macroblock(int dc_dct_pred[3], int PMV[2][2][2], 
 	int *motion_type, int motion_vertical_field_select[2][2], int *macroblock_type);
-__forceinline static int start_of_slice(int *MBA, int *MBAinc, int dc_dct_pred[3], int PMV[2][2][2]);
-__forceinline static int decode_macroblock(int *macroblock_type, int *motion_type, int *dct_type,
+__forceinline static void decode_macroblock(int *macroblock_type, int *motion_type, int *dct_type,
 	int PMV[2][2][2], int dc_dct_pred[3], int motion_vertical_field_select[2][2], int dmvector[2]);
 __forceinline static void Decode_MPEG1_Intra_Block(int comp, int dc_dct_pred[]);
 __forceinline static void Decode_MPEG2_Intra_Block(int comp, int dc_dct_pred[]);
@@ -72,7 +71,7 @@ static void form_prediction(unsigned char *src[], int sfield, unsigned char *dst
 	int lx, int lx2, int w, int h, int x, int y, int dx, int dy, int average_flag);
 __forceinline static void form_component_prediction(unsigned char *src, unsigned char *dst,
 	int lx, int lx2, int w, int h, int x, int y, int dx, int dy, int average_flag);
-	
+
 /* decode one frame */
 struct ENTRY
 {
@@ -96,13 +95,13 @@ void WriteD2VLine(int finish)
 	int m, r;
 	int had_P = 0;
 	int mark = 0x80;
-    struct ENTRY ref;
+    struct ENTRY ref = gop_entries [0]; // To avoid compiler warning.
 	struct ENTRY entries[MAX_PICTURES_PER_GOP];
 	unsigned int gop_marker = 0x800;
 
 	// Write the first part of the data line to the D2V file.
 	if (gop_entries[0].gop_start == true) gop_marker |= 0x100;
-	if (closed_gop_prev == 1) gop_marker |= 0x400;
+	if (!ForceOpenGops && closed_gop_prev == 1) gop_marker |= 0x400;
 	if (progressive_sequence_prev == 1) gop_marker |= 0x200;
 	_i64toa(gop_entries[0].position, position, 10);
 	sprintf(D2VLine,"%03x %d %d %s %d %d",
@@ -152,6 +151,38 @@ void WriteD2VLine(int finish)
 	gop_entries_ndx = 0;
 }
 
+void SetFaultFlag(int val)
+{
+	char fault[80];
+
+	Fault_Flag = val;
+	switch (val)
+	{
+	case 1:
+		sprintf(fault, "block error");
+		break;
+	case 2:
+		sprintf(fault, "mb type error");
+		break;
+	case 3:
+		sprintf(fault, "cbp error");
+		break;
+	case 4:
+		sprintf(fault, "null slice");
+		break;
+	case 5:
+		sprintf(fault, "mb addr inc error");
+		break;
+	case 6:
+		sprintf(fault, "motion code error");
+		break;
+	default:
+		sprintf(fault, "video error");
+		break;
+	}
+	SetDlgItemText(hDlg, IDC_INFO, fault);
+}
+
 void Decode_Picture()
 {
 	extern int closed_gop;
@@ -182,7 +213,7 @@ void Decode_Picture()
 		gop_entries[gop_entries_ndx].pf = progressive_frame;
 		gop_entries[gop_entries_ndx].pct = picture_coding_type;
 		gop_entries[gop_entries_ndx].trf = d2v_current.trf;
-		gop_entries[gop_entries_ndx].closed = closed_gop;
+		gop_entries[gop_entries_ndx].closed = ForceOpenGops ? 0 : closed_gop;
 		gop_entries[gop_entries_ndx].vob_id = VOB_ID;
 		gop_entries[gop_entries_ndx].cell_id = CELL_ID;
 		if (gop_entries_ndx < MAX_PICTURES_PER_GOP - 1)
@@ -292,85 +323,108 @@ static void Update_Picture_Buffers()
 
 /* decode all macroblocks of the current picture */
 /* stages described in ISO/IEC 13818-2 section 7 */
-int slice_no;
 static void picture_data()
 {
 	int MBAmax;
+	unsigned int code;
 
 	/* number of macroblocks per picture */
 	MBAmax = mb_width*mb_height;
 
-	if (picture_structure!=FRAME_PICTURE)
+	if (picture_structure != FRAME_PICTURE)
 		MBAmax>>=1;
 
-	for (slice_no = 0;;slice_no++)
+	for (;;)
 	{		
-		if (slice(MBAmax)<0)
-			return;
+		if (Stop_Flag == true)
+			break;
+		next_start_code();
+		code = Show_Bits(32);
+		if (code < SLICE_START_CODE_MIN || code > SLICE_START_CODE_MAX)
+			break;
+		Flush_Buffer(32);
+		slice(MBAmax, code);
 	}
 }
 
 /* decode all macroblocks of the current picture */
 /* ISO/IEC 13818-2 section 6.3.16 */
-/* return 0 : go to next slice */
-/* return -1: go to next picture */
-int MBA, MBAinc;
-static int slice(int MBAmax)
+static void slice(int MBAmax, unsigned int code)
 {
-	int macroblock_type, motion_type, dct_type, ret;
+	int MBA, MBAinc;
+	int macroblock_type, motion_type, dct_type = 0;
 	int dc_dct_pred[3], PMV[2][2][2], motion_vertical_field_select[2][2], dmvector[2];
+	int slice_vert_pos_ext;
 
 	MBA = MBAinc = 0;
-	if ((ret=start_of_slice(&MBA, &MBAinc, dc_dct_pred, PMV))!=1)
-		return ret;
 
-	for (;;)
+	/* decode slice header (may change quantizer_scale) */
+	slice_vert_pos_ext = slice_header();
+
+	/* decode macroblock address increment */
+	Fault_Flag = 0;
+	MBAinc = Get_macroblock_address_increment();
+	if (MBAinc < 0)
 	{
-		/* this is how we properly exit out of picture */
-		if (MBA>=MBAmax) return -1;		// all macroblocks decoded
+		// End of slice but we didn't process any macroblocks!
+		SetFaultFlag(4);
+		return;
+	}
 
-		if (MBAinc==0)
+	/* set current location */
+	/* NOTE: the arithmetic used to derive macroblock_address below is
+	   equivalent to ISO/IEC 13818-2 section 6.3.17: Macroblock */
+	MBA = ((slice_vert_pos_ext << 7) + (code & 255) - 1) * mb_width + MBAinc - 1;
+	MBAinc = 1;	// first macroblock in slice: not skipped
+
+	/* reset all DC coefficient and motion vector predictors */
+	/* ISO/IEC 13818-2 section 7.2.1: DC coefficients in intra blocks */
+	dc_dct_pred[0]=dc_dct_pred[1] = dc_dct_pred[2]=0;
+  
+	/* ISO/IEC 13818-2 section 7.6.3.4: Resetting motion vector predictors */
+	PMV[0][0][0]=PMV[0][0][1]=PMV[1][0][0]=PMV[1][0][1]=0;
+	PMV[0][1][0]=PMV[0][1][1]=PMV[1][1][0]=PMV[1][1][1]=0;
+
+	// This while loop condition just prevents us from processing more than
+	// the maximum number of macroblocks possible in a picture. The loop is
+	// unlikely to ever terminate on this condition. Usually, it will
+	// terminate at the end of the slice. The end of a slice is indicated
+	// by 23 zeroes after a macroblock. To detect that, we use a trick in
+	// Get_macroblock_address_increment(). See that function for an
+	// explanation.
+	while (MBA < MBAmax)
+	{
+		if (MBAinc == 0)
 		{
-			if (!Show_Bits(23) || Fault_Flag)	// next_start_code or fault
+			/* decode macroblock address increment */
+			MBAinc = Get_macroblock_address_increment();
+			if (MBAinc < 0)
 			{
-				if (Stop_Flag == true)
-					return -1;
-resync:
-				if (Fault_Flag)
-				{
-					char fault[10];
-					sprintf(fault, "video error %d", Fault_Flag);
-					SetDlgItemText(hDlg, IDC_INFO, fault);
-					return 0;
-				}
-
-				Fault_Flag = 0;
-				return 0;	// trigger: go to next slice
-			}
-			else /* neither next_start_code nor Fault_Flag */
-			{
-				/* decode macroblock address increment */
-				MBAinc = Get_macroblock_address_increment();
-				if (Fault_Flag) goto resync;
+				// End of slice.
+				break;
 			}
 		}
-
-		if (MBAinc==1) /* not skipped */
+		if (MBAinc==1)
 		{
-			if (!decode_macroblock(&macroblock_type, &motion_type, &dct_type, PMV,
-				dc_dct_pred, motion_vertical_field_select, dmvector))
-				goto resync;
+			decode_macroblock(&macroblock_type, &motion_type, &dct_type, PMV,
+							  dc_dct_pred, motion_vertical_field_select, dmvector);
 		}
-		else /* MBAinc!=1: skipped macroblock */
+		else
+		{
+			/* skipped macroblock */
 			/* ISO/IEC 13818-2 section 7.6.6 */
 			skipped_macroblock(dc_dct_pred, PMV, &motion_type, motion_vertical_field_select, &macroblock_type);
+		}
+		if (Fault_Flag)
+			break;
 
 		/* ISO/IEC 13818-2 section 7.6 */
 		motion_compensation(MBA, macroblock_type, motion_type, PMV,
 							motion_vertical_field_select, dmvector, dct_type);
 
 		/* advance to next macroblock */
-		MBA++; MBAinc--;
+		MBA++;
+		MBAinc--;
 	}
 }
 
@@ -813,6 +867,16 @@ static void motion_compensation(int MBA, int macroblock_type, int motion_type,
 			for (comp=0; comp<block_count; comp++)
 				SSE2MMX_IDCT(block[comp]);
 			break;
+
+		case IDCT_SKAL:
+			for (comp=0; comp<block_count; comp++)
+				Skl_IDct16_Sparse_SSE(block[comp]);
+			break;
+
+		case IDCT_SIMPLE:
+			for (comp=0; comp<block_count; comp++)
+				simple_idct_mmx(block[comp]);
+			break;
 	}
 
 	Add_Block(block_count, bx, by, dct_type, (macroblock_type & MACROBLOCK_INTRA)==0);
@@ -847,55 +911,8 @@ static void skipped_macroblock(int dc_dct_pred[3], int PMV[2][2][2], int *motion
 	*macroblock_type&= ~MACROBLOCK_INTRA;
 }
 
-/* return==-1 means go to next picture */
-/* the expression "start of slice" is used throughout the normative
-   body of the MPEG specification */
-static int start_of_slice(int *MBA, int *MBAinc,
-						  int dc_dct_pred[3], int PMV[2][2][2])
-{
-	unsigned int code;
-	int slice_vert_pos_ext;
-
-	if (Stop_Flag == true)
-		return 1;
-	next_start_code();
-	code = Get_Bits(32);
-
-	if (code<SLICE_START_CODE_MIN || code>SLICE_START_CODE_MAX)
-	{
-		// only slice headers are allowed in picture_data
-		Fault_Flag = 10;
-		return -1;
-	}
-
-	/* decode slice header (may change quantizer_scale) */
-	slice_vert_pos_ext = slice_header();
-
-	/* decode macroblock address increment */
-	*MBAinc = Get_macroblock_address_increment();
-	if (Fault_Flag)
-		return -1;
-
-	/* set current location */
-	/* NOTE: the arithmetic used to derive macroblock_address below is
-	   equivalent to ISO/IEC 13818-2 section 6.3.17: Macroblock */
-	*MBA = ((slice_vert_pos_ext<<7) + (code&255) - 1)*mb_width + *MBAinc - 1;
-	*MBAinc = 1;	// first macroblock in slice: not skipped
-
-	/* reset all DC coefficient and motion vector predictors */
-	/* ISO/IEC 13818-2 section 7.2.1: DC coefficients in intra blocks */
-	dc_dct_pred[0]=dc_dct_pred[1]=dc_dct_pred[2]=0;
-  
-	/* ISO/IEC 13818-2 section 7.6.3.4: Resetting motion vector predictors */
-	PMV[0][0][0]=PMV[0][0][1]=PMV[1][0][0]=PMV[1][0][1]=0;
-	PMV[0][1][0]=PMV[0][1][1]=PMV[1][1][0]=PMV[1][1][1]=0;
-
-	/* successfull: trigger decode macroblocks in slice */
-	return 1;
-}
-
 /* ISO/IEC 13818-2 sections 7.2 through 7.5 */
-static int decode_macroblock(int *macroblock_type, int *motion_type, int *dct_type,
+static void decode_macroblock(int *macroblock_type, int *motion_type, int *dct_type,
 							 int PMV[2][2][2], int dc_dct_pred[3], 
 							 int motion_vertical_field_select[2][2], int dmvector[2])
 {
@@ -905,7 +922,8 @@ static int decode_macroblock(int *macroblock_type, int *motion_type, int *dct_ty
 	/* ISO/IEC 13818-2 section 6.3.17.1: Macroblock modes */
 	macroblock_modes(macroblock_type, motion_type, &motion_vector_count, &mv_format,
 					 &dmv, &mvscale, dct_type);
-	if (Fault_Flag) return 0;	// trigger: go to next slice
+	if (Fault_Flag)
+		return;	// go to next slice
 
 	if (*macroblock_type & MACROBLOCK_QUANT)
 	{
@@ -939,7 +957,7 @@ static int decode_macroblock(int *macroblock_type, int *motion_type, int *dct_ty
 		}
 	}
 	if (Fault_Flag)
-		return 0;	// trigger: go to next slice
+		return;	// go to next slice
 
 	/* decode backward motion vectors */
 	if (*macroblock_type & MACROBLOCK_MOTION_BACKWARD)
@@ -954,7 +972,8 @@ static int decode_macroblock(int *macroblock_type, int *motion_type, int *dct_ty
 			motion_vector(PMV[0][1], dmvector, backward_f_code-1, backward_f_code-1, dmv, mvscale, full_pel_backward_vector);
 		}
 	}
-	if (Fault_Flag) return 0;  // trigger: go to next slice
+	if (Fault_Flag)
+		return;  // go to next slice
 
 	if ((*macroblock_type & MACROBLOCK_INTRA) && concealment_motion_vectors)
 		Flush_Buffer(1);	// marker bit
@@ -973,7 +992,8 @@ static int decode_macroblock(int *macroblock_type, int *motion_type, int *dct_ty
 	else
 	    coded_block_pattern = (*macroblock_type & MACROBLOCK_INTRA) ? (1<<block_count)-1 : 0;
 
-	if (Fault_Flag) return 0;	// trigger: go to next slice
+	if (Fault_Flag)
+		return;	// go to next slice
 
 	Clear_Block(block_count);
 
@@ -996,7 +1016,8 @@ static int decode_macroblock(int *macroblock_type, int *motion_type, int *dct_ty
 				else
 					Decode_MPEG1_Non_Intra_Block(comp);
 			}
-			if (Fault_Flag) return 0;	// trigger: go to next slice
+			if (Fault_Flag)
+				return;	// go to next slice
 		}
 	}
 
@@ -1033,80 +1054,71 @@ static int decode_macroblock(int *macroblock_type, int *motion_type, int *dct_ty
 		}
 	}
 	/* successfully decoded macroblock */
-	return 1 ;
 }
 
 /* decode one intra coded MPEG-1 block */
 static void Decode_MPEG1_Intra_Block(int comp, int dc_dct_pred[])
 {
-	int val, i, j, sign, *qmat;
-	unsigned int code;
-	DCTtab *tab;
+	long code, val = 0, i, j, sign;
+	const DCTtab *tab;
 	short *bp;
 
 	bp = block[comp];
-	qmat = (comp<4 || chroma_format==CHROMA420) 
-		? intra_quantizer_matrix : chroma_intra_quantizer_matrix;
 
 	/* ISO/IEC 13818-2 section 7.2.1: decode DC coefficients */
 	switch (cc_table[comp])
 	{
 		case 0:
-			val = (dc_dct_pred[0]+= Get_Luma_DC_dct_diff());
+			val = (dc_dct_pred[0] += Get_Luma_DC_dct_diff());
 			break;
 
 		case 1:
-			val = (dc_dct_pred[1]+= Get_Chroma_DC_dct_diff());
+			val = (dc_dct_pred[1] += Get_Chroma_DC_dct_diff());
 			break;
 
 		case 2:
-			val = (dc_dct_pred[2]+= Get_Chroma_DC_dct_diff());
+			val = (dc_dct_pred[2] += Get_Chroma_DC_dct_diff());
 			break;
 	}
 
-	bp[0] = val << 3;
+	bp[0] = (short) (val << 3);
 	
-	if (picture_coding_type == D_TYPE) return;
+	if (picture_coding_type == D_TYPE)
+		return;
 
 	/* decode AC coefficients */
 	for (i=1; ; i++)
 	{
 		code = Show_Bits(16);
 
-		if (code>=16384)
+		if (code >=16384)
 			tab = &DCTtabnext[(code>>12)-4];
-		else if (code>=1024)
+		else if (code >= 1024)
 			tab = &DCTtab0[(code>>8)-4];
-		else if (code>=512)
+		else if (code >= 512)
 			tab = &DCTtab1[(code>>6)-8];
-		else if (code>=256)
+		else if (code >= 256)
 			tab = &DCTtab2[(code>>4)-16];
-		else if (code>=128)
+		else if (code >= 128)
 			tab = &DCTtab3[(code>>3)-16];
-		else if (code>=64)
+		else if (code >= 64)
 			tab = &DCTtab4[(code>>2)-16];
-		else if (code>=32)
+		else if (code >= 32)
 			tab = &DCTtab5[(code>>1)-16];
-		else if (code>=16)
+		else if (code >= 16)
 			tab = &DCTtab6[code-16];
 		else
 		{
-			Fault_Flag = 1;
-			return;
+			SetFaultFlag(1);
+			break;
 		}
 
 		Flush_Buffer(tab->len);
+        val = tab->run;
 
-		if (tab->run<64)
+		if (val == 65)
 		{
-			i+= tab->run;
-			val = tab->level;
-			sign = Get_Bits(1);
-		}
-		else if (tab->run==64) /* end_of_block */
-			return;
-		else /* escape */
-		{
+			// escape
 			i+= Get_Bits(6);
 			val = Get_Bits(8);
 			if (val == 0)
@@ -1115,37 +1127,42 @@ static void Decode_MPEG1_Intra_Block(int comp, int dc_dct_pred[])
 				val = Get_Bits(8) - 256;
 			else if (val > 128)
 				val -= 256;
-
-			if (sign = (val < 0)) val = - val;
+			sign = (val < 0);
+			if (sign)
+				val = - val;
 		}
-
-		if (i > 63)
+		else
 		{
-			Fault_Flag = 1;
-			return;
+            if (val == 64)
+				break;
+			i += val;
+			val = tab->level;
+			sign = Get_Bits(1);
 		}
-		j = scan[alternate_scan][i];
-		if (j > 63)
+		if (i >= 64)
 		{
-			Fault_Flag = 1;
-			return;
+			SetFaultFlag(1);
+			break;
 		}
 
-		val = (val * quantizer_scale * qmat[j]) >> 3;
-		if (val) val = (val - 1) | 1; // mismatch
+		j = scan[0][i];
+		val = (val * quantizer_scale * intra_quantizer_matrix[j]) >> 3;
+		if (val)
+			val = (val - 1) | 1; // mismatch
 		if (val >= 2048) val = 2047 + sign; // saturation
-		if (sign) val = -val;
-		bp[j] = val;
+		if (sign)
+			val = -val;
+		bp[j] = (short) val;
 	}
 }
 
 /* decode one intra coded MPEG-2 block */
 static void Decode_MPEG2_Intra_Block(int comp, int dc_dct_pred[])
 {
-	int val, i, j, sign, *qmat;
-	unsigned int code;
-	DCTtab *tab;
+	long code, val = 0, i, j, sign, sum;
+	const DCTtab *tab;
 	short *bp;
+	int *qmat;
 
 	bp = block[comp];
 	qmat = (comp<4 || chroma_format==CHROMA420) 
@@ -1155,149 +1172,154 @@ static void Decode_MPEG2_Intra_Block(int comp, int dc_dct_pred[])
 	switch (cc_table[comp])
 	{
 		case 0:
-			val = (dc_dct_pred[0]+= Get_Luma_DC_dct_diff());
+			val = (dc_dct_pred[0] += Get_Luma_DC_dct_diff());
 			break;
 
 		case 1:
-			val = (dc_dct_pred[1]+= Get_Chroma_DC_dct_diff());
+			val = (dc_dct_pred[1] += Get_Chroma_DC_dct_diff());
 			break;
 
 		case 2:
-			val = (dc_dct_pred[2]+= Get_Chroma_DC_dct_diff());
+			val = (dc_dct_pred[2] += Get_Chroma_DC_dct_diff());
 			break;
 	}
 
-	bp[0] = val << (3-intra_dc_precision);
+	sum = val << (3 - intra_dc_precision);
+	bp[0] = (short) sum;
 
 	/* decode AC coefficients */
 	for (i=1; ; i++)
 	{
 		code = Show_Bits(16);
 
-		if (code>=16384 && !intra_vlc_format)
-			tab = &DCTtabnext[(code>>12)-4];
-		else if (code>=1024)
+		if (code >= 16384)
+		{
+			if (intra_vlc_format)
+				tab = &DCTtab0a[(code>>8)-4];
+			else
+				tab = &DCTtabnext[(code>>12)-4];
+		}
+		else if (code >= 1024)
 		{
 			if (intra_vlc_format)
 				tab = &DCTtab0a[(code>>8)-4];
 			else
 				tab = &DCTtab0[(code>>8)-4];
 		}
-		else if (code>=512)
+		else if (code >= 512)
 		{
 			if (intra_vlc_format)
 				tab = &DCTtab1a[(code>>6)-8];
 			else
 				tab = &DCTtab1[(code>>6)-8];
 		}
-		else if (code>=256)
+		else if (code >= 256)
 			tab = &DCTtab2[(code>>4)-16];
-		else if (code>=128)
+		else if (code >= 128)
 			tab = &DCTtab3[(code>>3)-16];
-		else if (code>=64)
+		else if (code >= 64)
 			tab = &DCTtab4[(code>>2)-16];
-		else if (code>=32)
+		else if (code >= 32)
 			tab = &DCTtab5[(code>>1)-16];
-		else if (code>=16)
+		else if (code >= 16)
 			tab = &DCTtab6[code-16];
 		else
 		{
-			Fault_Flag = 1;
-			return;
+			SetFaultFlag(1);
+			break;
 		}
 
 		Flush_Buffer(tab->len);
+		val = tab->run;
 
-		if (tab->run<64)
+		if (val == 65)
 		{
-			i+= tab->run;
+			// escape
+			i+= Get_Bits(6);
+			val = Get_Bits(12);
+            if (!(val & 2047))
+			{
+                SetFaultFlag(1);
+                break;
+            }
+			sign = (val >= 2048);
+			if (sign)
+				val = 4096 - val;
+		}
+		else
+		{
+			if (val == 64)
+				break;
+			i+= val;
 			val = tab->level;
 			sign = Get_Bits(1);
 		}
-		else if (tab->run==64) /* end_of_block */
-			return;
-		else /* escape */
+		if (i >= 64)
 		{
-			i+= Get_Bits(6);
-			val = Get_Bits(12);
-
-			if (sign = (val>=2048))
-				val = 4096 - val;
-		}
-
-		if (i > 63)
-		{
-			Fault_Flag = 1;
-			return;
+			SetFaultFlag(1);
+			break;
 		}
 		j = scan[alternate_scan][i];
-		if (j > 63)
-		{
-			Fault_Flag = 1;
-			return;
-		}
-
 		val = (val * quantizer_scale * qmat[j]) >> 4;
-		bp[j] = sign ? -val : val;
+        if (val >= 2048)
+			val = 2047 + sign; // saturation
+        if (sign)
+			val = -val;
+		bp[j] = (short) val;
+        sum ^= val;     // mismatch
 	}
+
+    if (!Fault_Flag && !(sum & 1))
+		bp[63] ^= 1;   // mismatch control
 }
 
 /* decode one non-intra coded MPEG-1 block */
 static void Decode_MPEG1_Non_Intra_Block(int comp)
 {
-	int val, i, j, sign, *qmat;
-	unsigned int code;
-	DCTtab *tab;
+	long code, val=0, i, j, sign;
+	const DCTtab *tab;
 	short *bp;
 
 	bp = block[comp];
-	qmat = (comp<4 || chroma_format==CHROMA420) 
-		? non_intra_quantizer_matrix : chroma_non_intra_quantizer_matrix;
 
 	/* decode AC coefficients */
 	for (i=0; ; i++)
 	{
 		code = Show_Bits(16);
 
-		if (code>=16384)
+		if (code >= 16384)
 		{
-			if (i==0)
-				tab = &DCTtabfirst[(code>>12)-4];
-			else
+			if (i)
 				tab = &DCTtabnext[(code>>12)-4];
+			else
+				tab = &DCTtabfirst[(code>>12)-4];
 		}
-		else if (code>=1024)
+		else if (code >= 1024)
 			tab = &DCTtab0[(code>>8)-4];
-		else if (code>=512)
+		else if (code >= 512)
 			tab = &DCTtab1[(code>>6)-8];
-		else if (code>=256)
+		else if (code >= 256)
 			tab = &DCTtab2[(code>>4)-16];
-		else if (code>=128)
+		else if (code >= 128)
 			tab = &DCTtab3[(code>>3)-16];
-		else if (code>=64)
+		else if (code >= 64)
 			tab = &DCTtab4[(code>>2)-16];
-		else if (code>=32)
+		else if (code >= 32)
 			tab = &DCTtab5[(code>>1)-16];
-		else if (code>=16)
+		else if (code >= 16)
 			tab = &DCTtab6[code-16];
 		else
 		{
-			Fault_Flag = 1;
-			return;
+			SetFaultFlag(1);
+			break;
 		}
 
 		Flush_Buffer(tab->len);
+		val = tab->run;
 
-		if (tab->run<64)
+		if (val == 65)
 		{
-			i+= tab->run;
-			val = tab->level;
-			sign = Get_Bits(1);
-		}
-		else if (tab->run==64) /* end_of_block */
-			return;
-		else /* escape */
-		{
+			// escape
 			i+= Get_Bits(6);
 			val = Get_Bits(8);
 			if (val == 0)
@@ -1307,126 +1329,146 @@ static void Decode_MPEG1_Non_Intra_Block(int comp)
 			else if (val > 128)
 				val -= 256;
 
-			if (sign = (val<0)) val = - val;
+			sign = (val<0);
+			if (sign)
+				val = - val;
+		}
+		else
+		{
+            if (val == 64)
+				break;
+			i += val;
+			val = tab->level;
+			sign = Get_Bits(1);
+		}
+		if (i >= 64)
+		{
+			SetFaultFlag(1);
+			break;
 		}
 
-		if (i > 63)
-		{
-			Fault_Flag = 1;
-			return;
-		}
-		j = scan[alternate_scan][i];
-		if (j > 63)
-		{
-			Fault_Flag = 1;
-			return;
-		}
-
-		val = (((val<<1)+1) * quantizer_scale * qmat[j]) >> 4;
-		if (val) val = (val - 1) | 1; // mismatch
-		if (val >= 2048) val = 2047 + sign; //saturation
-		if (sign) val = -val;
-		bp[j] = val;
+		j = scan[0][i];
+		val = (((val<<1)+1) * quantizer_scale * non_intra_quantizer_matrix[j]) >> 4;
+		if (val)
+			val = (val - 1) | 1; // mismatch
+		if (val >= 2048)
+			val = 2047 + sign; //saturation
+		if (sign)
+			val = -val;
+		bp[j] = (short) val;
 	}
 }
 
 /* decode one non-intra coded MPEG-2 block */
 static void Decode_MPEG2_Non_Intra_Block(int comp)
 {
-	int val, i, j, sign, *qmat;
-	unsigned int code;
-	DCTtab *tab;
+	long code, val = 0, i, j, sign, sum;
+	const DCTtab *tab;
 	short *bp;
+	int *qmat;
 
 	bp = block[comp];
 	qmat = (comp<4 || chroma_format==CHROMA420) 
 		? non_intra_quantizer_matrix : chroma_non_intra_quantizer_matrix;
 
 	/* decode AC coefficients */
+	sum = 0;
 	for (i=0; ; i++)
 	{
 		code = Show_Bits(16);
 
-		if (code>=16384)
+		if (code >= 16384)
 		{
-			if (i==0)
-				tab = &DCTtabfirst[(code>>12)-4];
-			else
+			if (i)
 				tab = &DCTtabnext[(code>>12)-4];
+			else
+				tab = &DCTtabfirst[(code>>12)-4];
 		}
-		else if (code>=1024)
+		else if (code >= 1024)
 			tab = &DCTtab0[(code>>8)-4];
-		else if (code>=512)
+		else if (code >= 512)
 			tab = &DCTtab1[(code>>6)-8];
-		else if (code>=256)
+		else if (code >= 256)
 			tab = &DCTtab2[(code>>4)-16];
-		else if (code>=128)
+		else if (code >= 128)
 			tab = &DCTtab3[(code>>3)-16];
-		else if (code>=64)
+		else if (code >= 64)
 			tab = &DCTtab4[(code>>2)-16];
-		else if (code>=32)
+		else if (code >= 32)
 			tab = &DCTtab5[(code>>1)-16];
-		else if (code>=16)
+		else if (code >= 16)
 			tab = &DCTtab6[code-16];
 		else
 		{
-			Fault_Flag = 1;
-			return;
+			SetFaultFlag(1);
+			break;
 		}
 
 		Flush_Buffer(tab->len);
+        val = tab->run;
 
-		if (tab->run<64)
+		if (val == 65)
 		{
-			i+= tab->run;
+			// escape
+			i+= Get_Bits(6);
+			val = Get_Bits(12);
+            if (!(val & 2047))
+			{
+                SetFaultFlag(1);
+                break;
+            }
+			sign = (val >= 2048);
+			if (sign)
+				val = 4096 - val;
+		}
+		else
+		{
+            if (val == 64)
+				break;
+			i+= val;
 			val = tab->level;
 			sign = Get_Bits(1);
 		}
-		else if (tab->run==64) /* end_of_block */
-			return;
-		else /* escape */
+		if (i >= 64)
 		{
-			i+= Get_Bits(6);
-			val = Get_Bits(12);
-
-			if (sign = (val>=2048))
-				val = 4096 - val;
+			SetFaultFlag(1);
+			break;
 		}
 
-		if (i > 63)
-		{
-			Fault_Flag = 1;
-			return;
-		}
 		j = scan[alternate_scan][i];
-		if (j > 63)
-		{
-			Fault_Flag = 1;
-			return;
-		}
-
 		val = (((val<<1)+1) * quantizer_scale * qmat[j]) >> 5;
-		bp[j] = sign ? -val : val;
+        if (val >= 2048)
+			val = 2047 + sign; // saturation
+        if (sign)
+			val = -val;
+		bp[j] = (short) val;
+        sum ^= val;             // mismatch
 	}
+
+    if (!Fault_Flag && !(sum & 1))
+		bp[63] ^= 1;   // mismatch control
 }
 
 static int Get_macroblock_type()
 {
-	int macroblock_type;
+	int macroblock_type = 0;
 
 	switch (picture_coding_type)
 	{
 		case I_TYPE:
 			macroblock_type = Get_I_macroblock_type();
 			break;
-
 		case P_TYPE:
 			macroblock_type = Get_P_macroblock_type();
 			break;
-
 		case B_TYPE:
 			macroblock_type = Get_B_macroblock_type();
 			break;
+		case D_TYPE:
+			macroblock_type = Get_D_macroblock_type();
+			break;
+		default:
+			SetFaultFlag(2);
 	}
 
 	return macroblock_type;
@@ -1434,108 +1476,127 @@ static int Get_macroblock_type()
 
 static int Get_I_macroblock_type()
 {
-	if (Get_Bits(1))
-		return 1;
+	int code = Show_Bits(2);
 
-	if (!Get_Bits(1))
-		Fault_Flag = 2;
+	// the only valid codes are 1, or 01
+	if (code & 2)
+	{
+		Flush_Buffer(1);
+		return 1;
+	}
+	if (code & 1)
+	{
+		Flush_Buffer(2);
+	}
+	else
+		SetFaultFlag(2);
 
 	return 17;
 }
 
 static int Get_P_macroblock_type()
 {
-	int code;
+	int code = Show_Bits(6);
 
-	if ((code = Show_Bits(6))>=8)
+	if (code >= 8)
 	{
 		code >>= 3;
 		Flush_Buffer(PMBtab0[code].len);
-
-		return PMBtab0[code].val;
+		code = PMBtab0[code].val;
 	}
-
-	if (code==0)
+	else if (code)
 	{
-		Fault_Flag = 2;
-		return 0;
+		Flush_Buffer(PMBtab1[code].len);
+		code = PMBtab1[code].val;
 	}
-
-	Flush_Buffer(PMBtab1[code].len);
-
-	return PMBtab1[code].val;
+	else
+		SetFaultFlag(2);
+	return code;
 }
 
 static int Get_B_macroblock_type()
 {
-	int code;
+	int code = Show_Bits(6);
 
-	if ((code = Show_Bits(6))>=8)
+	if (code >= 8)
 	{
 		code >>= 2;
 		Flush_Buffer(BMBtab0[code].len);
-
-		return BMBtab0[code].val;
+		code = BMBtab0[code].val;
 	}
-
-	if (code==0)
+	else if (code)
 	{
-		Fault_Flag = 2;
-		return 0;
+		Flush_Buffer(BMBtab1[code].len);
+		code = BMBtab1[code].val;
 	}
+	else
+		SetFaultFlag(2);
+	return code;
+}
 
-	Flush_Buffer(BMBtab1[code].len);
-
-	return BMBtab1[code].val;
+static int Get_D_macroblock_type()
+{
+    if (Get_Bits(1))
+        Flush_Buffer(1);
+    else
+		SetFaultFlag(2);
+    return 1;
 }
 
 static int Get_coded_block_pattern()
 {
-	int code;
-
-	if ((code = Show_Bits(9))>=128)
+	int code = Show_Bits(9);
+	if (code >= 128)
 	{
 		code >>= 4;
 		Flush_Buffer(CBPtab0[code].len);
-
-		return CBPtab0[code].val;
+		code = CBPtab0[code].val;
 	}
-
-	if (code>=8)
+	else if (code >= 8)
 	{
 		code >>= 1;
 		Flush_Buffer(CBPtab1[code].len);
-
-		return CBPtab1[code].val;
+		code = CBPtab1[code].val;
 	}
-
-	if (code<1)
+	else if (code)
 	{
-		Fault_Flag = 3;
-		return 0;
+		Flush_Buffer(CBPtab2[code].len);
+		code = CBPtab2[code].val;
 	}
-
-	Flush_Buffer(CBPtab2[code].len);
-
-	return CBPtab2[code].val;
+	else
+		SetFaultFlag(3);
+	return code;
 }
 
 static int Get_macroblock_address_increment()
 {
 	int code, val;
 
-	val = 0;
-
-	while ((code = Show_Bits(11))<24)
+	for (val = 0;;)
 	{
-		if (code!=15) /* if not macroblock_stuffing */
+        code = Show_Bits(11);
+        if (code >= 24)
+			break;
+		if (code != 15) /* if not macroblock_stuffing */
 		{
-			if (code==8) /* if macroblock_escape */
-				val+= 33;
+			if (code == 8)
+			{
+				/* macroblock_escape */
+				val += 33;
+			}
+			else if (code == 0)
+			{
+				// The variable length code for the macroblock address
+				// increment cannot be all zeros. If we see all zeros here,
+				// then we must have run into the end of the slice, which is marked
+				// by 23 zeroes. We return a negative increment to signal end
+				// of slice.
+				return -1;
+			}
 			else
 			{
-				Fault_Flag = 4;
-				return 1;
+				SetFaultFlag(5);
+				return -1;
 			}
 		}
 		Flush_Buffer(11);
@@ -1543,27 +1604,30 @@ static int Get_macroblock_address_increment()
 
 	/* macroblock_address_increment == 1 */
 	/* ('1' is in the MSB position of the lookahead) */
-	if (code>=1024)
+	if (code >= 1024)
 	{
 		Flush_Buffer(1);
-		return val + 1;
+		val++;
 	}
 
 	/* codes 00010 ... 011xx */
-	if (code>=128)
+	else if (code >= 128)
 	{
 		/* remove leading zeros */
 		code >>= 6;
-		Flush_Buffer(MBAtab1[code].len);
-    
-		return val + MBAtab1[code].val;
+		Flush_Buffer(MBAtab1[code].len);   
+		val += MBAtab1[code].val;
 	}
   
 	/* codes 00000011000 ... 0000111xxxx */
-	code -= 24; /* remove common base */
-	Flush_Buffer(MBAtab2[code].len);
+	else
+	{
+		code -= 24; /* remove common base */
+		Flush_Buffer(MBAtab2[code].len);
+		val += MBAtab2[code].val;
+	}
 
-	return val + MBAtab2[code].val;
+	return val;
 }
 
 /*
@@ -1699,8 +1763,6 @@ static void form_predictions(int bx, int by, int macroblock_type, int motion_typ
 					Coded_Picture_Width<<1, Coded_Picture_Width<<1, 16, 8, bx, by>>1,
 					DMV[1][0], DMV[1][1], 1);
 			}
-			else
-				Fault_Flag = 5;
 		}
 		else
 		{
@@ -1754,8 +1816,6 @@ static void form_predictions(int bx, int by, int macroblock_type, int motion_typ
 					Coded_Picture_Width<<1, Coded_Picture_Width<<1, 16, 16, bx, by,
 					DMV[0][0], DMV[0][1], 1);
 			}
-			else
-				Fault_Flag = 5;
 		}
 
 		stw = 1;
@@ -1809,8 +1869,6 @@ static void form_predictions(int bx, int by, int macroblock_type, int motion_typ
 					current_frame, 0, Coded_Picture_Width<<1, Coded_Picture_Width<<1, 16, 8,
 					bx, by+8, PMV[1][1][0], PMV[1][1][1], stw);
 			}
-			else
-				Fault_Flag = 5;
 		}
 	}
 

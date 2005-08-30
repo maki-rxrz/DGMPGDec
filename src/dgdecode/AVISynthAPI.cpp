@@ -31,9 +31,9 @@
 #include "utilities.h"
 #include <string.h>
 
-#define VERSION "DGDecode 1.4.0"
+#define VERSION "DGDecode 1.4.3"
 
-MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int moderate_h, int moderate_v, bool showQ, bool fastMC, const char* _cpu2, int _info, bool _upConv, bool _i420, IScriptEnvironment* env)
+MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int moderate_h, int moderate_v, bool showQ, bool fastMC, const char* _cpu2, int _info, int _upConv, bool _i420, int iCC, IScriptEnvironment* env)
 {
 	CheckCPU();
 
@@ -47,10 +47,17 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
 	m_decoder.luminit = false;
 
 	if (iPP != -1 && iPP != 0 && iPP != 1)
-		env->ThrowError("MPEG2Source : iPP must be set to -1, 0, or 1!");
+		env->ThrowError("MPEG2Source: iPP must be set to -1, 0, or 1!");
+
+	if (iCC != -1 && iCC != 0 && iCC != 1)
+		env->ThrowError("MPEG2Source: iCC must be set to -1, 0, or 1!");
+
+	if (_upConv != 0 && _upConv != 1 && _upConv != 2)
+		env->ThrowError("MPEG2Source: upConv must be set to 0, 1, or 2!");
 
 	ovr_idct = idct;
 	m_decoder.iPP = iPP;
+	m_decoder.iCC = iCC;
 	m_decoder.info = _info;
 	m_decoder.showQ = showQ;
 	m_decoder.fastMC = fastMC;
@@ -79,15 +86,17 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
 	memset(&vi, 0, sizeof(vi));
 	vi.width = m_decoder.Clip_Width;
 	vi.height = m_decoder.Clip_Height;
-	if (m_decoder.chroma_format == 1 && !_upConv)
+	if (m_decoder.chroma_format == 1 && _upConv == 0)
 	{
 		if (m_decoder.i420 == true)
 			vi.pixel_type = VideoInfo::CS_I420;
 		else
 			vi.pixel_type = VideoInfo::CS_YV12;
 	}
-	else if (m_decoder.chroma_format == 1 && _upConv) vi.pixel_type = VideoInfo::CS_YUY2;
-	else if (m_decoder.chroma_format == 2) vi.pixel_type = VideoInfo::CS_YUY2;
+	else if (m_decoder.chroma_format == 1 && _upConv == 1) vi.pixel_type = VideoInfo::CS_YUY2;
+	else if (m_decoder.chroma_format == 1 && _upConv == 2) vi.pixel_type = VideoInfo::CS_BGR24;
+	else if (m_decoder.chroma_format == 2 && _upConv != 2) vi.pixel_type = VideoInfo::CS_YUY2;
+	else if (m_decoder.chroma_format == 2 && _upConv == 2) vi.pixel_type = VideoInfo::CS_BGR24;
 	else env->ThrowError("MPEG2Source:  currently unsupported input color format (4:4:4)");
 	vi.fps_numerator = m_decoder.VF_FrameRate;
 	vi.fps_denominator = 1000;
@@ -130,13 +139,22 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
 	m_decoder.pp_mode = _PP_MODE;
 
 	bufY = bufU = bufV = NULL;
-	if (m_decoder.chroma_format != 1 || (m_decoder.chroma_format == 1 && _upConv))
+	if (m_decoder.chroma_format != 1 || (m_decoder.chroma_format == 1 && _upConv > 0))
 	{
 		bufY = (unsigned char*)aligned_malloc(vi.width*vi.height+2048,32);
 		bufU = (unsigned char*)aligned_malloc(m_decoder.Chroma_Width*vi.height+2048,32);
 		bufV =  (unsigned char*)aligned_malloc(m_decoder.Chroma_Width*vi.height+2048,32);
 		if (bufY == NULL || bufU == NULL || bufV == NULL)
 			env->ThrowError("MPEG2Source:  malloc failure (bufY, bufU, bufV)!");
+	}
+
+	u444 = v444 = NULL;
+	if (_upConv == 2)
+	{
+		u444 = (unsigned char*)aligned_malloc(vi.width*vi.height+2048,32);
+		v444 = (unsigned char*)aligned_malloc(vi.width*vi.height+2048,32);
+		if (u444 == NULL || v444 == NULL)
+			env->ThrowError("MPEG2Source:  malloc failure (u444, v444)!");
 	}
 }
 
@@ -147,6 +165,8 @@ MPEG2Source::~MPEG2Source()
 	if (bufY != NULL) { aligned_free(bufY); bufY = NULL; }
 	if (bufU != NULL) { aligned_free(bufU); bufU = NULL; }
 	if (bufV != NULL) { aligned_free(bufV); bufV = NULL; }
+	if (u444 != NULL) { aligned_free(u444); u444 = NULL; }
+	if (v444 != NULL) { aligned_free(v444); v444 = NULL; }
 }
 
 bool __stdcall MPEG2Source::GetParity(int)
@@ -229,9 +249,23 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
 	unsigned int raw;
 	unsigned int hint;
 
+	if (m_decoder.info != 0 || m_decoder.upConv == 2)
+	{
+		raw = max(m_decoder.FrameList[n].bottom, m_decoder.FrameList[n].top);
+		if (raw < (int)m_decoder.BadStartingFrames) raw = m_decoder.BadStartingFrames;
+
+		for (gop = 0; gop < (int) m_decoder.VF_GOPLimit - 1; gop++)
+		{
+			if (raw >= (int)m_decoder.GOPList[gop]->number && raw < (int)m_decoder.GOPList[gop+1]->number)
+			{
+				break;
+			}
+		}
+	}
+
     PVideoFrame frame = env->NewVideoFrame(vi);
 
-	if (m_decoder.chroma_format == 1 && !m_decoder.upConv) // YV12
+	if (m_decoder.chroma_format == 1 && m_decoder.upConv == 0) // YV12
 	{
 		out->y = frame->GetWritePtr(PLANAR_Y);
 		out->u = frame->GetWritePtr(PLANAR_U);
@@ -253,7 +287,7 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
 		out->ywidth = vi.width;
 		out->uvwidth = m_decoder.Chroma_Width;
 		out->yheight = vi.height;
-		out->uvheight = m_decoder.Chroma_Height;
+		out->uvheight = vi.height;
 	}
 
 #ifdef PROFILING
@@ -275,25 +309,27 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
 
 	__asm emms;
 
-	if (m_decoder.chroma_format != 1 ||
-		(m_decoder.chroma_format == 1 && m_decoder.upConv)) // convert 4:2:2 (planar) to YUY2 (packed)
+	if ((m_decoder.chroma_format == 2 && m_decoder.upConv != 2) ||
+		(m_decoder.chroma_format == 1 && m_decoder.upConv == 1)) // convert 4:2:2 (planar) to YUY2 (packed)
 	{
 		conv422toYUV422(out->y,out->u,out->v,frame->GetWritePtr(),out->ypitch,out->uvpitch,
 			frame->GetPitch(),vi.width,vi.height);
 	}
 
+	if (m_decoder.upConv == 2) // convert 4:2:2 (planar) to 4:4:4 (planar) and then to RGB24
+	{
+		conv422to444(out->u,u444,out->uvpitch,vi.width,vi.width,vi.height);
+		conv422to444(out->v,v444,out->uvpitch,vi.width,vi.width,vi.height);
+		PVideoFrame frame2 = env->NewVideoFrame(vi);
+		conv444toRGB24(out->y,u444,v444,frame2->GetWritePtr(),out->ypitch,vi.width,
+			frame2->GetPitch(),vi.width,vi.height,m_decoder.GOPList[gop]->matrix,m_decoder.pc_scale);
+		env->BitBlt(frame->GetWritePtr(), frame->GetPitch(), 
+			frame2->GetReadPtr() + (vi.height-1) * frame2->GetPitch(), -frame2->GetPitch(), 
+			frame->GetRowSize(), frame->GetHeight());
+	}
+
 	if (m_decoder.info != 0)
 	{
-		raw = max(m_decoder.FrameList[n].bottom, m_decoder.FrameList[n].top);
-		if (raw < (int)m_decoder.BadStartingFrames) raw = m_decoder.BadStartingFrames;
-
-		for (gop = 0; gop < (int) m_decoder.VF_GOPLimit - 1; gop++)
-		{
-			if (raw >= (int)m_decoder.GOPList[gop]->number && raw < (int)m_decoder.GOPList[gop+1]->number)
-			{
-				break;
-			}
-		}
 		pct = m_decoder.FrameList[raw].pct == I_TYPE ? 'I' : m_decoder.FrameList[raw].pct == B_TYPE ? 'B' : 'P';
 
 		switch (m_decoder.GOPList[gop]->matrix)
@@ -393,6 +429,20 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
 	return frame;
 }
 
+int MPEG2Source::getMatrix(int n)
+{
+	int raw = max(m_decoder.FrameList[n].bottom, m_decoder.FrameList[n].top);
+	if (raw < (int)m_decoder.BadStartingFrames) raw = m_decoder.BadStartingFrames;
+
+	for (int gop = 0; gop < (int) m_decoder.VF_GOPLimit - 1; gop++)
+	{
+		if (raw >= (int)m_decoder.GOPList[gop]->number && 
+			raw < (int)m_decoder.GOPList[gop+1]->number) 
+			return m_decoder.GOPList[gop]->matrix;
+	}
+	return 1;
+}
+
 /*
 
   MPEG2Dec's colorspace convertions Copyright (C) Chia-chen Kuo - April 2001
@@ -402,6 +452,9 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
 // modified to be pitch != width friendly
 // tritical - May 16, 2005
 
+// lots of bug fixes and new isse 422->444 routine
+// tritical - August 18, 2005
+
 static const __int64 mmmask_0001 = 0x0001000100010001;
 static const __int64 mmmask_0002 = 0x0002000200020002;
 static const __int64 mmmask_0003 = 0x0003000300030003;
@@ -410,6 +463,8 @@ static const __int64 mmmask_0005 = 0x0005000500050005;
 static const __int64 mmmask_0007 = 0x0007000700070007;
 static const __int64 mmmask_0016 = 0x0010001000100010;
 static const __int64 mmmask_0128 = 0x0080008000800080;
+static const __int64 lastmask    = 0xFF00000000000000;
+static const __int64 mmmask_0101 = 0x0101010101010101;
 
 void conv420to422(const unsigned char *src, unsigned char *dst, int frame_type, int src_pitch,
 				  int dst_pitch, int width, int height)
@@ -423,19 +478,27 @@ void conv420to422(const unsigned char *src, unsigned char *dst, int frame_type, 
 
 	if (frame_type)
 	{
+		if (cpu.ssemmx)
+		{
+			conv420to422P_iSSE(src, dst, src_pitch, dst_pitch, width, height);
+			return;
+		}
+
 		__asm
 		{
 			mov			eax, [src] // eax = src
 			mov			ebx, [dst] // ebx = dst
 			mov			ecx, ebx   // ecx = dst
 			add			ecx, dst_pitch // ecx = dst + dst_pitch
-			mov			esi, 0x00
+			xor			esi, esi
 			movq		mm3, [mmmask_0003]
 			pxor		mm0, mm0
 			movq		mm4, [mmmask_0002]
 
 			mov			edx, eax // edx = src
 			add			edx, src_pitch // edx = src + src_pitch
+			mov			edi, HALF_WIDTH
+
 convyuv422topp:
 			movd		mm1, [eax+esi]
 			movd		mm2, [edx+esi]
@@ -449,16 +512,15 @@ convyuv422topp:
 			packuswb	mm2, mm0
 
 			add			esi, 0x04
-			cmp			esi, HALF_WIDTH
+			cmp			esi, edi
 			movd		[ecx+esi-4], mm2
 			jl			convyuv422topp
 
 			add			eax, src_pitch
 			add			ebx, dst_pitch2
 			add			ecx, dst_pitch2
-			mov			esi, 0x00
+			xor			esi, esi
 
-			mov			edi, PROGRESSIVE_HEIGHT
 convyuv422p:
 			movd		mm1, [eax+esi]
 
@@ -469,6 +531,7 @@ convyuv422p:
 			sub			edx, src_pitch
 
 			movd		mm5, [edx+esi]
+			add			edx, src_pitch2
 			movd		mm2, [edx+esi]
 
 			punpcklbw	mm5, mm0
@@ -482,10 +545,8 @@ convyuv422p:
 			packuswb	mm5, mm0
 			packuswb	mm2, mm0
 
-			mov			edx, eax
-			add			edx, src_pitch
 			add			esi, 0x04
-			cmp			esi, HALF_WIDTH
+			cmp			esi, edi
 			movd		[ebx+esi-4], mm5
 			movd		[ecx+esi-4], mm2
 
@@ -494,13 +555,13 @@ convyuv422p:
 			add			eax, src_pitch
 			add			ebx, dst_pitch2
 			add			ecx, dst_pitch2
-			mov			esi, 0x00
-			dec			edi
-			cmp			edi, 0x00
-			jg			convyuv422p
+			xor			esi, esi
+			dec			PROGRESSIVE_HEIGHT
+			jnz			convyuv422p
 
 			mov			edx, eax
 			sub			edx, src_pitch
+
 convyuv422bottomp:
 			movd		mm1, [eax+esi]
 			movd		mm5, [edx+esi]
@@ -515,7 +576,7 @@ convyuv422bottomp:
 			packuswb	mm5, mm0
 
 			add			esi, 0x04
-			cmp			esi, HALF_WIDTH
+			cmp			esi, edi
 			movd		[ebx+esi-4], mm5
 			jl			convyuv422bottomp
 
@@ -528,68 +589,58 @@ convyuv422bottomp:
 		{
 			mov			eax, [src] // eax = src
 			mov			ecx, [dst] // ecx = dst
-			mov			esi, 0x00
+			xor			esi, esi
 			pxor		mm0, mm0
 			movq		mm3, [mmmask_0003]
 			movq		mm4, [mmmask_0004]
 			movq		mm5, [mmmask_0005]
+			mov			edi, HALF_WIDTH
 
 convyuv422topi:
 			movd		mm1, [eax+esi]
-			mov			ebx, eax // ebx = src
-			add			ebx, src_pitch // ebx = src+src_pitch
+			mov			ebx, eax
+			add			ebx, src_pitch2
 			movd		mm2, [ebx+esi]
 			movd		[ecx+esi], mm1
-			punpcklbw	mm1, mm0
-			movq		mm6, mm1
-			pmullw		mm1, mm3
+			sub			ebx, src_pitch
 
+			punpcklbw	mm1, mm0
+			movq		mm6, [ebx+esi]
+			pmullw		mm1, mm5
+			add			ebx, src_pitch2
 			punpcklbw	mm2, mm0
-			movq		mm7, mm2
-			pmullw		mm2, mm5
+			movq		mm7, [ebx+esi]
+			pmullw		mm2, mm3
 			paddusw		mm2, mm1
 			paddusw		mm2, mm4
 			psrlw		mm2, 0x03
 			packuswb	mm2, mm0
 
-			mov			edx, ecx // edx = dst
-			add			edx, dst_pitch // edx = dst+dst_pitch
-			pmullw		mm6, mm5
+			mov			edx, ecx
+			add			edx, dst_pitch2
 			movd		[edx+esi], mm2
+			sub			edx, dst_pitch
 
-			add			ebx, src_pitch
-			movd		mm2, [ebx+esi]
-			punpcklbw	mm2, mm0
-			pmullw		mm2, mm3
-			paddusw		mm2, mm6
-			paddusw		mm2, mm4
-			psrlw		mm2, 0x03
-			packuswb	mm2, mm0
+			movd		[edx+esi], mm6
+			punpcklbw	mm6, mm0
+			pmullw		mm6, [mmmask_0007]
+			punpcklbw	mm7, mm0
+			paddusw		mm7, mm6
+			paddusw		mm7, mm4
+			psrlw		mm7, 0x03
+			packuswb	mm7, mm0
 
-			add			edx, dst_pitch
-			add			ebx, src_pitch
-			pmullw		mm7, [mmmask_0007]
-			movd		[edx+esi], mm2
-
-			movd		mm2, [ebx+esi]
-			punpcklbw	mm2, mm0
-			paddusw		mm2, mm7
-			paddusw		mm2, mm4
-			psrlw		mm2, 0x03
-			packuswb	mm2, mm0
-
-			add			edx, dst_pitch
+			add			edx, dst_pitch2
 			add			esi, 0x04
-			cmp			esi, HALF_WIDTH
-			movd		[edx+esi-4], mm2
+			cmp			esi, edi
+			movd		[edx+esi-4], mm7
 
 			jl			convyuv422topi
 
 			add			eax, src_pitch2
 			add			ecx, dst_pitch4
-			mov			esi, 0x00
+			xor			esi, esi
 
-			mov			edi, INTERLACED_HEIGHT
 convyuv422i:
 			movd		mm1, [eax+esi]
 			punpcklbw	mm1, mm0
@@ -650,16 +701,15 @@ convyuv422i:
 
 			add			edx, dst_pitch
 			add			esi, 0x04
-			cmp			esi, HALF_WIDTH
+			cmp			esi, edi
 			movd		[edx+esi-4], mm2
 
 			jl			convyuv422i
 			add			eax, src_pitch2
 			add			ecx, dst_pitch4
-			mov			esi, 0x00
-			dec			edi
-			cmp			edi, 0x00
-			jg			convyuv422i
+			xor			esi, esi
+			dec			INTERLACED_HEIGHT
+			jnz			convyuv422i
 
 convyuv422bottomi:
 			movd		mm1, [eax+esi]
@@ -683,8 +733,8 @@ convyuv422bottomi:
 			pmullw		mm1, [mmmask_0003]
 			add			ebx, src_pitch2
 			movd		mm2, [ebx+esi]
-			punpcklbw	mm2, mm0
 			movq		mm7, mm2
+			punpcklbw	mm2, mm0
 			pmullw		mm2, mm5
 			paddusw		mm2, mm1
 			paddusw		mm2, mm4
@@ -693,22 +743,14 @@ convyuv422bottomi:
 
 			mov			edx, ecx
 			add			edx, dst_pitch
-			pmullw		mm7, [mmmask_0007]
 			movd		[edx+esi], mm2
-
 			add			edx, dst_pitch
  			movd		[edx+esi], mm6
 
-			punpcklbw	mm6, mm0
-			paddusw		mm6, mm7
-			paddusw		mm6, mm4
-			psrlw		mm6, 0x03
-			packuswb	mm6, mm0
-
 			add			edx, dst_pitch
 			add			esi, 0x04
-			cmp			esi, HALF_WIDTH
-			movd		[edx+esi-4], mm6
+			cmp			esi, edi
+			movd		[edx+esi-4], mm7
 
 			jl			convyuv422bottomi
 
@@ -717,102 +759,312 @@ convyuv422bottomi:
 	}
 }
 
-void conv422to444(const unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch, 
-			int width, int height)
+void conv420to422P_iSSE(const unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch,
+						int width, int height)
 {
-	int HALF_WIDTH = width>>1;
-	int HALF_WIDTH_D8 = HALF_WIDTH-8;
-	
+	int src_pitch2 = src_pitch<<1;
+	int dst_pitch2 = dst_pitch<<1;
+	int PROGRESSIVE_HEIGHT = (height>>1) - 2;
+	int HALF_WIDTH = width>>1; // chroma width
+
 	__asm
 	{
 		mov			eax, [src] // eax = src
 		mov			ebx, [dst] // ebx = dst
-		mov			edi, height // edi = height
-		movq		mm1, [mmmask_0001]
-		pxor		mm0, mm0
+		mov			ecx, ebx   // ecx = dst
+		add			ecx, dst_pitch // ecx = dst + dst_pitch
+		mov			edx, eax // edx = src
+		add			edx, src_pitch // edx = src + src_pitch
+		xor			esi, esi
+		mov			edi, HALF_WIDTH
+		movq		mm6, mmmask_0101
+		movq		mm7, mm6
+
+convyuv422topp:
+		movq		mm0, [eax+esi]
+		movq		mm1, [edx+esi]
+		movq		[ebx+esi], mm0
+		psubusb		mm1, mm7
+		pavgb		mm1, mm0
+		pavgb		mm1, mm0
+		movq		[ecx+esi], mm1
+		add			esi, 0x08
+		cmp			esi, edi
+		jl			convyuv422topp
+		add			eax, src_pitch
+		add			ebx, dst_pitch2
+		add			ecx, dst_pitch2
+		xor			esi, esi
+
+convyuv422p:
+		movq		mm0, [eax+esi]
+		mov			edx, eax // edx = src
+		movq		mm1, mm0
+		sub			edx, src_pitch
+		movq		mm2, [edx+esi]
+		add			edx, src_pitch2
+		movq		mm3, [edx+esi]
+		psubusb		mm2, mm6
+		psubusb		mm3, mm7
+		pavgb		mm2, mm0
+		pavgb		mm3, mm1
+		pavgb		mm2, mm0
+		pavgb		mm3, mm1
+		movq		[ebx+esi], mm2
+		movq		[ecx+esi], mm3
+		add			esi, 0x08
+		cmp			esi, edi
+		jl			convyuv422p
+		add			eax, src_pitch
+		add			ebx, dst_pitch2
+		add			ecx, dst_pitch2
+		xor			esi, esi
+		dec			PROGRESSIVE_HEIGHT
+		jnz			convyuv422p
+		mov			edx, eax
+		sub			edx, src_pitch
+
+convyuv422bottomp:
+		movq		mm0, [eax+esi]
+		movq		mm1, [edx+esi]
+		movq		[ecx+esi], mm0
+		psubusb		mm1, mm7
+		pavgb		mm1, mm0
+		pavgb		mm1, mm0
+		movq		[ebx+esi], mm1
+		add			esi, 0x08
+		cmp			esi, edi
+		jl			convyuv422bottomp
+		emms
+	}
+}
+
+void conv422to444(const unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch, 
+			int width, int height)
+{
+	if (cpu.ssemmx)
+	{
+		conv422to444_iSSE(src, dst, src_pitch, dst_pitch, width, height);
+		return;
+	}
+
+	int HALF_WIDTH_D8 = (width>>1)-8;
+	
+	__asm
+	{
+		mov			eax, [src]	// eax = src
+		mov			ebx, [dst]	// ebx = dst
+		mov			edi, height	// edi = height
+		mov			ecx, HALF_WIDTH_D8	// ecx = (width>>1)-8
+		movq		mm1, mmmask_0001	// mm1 = 1's
+		pxor		mm0, mm0	// mm0 = 0's
 
 convyuv444init:
-		movq		mm7, [eax]
-		mov			esi, 0x00
+		movq		mm7, [eax]  // mm7 = hgfedcba
+		xor			esi, esi	// esi = 0
 
 convyuv444:
-		movq		mm2, mm7
-		movq		mm7, [eax+esi+8]
-		movq		mm3, mm2
-		movq		mm4, mm7
+		movq		mm2, mm7    // mm2 = hgfedcba
+		movq		mm7, [eax+esi+8] // mm7 = ponmlkji
+		movq		mm3, mm2    // mm3 = hgfedcba
+		movq		mm4, mm7    // mm4 = ponmlkji
 
-		psrlq		mm3, 8
-		psllq		mm4, 56
-		por			mm3, mm4
+		psrlq		mm3, 8      // mm3 = 0hgfedcb
+		psllq		mm4, 56     // mm4 = i0000000
+		por			mm3, mm4    // mm3 = ihgfedcb 
 
-		movq		mm4, mm2
-		movq		mm5, mm3
+		movq		mm4, mm2    // mm4 = hgfedcba
+		movq		mm5, mm3    // mm5 = ihgfedcb
 
-		punpcklbw	mm4, mm0
-		punpcklbw	mm5, mm0
+		punpcklbw	mm4, mm0    // 0d0c0b0a
+		punpcklbw	mm5, mm0    // 0e0d0c0b
 
-		movq		mm6, mm4
+		movq		mm6, mm4    // mm6 = 0d0c0b0a
 		paddusw		mm4, mm1
 		paddusw		mm4, mm5
-		psrlw		mm4, 1
-		psllq		mm4, 8
-		por			mm4, mm6
+		psrlw		mm4, 1		// average mm4/mm5 (d/e,c/d,b/c,a/b)	
+		psllq		mm4, 8		// mm4 = z0z0z0z0
+		por			mm4, mm6	// mm4 = zdzczbza
 
-		punpckhbw	mm2, mm0
-		punpckhbw	mm3, mm0
+		punpckhbw	mm2, mm0	// 0h0g0f0e
+		punpckhbw	mm3, mm0	// 0i0h0g0f
 
-		movq		mm6, mm2
+		movq		mm6, mm2	// mm6 = 0h0g0f0e
 		paddusw		mm2, mm1
 		paddusw		mm2, mm3
+		psrlw		mm2, 1		// average mm2/mm3 (h/i,g/h,f/g,e/f)
+		psllq		mm2, 8		// mm2 = z0z0z0z0
+		por			mm2, mm6	// mm2 = zhzgzfze
 
-		movq		[ebx+esi*2], mm4
+		movq		[ebx+esi*2], mm4	// store zdzczbza
+		movq		[ebx+esi*2+8], mm2	// store zhzgzfze
 
-		psrlw		mm2, 1
-		psllq		mm2, 8
-		por			mm2, mm6
+		add			esi, 8
+		cmp			esi, ecx
+		jl			convyuv444	// loop back if not to last 8 pixels
 
-		add			esi, 0x08
-		cmp			esi, HALF_WIDTH_D8
-		movq		[ebx+esi*2-8], mm2
-		jl			convyuv444
+		movq		mm2, mm7	// mm2 = ponmlkji
 
-		movq		mm2, mm7
-		punpcklbw	mm2, mm0
-		movq		mm3, mm2
+		punpcklbw	mm2, mm0	// mm2 = 0l0k0j0i
+		punpckhbw	mm7, mm0	// mm7 = 0p0o0n0m
 
-		psllq		mm2, 8
-		por			mm2, mm3
+		movq		mm3, mm2	// mm3 = 0l0k0j0i
+		movq		mm4, mm7	// mm4 = 0p0o0n0m
 
-		movq		[ebx+esi*2], mm2
+		psrlq		mm2, 16		// mm2 = 000l0k0j
+		psllq		mm4, 48		// mm4 = 0m000000
+		por			mm2, mm4	// mm2 = 0m0l0k0j
 
-		punpckhbw	mm7, mm0
-		movq		mm6, mm7
+		paddusw		mm2, mm1
+		paddusw		mm2, mm3
+		psrlw		mm2, 1		// average mm2/mm3 (m/l,l/k,k/j,j/i)	
+		psllq		mm2, 8		// mm2 = z0z0z0z0
+		por			mm2, mm3	// mm2 = zlzkzjzi
 
-		psllq		mm6, 8
-		por			mm6, mm7
+		movq		mm6, mm7	// mm6 = 0p0o0n0m
+		movq		mm4, mm7	// mm4 = 0p0o0n0m
 
-		movq		[ebx+esi*2+8], mm6
+		psrlq		mm6, 48		// mm6 = 0000000p
+		psrlq		mm4, 16		// mm4 = 000p0o0n
+		psllq		mm6, 48		// mm6 = 0p000000
+		por			mm4,mm6		// mm4 = 0p0p0o0n
+
+		paddusw		mm4, mm1
+		paddusw		mm4, mm7
+		psrlw		mm4, 1		// average mm4/mm7 (p/p,p/o,o/n,n/m)	
+		psllq		mm4, 8		// mm4 = z0z0z0z0
+		por			mm4, mm7	// mm4 = zpzoznzm
+
+		movq		[ebx+esi*2], mm2	// store mm2
+		movq		[ebx+esi*2+8], mm4	// store mm4	
 
 		add			eax, src_pitch
 		add			ebx, dst_pitch
 		dec			edi
-		cmp			edi, 0x00
-		jg			convyuv444init
+		jnz			convyuv444init
 
+		emms
+	}
+}
+
+void conv422to444_iSSE(const unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch, 
+			int width, int height)
+{
+	int HALF_WIDTH_D8 = (width>>1)-8;
+	
+	__asm
+	{
+		mov			eax, [src]	// eax = src
+		mov			ebx, [dst]	// ebx = dst
+		mov			edi, height	// edi = height
+		mov			ecx, HALF_WIDTH_D8	// ecx = (width>>1)-8
+		mov			edx, src_pitch
+		xor			esi, esi	// esi = 0
+		movq		mm7, lastmask
+
+xloop:
+		movq		mm0, [eax+esi]  // mm7 = hgfedcba
+		movq		mm1, [eax+esi+1]// mm1 = ihgfedcb
+		pavgb		mm1, mm0
+		movq		mm2, mm0
+		punpcklbw	mm0,mm1
+		punpckhbw	mm2,mm1
+
+		movq		[ebx+esi*2], mm0	// store mm0
+		movq		[ebx+esi*2+8], mm2	// store mm2
+
+		add			esi, 8
+		cmp			esi, ecx
+		jl			xloop	// loop back if not to last 8 pixels
+
+		movq		mm0, [eax+esi]  // mm7 = hgfedcba
+		movq		mm1, mm0		// mm1 = hgfedcba
+		movq		mm2, mm0		// mm2 = hgfedcba
+		psrlq		mm1, 8			// mm1 = 0hgfedcb
+		pand		mm2, mm7		// mm2 = h0000000
+		por			mm1, mm2		// mm1 = hhgfedcb
+		pavgb		mm1, mm0
+		movq		mm2, mm0
+		punpcklbw	mm0,mm1
+		punpckhbw	mm2,mm1
+
+		movq		[ebx+esi*2], mm0	// store mm0
+		movq		[ebx+esi*2+8], mm2	// store mm2
+
+		add			eax, edx
+		add			ebx, dst_pitch
+		xor			esi, esi
+		dec			edi
+		jnz			xloop
 		emms
 	}
 }
 
 void conv444toRGB24(const unsigned char *py, const unsigned char *pu, const unsigned char *pv, 
 				unsigned char *dst, int src_pitchY, int src_pitchUV, int dst_pitch, int width, 
-				int height, YUVRGBScale* scale)
+				int height, int matrix, int pc_scale)
 {
-	__int64 RGB_Offset = scale->RGB_Offset;
-	__int64 RGB_Scale = scale->RGB_Scale;
-	__int64 RGB_CBU = scale->RGB_CBU;
-	__int64 RGB_CRV = scale->RGB_CRV;
-	__int64 RGB_CGX = scale->RGB_CGX;
+	__int64 RGB_Offset, RGB_Scale, RGB_CBU, RGB_CRV, RGB_CGX;
 	int dst_modulo = dst_pitch-(3*width);
+
+	if (pc_scale)
+	{
+		RGB_Scale = 0x1000254310002543;
+		RGB_Offset = 0x0010001000100010;
+		if (matrix == 7) // SMPTE 240M (1987)
+		{
+			RGB_CBU = 0x0000428500004285;
+			RGB_CGX = 0xF7BFEEA3F7BFEEA3;
+			RGB_CRV = 0x0000396900003969;
+		}
+		else if (matrix == 6 || matrix == 5) // SMPTE 170M/ITU-R BT.470-2 -- BT.601
+		{
+			RGB_CBU = 0x0000408D0000408D;
+			RGB_CGX = 0xF377E5FCF377E5FC;
+			RGB_CRV = 0x0000331300003313;
+		}
+		else if (matrix == 4) // FCC
+		{
+			RGB_CBU = 0x000040D8000040D8;
+			RGB_CGX = 0xF3E9E611F3E9E611;
+			RGB_CRV = 0x0000330000003300;
+		}
+		else // ITU-R Rec.709 (1990) -- BT.709
+		{
+			RGB_CBU = 0x0000439A0000439A;
+			RGB_CGX = 0xF92CEEF1F92CEEF1;
+			RGB_CRV = 0x0000395F0000395F;
+		}
+	}
+	else
+	{
+		RGB_Scale = 0x1000200010002000;
+		RGB_Offset = 0x0000000000000000;
+		if (matrix == 7) // SMPTE 240M (1987)
+		{
+			RGB_CBU = 0x00003A6F00003A6F;
+			RGB_CGX = 0xF8C0F0BFF8C0F0BF;
+			RGB_CRV = 0x0000326E0000326E;
+		}
+		else if (matrix == 6 || matrix == 5) // SMPTE 170M/ITU-R BT.470-2 -- BT.601
+		{
+			RGB_CBU = 0x000038B4000038B4;
+			RGB_CGX = 0xF4FDE926F4FDE926;
+			RGB_CRV = 0x00002CDD00002CDD;
+		}
+		else if (matrix == 4) // FCC
+		{
+			RGB_CBU = 0x000038F6000038F6;
+			RGB_CGX = 0xF561E938F561E938;
+			RGB_CRV = 0x00002CCD00002CCD;
+		}
+		else // ITU-R Rec.709 (1990) -- BT.709
+		{
+			RGB_CBU = 0x00003B6200003B62;
+			RGB_CGX = 0xFA00F104FA00F104;
+			RGB_CRV = 0x0000326600003266;
+		}
+	}
 
 	__asm
 	{
@@ -820,8 +1072,8 @@ void conv444toRGB24(const unsigned char *py, const unsigned char *pu, const unsi
 		mov			ebx, [pu]  // ebx = pu
 		mov			ecx, [pv]  // ecx = pv
 		mov			edx, [dst] // edx = dst
-		mov			edi, height // edi = height
-		mov			esi, 0x00
+		mov			edi, width // edi = width
+		xor			esi, esi
 		pxor		mm0, mm0
 
 convRGB24:
@@ -852,8 +1104,8 @@ convRGB24:
 		pmaddwd		mm4, mm7
 		paddd		mm3, mm1
 		paddd		mm4, mm2
-		psrld		mm3, 13
-		psrld		mm4, 13
+		psrad		mm3, 13
+		psrad		mm4, 13
 		packuswb	mm3, mm0
 		packuswb	mm4, mm0
 
@@ -865,8 +1117,8 @@ convRGB24:
 		pmaddwd		mm6, mm7
 		paddd		mm5, mm1
 		paddd		mm6, mm2
-		psrld		mm5, 13
-		psrld		mm6, 13
+		psrad		mm5, 13
+		psrad		mm6, 13
 		packuswb	mm5, mm0
 		packuswb	mm6, mm0
 
@@ -896,8 +1148,8 @@ convRGB24:
 		paddd		mm6, mm1
 		paddd		mm7, mm2
 
-		psrld		mm6, 13
-		psrld		mm7, 13
+		psrad		mm6, 13
+		psrad		mm7, 13
 		packuswb	mm6, mm0
 		packuswb	mm7, mm0
 
@@ -924,7 +1176,7 @@ convRGB24:
 
 		add			edx, 0x0c
 		add			esi, 0x04
-		cmp			esi, width
+		cmp			esi, edi
 		movd		[edx-4], mm5
 
 		jl			convRGB24
@@ -933,10 +1185,9 @@ convRGB24:
 		add			ebx, src_pitchUV
 		add			ecx, src_pitchUV
 		add			edx, dst_modulo
-		mov			esi, 0x00
-		dec			edi
-		cmp			edi, 0x00
-		jg			convRGB24
+		xor			esi, esi
+		dec			height
+		jnz			convRGB24
 
 		emms
 	}
@@ -1334,8 +1585,9 @@ AVSValue __cdecl Create_MPEG2Source(AVSValue args, void*, IScriptEnvironment* en
 
 	// check if iPP is set, if it is use the set value... if not
 	// we set iPP to -1 which automatically switches between field
-	// and progressive pp based on pf flag
+	// and progressive pp based on pf flag -- same for iCC
 	int iPP = args[3].IsBool() ? (args[3].AsBool() ? 1 : 0) : -1;
+	int iCC = args[12].IsBool() ? (args[12].AsBool() ? 1 : 0) : -1;
 
 	int moderate_h = 20;
 	int moderate_v = 40;
@@ -1343,7 +1595,7 @@ AVSValue __cdecl Create_MPEG2Source(AVSValue args, void*, IScriptEnvironment* en
 	bool fastMC = false;
 	char cpu2[255];
 	int info = 0;
-	bool upConv = false;
+	int upConv = 0;
 	bool i420 = false;
 
 	/* Based on D.Graft Msharpen default files code */
@@ -1394,8 +1646,9 @@ if (strncmp(buf, name, len) == 0) \
 				LOADBOOL(fastMC,"fastMC=",7)
 				LOADSTR(cpu2,"cpu2=",5)
 				LOADINT(info,"info=",5);
-				LOADBOOL(upConv,"upConv=",7);
+				LOADINT(upConv,"upConv=",7);
 				LOADBOOL(i420,"i420=",5);
+				LOADBOOL(iCC,"iCC=",4);
 			}
 		}
 	}
@@ -1419,23 +1672,24 @@ if (strncmp(buf, name, len) == 0) \
 										args[7].AsBool(fastMC),
 										args[8].AsString(cpu2),
 										args[9].AsInt(info),
-										args[10].AsBool(upConv),
+										args[10].AsInt(upConv),
 										args[11].AsBool(i420),
+										iCC,
 										env );
-	// Only bother invokeing crop if we have to
-	if ( dec->m_decoder.Clip_Top    || 
-		 dec->m_decoder.Clip_Bottom || 
-		 dec->m_decoder.Clip_Left   || 
-		 dec->m_decoder.Clip_Right )
-	{
-		AVSValue CropArgs[5] = { dec,
-								 dec->m_decoder.Clip_Left, 
-								 dec->m_decoder.Clip_Top, 
-								 -dec->m_decoder.Clip_Right,
-								 -dec->m_decoder.Clip_Bottom };
+		// Only bother invokeing crop if we have to
+		if ( dec->m_decoder.Clip_Top    || 
+			dec->m_decoder.Clip_Bottom || 
+			dec->m_decoder.Clip_Left   || 
+			dec->m_decoder.Clip_Right )
+		{
+			AVSValue CropArgs[5] = { dec,
+									dec->m_decoder.Clip_Left, 
+									dec->m_decoder.Clip_Top, 
+									-dec->m_decoder.Clip_Right,
+									-dec->m_decoder.Clip_Bottom };
 
-		return env->Invoke("crop",AVSValue(CropArgs,5));
-	}
+			return env->Invoke("crop",AVSValue(CropArgs,5));
+		}
 
 	return dec;
 }
@@ -1466,7 +1720,7 @@ AVSValue __cdecl Create_Deblock(AVSValue args, void* user_data, IScriptEnvironme
 }
 
 extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit2(IScriptEnvironment* env) {
-	env->AddFunction("MPEG2Source", "[d2v]s[cpu]i[idct]i[iPP]b[moderate_h]i[moderate_v]i[showQ]b[fastMC]b[cpu2]s[info]i[upConv]b[i420]b", Create_MPEG2Source, 0);
+	env->AddFunction("MPEG2Source", "[d2v]s[cpu]i[idct]i[iPP]b[moderate_h]i[moderate_v]i[showQ]b[fastMC]b[cpu2]s[info]i[upConv]i[i420]b[iCC]b", Create_MPEG2Source, 0);
 	env->AddFunction("LumaYV12","c[lumoff]i[lumgain]f",Create_LumaYV12,0);
     env->AddFunction("BlindPP", "c[quant]i[cpu]i[cpu2]s[iPP]b[moderate_h]i[moderate_v]i", Create_BlindPP, 0);
     env->AddFunction("Deblock", "c[quant]i[aOffset]i[bOffset]i[mmx]b[isse]b", Create_Deblock, 0);
@@ -1482,7 +1736,6 @@ class NoAVSAccess
 public:
 	MPEG2Source* vf;
 	VideoInfo pvi;
-	YUVRGBScale ext_cscale;
 	unsigned char *buffer, *picture;
 	unsigned char *u422, *u444, *v422, *v444;
 	int pitch, vfapi_progressive, ident;
@@ -1551,7 +1804,7 @@ public:
 NoAVSAccess g_A;
 NoAVSLinkedList g_LL;
 
-MPEG2Source::MPEG2Source(const char* d2v)
+MPEG2Source::MPEG2Source(const char* d2v, int _upConv)
 {
 	CheckCPU();
 
@@ -1564,9 +1817,14 @@ MPEG2Source::MPEG2Source(const char* d2v)
 	m_decoder.info = 0;
 	m_decoder.showQ = false;
 	m_decoder.fastMC = false;
-	m_decoder.upConv = false;
+	m_decoder.upConv = _upConv == 1 ? 1 : 0;
 	m_decoder.i420 = false;
 	m_decoder.Clip_Width = -1;  // used for checking correct opening
+	m_decoder.pp_mode = 0;
+	m_decoder.moderate_h = 20;
+	m_decoder.moderate_v = 40;
+	m_decoder.iPP = -1;
+	m_decoder.iCC = -1;
 
 	const char *path = d2v;
 
@@ -1588,8 +1846,8 @@ MPEG2Source::MPEG2Source(const char* d2v)
 	memset(&vi, 0, sizeof(vi));
 	vi.width = m_decoder.Clip_Width;
 	vi.height = m_decoder.Clip_Height;
-	if (m_decoder.chroma_format == 1) vi.pixel_type = VideoInfo::CS_YV12;
-	else if (m_decoder.chroma_format == 2) vi.pixel_type = VideoInfo::CS_YUY2;
+	if (m_decoder.chroma_format == 1 && _upConv == 0) vi.pixel_type = VideoInfo::CS_YV12;
+	else if (m_decoder.chroma_format == 2 || _upConv > 0) vi.pixel_type = VideoInfo::CS_YUY2;
 	else
 	{
 		dprintf("MPEG2Source: unsupported color format (4:4:4)");
@@ -1600,25 +1858,8 @@ MPEG2Source::MPEG2Source(const char* d2v)
 	vi.num_frames = m_decoder.VF_FrameLimit;
 	vi.SetFieldBased(false);
 
-	int cpu = 0;
-
-	switch (cpu) {
-		case 0 : _PP_MODE = 0; break;
-		case 1 : _PP_MODE = PP_DEBLOCK_Y_H; break;
-		case 2 : _PP_MODE = PP_DEBLOCK_Y_H | PP_DEBLOCK_Y_V; break;
-		case 3 : _PP_MODE = PP_DEBLOCK_Y_H | PP_DEBLOCK_Y_V | PP_DEBLOCK_C_H; break;
-		case 4 : _PP_MODE = PP_DEBLOCK_Y_H | PP_DEBLOCK_Y_V | PP_DEBLOCK_C_H | PP_DEBLOCK_C_V; break;
-		case 5 : _PP_MODE = PP_DEBLOCK_Y_H | PP_DEBLOCK_Y_V | PP_DEBLOCK_C_H | PP_DEBLOCK_C_V | PP_DERING_Y; break;
-		case 6 : _PP_MODE = PP_DEBLOCK_Y_H | PP_DEBLOCK_Y_V | PP_DEBLOCK_C_H | PP_DEBLOCK_C_V | PP_DERING_Y | PP_DERING_C; break;
-		default : dprintf("MPEG2Source : cpu level invalid (0 to 6)"); return;
-	}
-
-	m_decoder.pp_mode = _PP_MODE;
-	m_decoder.moderate_h = 20;
-	m_decoder.moderate_v = 40;
-	m_decoder.iPP = -1;
-
 	bufY = bufU = bufV = NULL;
+	u444 = v444 = NULL;
 
 	out = (YV12PICT*)aligned_malloc(sizeof(YV12PICT),0);
 }
@@ -1627,13 +1868,15 @@ void MPEG2Source::GetFrame(int n, unsigned char *buffer, int pitch)
 {
 	out->y = buffer;
 	out->u = out->y + (pitch * m_decoder.Coded_Picture_Height);
-	out->v = out->u + ((pitch * m_decoder.Chroma_Height)/2);
+	if (vi.IsYV12()) out->v = out->u + ((pitch * m_decoder.Chroma_Height)/2);
+	else out->v = out->u + ((pitch * m_decoder.Coded_Picture_Height)/2);
 	out->ypitch = pitch;
 	out->uvpitch = pitch/2;
 	out->ywidth = m_decoder.Coded_Picture_Width;
 	out->yheight = m_decoder.Coded_Picture_Height;
 	out->uvwidth = m_decoder.Chroma_Width;
-	out->uvheight = m_decoder.Chroma_Height;
+	if (vi.IsYV12()) out->uvheight = m_decoder.Chroma_Height;
+	else out->uvheight = m_decoder.Coded_Picture_Height;
 
 	m_decoder.Decode(n, out);
 
@@ -1652,23 +1895,26 @@ extern "C" __declspec(dllexport) VideoInfo* __cdecl openMPEG2Source(char* file)
 	char *p;
 
 	// If the D2V filename has _P just before the extension, force
-	// progressive upsampling; otherwise, use interlaced.
+	// progressive upsampling.
 	p = file + strlen(file);
 	while (*p != '.' && p != file) p--;
 	if (p == file) return NULL;
 	p -= 2;
-	if (p[0] == '_' && p[1] == 'P')
-		g_A.vfapi_progressive = 1;
+	if (p[0] == '_' && p[1] == 'P') g_A.vfapi_progressive = 1;
 	else
-		g_A.vfapi_progressive = 0;
-	
-	g_A.ext_cscale.RGB_Scale  = 0x1000254310002543;
-	g_A.ext_cscale.RGB_Offset = 0x0010001000100010;
-	g_A.ext_cscale.RGB_CBU    = 0x0000408D0000408D;
-	g_A.ext_cscale.RGB_CGX    = 0xF377E5FCF377E5FC;
-	g_A.ext_cscale.RGB_CRV    = 0x0000331300003313;
+	{
+		// If the D2V filename has _A just before the extension, force
+		// automatic upsampling based on pf flag (getFrame() will return yuy2
+		// even if input is yv12). Otherwise, default to interlaced upsampling.
+		p = file + strlen(file);
+		while (*p != '.' && p != file) p--;
+		if (p == file) return NULL;
+		p -= 2;
+		if (p[0] == '_' && p[1] == 'A') g_A.vfapi_progressive = -1;
+		else g_A.vfapi_progressive = 0;
+	}
 
-	g_A.vf = new MPEG2Source(file);
+	g_A.vf = new MPEG2Source(file, g_A.vfapi_progressive == -1 ? 1 : 0);
 	if (!g_A.vf || g_A.vf->m_decoder.Clip_Width < 0) return NULL;
 
 	g_A.pvi = g_A.vf->GetVideoInfo();
@@ -1689,7 +1935,19 @@ extern "C" __declspec(dllexport) VideoInfo* __cdecl openMPEG2Source(char* file)
 
 extern "C" __declspec(dllexport) unsigned char* __cdecl getFrame(int frame)
 {
-	g_A.vf->GetFrame(frame, g_A.buffer, g_A.pitch);
+	if (g_A.vf->GetVideoInfo().pixel_type == VideoInfo::CS_YV12)
+	{
+		g_A.vf->GetFrame(frame, g_A.buffer, g_A.pitch);
+	}
+	else
+	{
+		g_A.vf->GetFrame(frame, g_A.picture, g_A.pitch);
+		conv422toYUV422(g_A.picture, g_A.picture+(g_A.pitch*g_A.vf->m_decoder.Clip_Height),
+			g_A.picture+(g_A.pitch*g_A.vf->m_decoder.Clip_Height)+((g_A.pitch*g_A.vf->m_decoder.Clip_Height)/2),
+			g_A.buffer,g_A.pitch,g_A.pitch/2,g_A.pitch*2,g_A.vf->m_decoder.Clip_Width,
+			g_A.vf->m_decoder.Clip_Height);
+	}
+
 	return g_A.buffer;
 }
 
@@ -1709,7 +1967,8 @@ extern "C" __declspec(dllexport) unsigned char* __cdecl getRGBFrame(int frame)
 			g_A.pvi.width, g_A.pvi.height);
 		conv422to444(g_A.v422, g_A.v444, g_A.pvi.width>>1, g_A.pvi.width, g_A.pvi.width, g_A.pvi.height);
 		conv444toRGB24(y, g_A.u444, g_A.v444, g_A.picture, g_A.pvi.width, g_A.pvi.width, 
-			g_A.pvi.width * 3, g_A.pvi.width, g_A.pvi.height, &g_A.ext_cscale);
+			g_A.pvi.width * 3, g_A.pvi.width, g_A.pvi.height, g_A.vf->getMatrix(frame), 
+			g_A.vf->m_decoder.pc_scale);
 	}
 	else
 	{
@@ -1719,7 +1978,8 @@ extern "C" __declspec(dllexport) unsigned char* __cdecl getRGBFrame(int frame)
 		conv422to444(u, g_A.u444, g_A.pvi.width>>1, g_A.pvi.width, g_A.pvi.width, g_A.pvi.height);
 		conv422to444(v, g_A.v444, g_A.pvi.width>>1, g_A.pvi.width, g_A.pvi.width, g_A.pvi.height);
 		conv444toRGB24(y, g_A.u444, g_A.v444, g_A.picture, g_A.pvi.width, g_A.pvi.width, 
-			g_A.pvi.width * 3, g_A.pvi.width, g_A.pvi.height, &g_A.ext_cscale);
+			g_A.pvi.width * 3, g_A.pvi.width, g_A.pvi.height,  g_A.vf->getMatrix(frame), 
+			g_A.vf->m_decoder.pc_scale);
 	}
 
 	return g_A.picture;
@@ -1767,7 +2027,7 @@ extern "C" __declspec(dllexport) VideoInfo* __cdecl openMPEG2SourceMI(char* file
 	char *p;
 
 	// If the D2V filename has _P just before the extension, force
-	// progressive upsampling; otherwise, use interlaced.
+	// progressive upsampling.
 	p = file + strlen(file);
 	while (*p != '.' && p != file) p--;
 	if (p == file) 
@@ -1777,18 +2037,25 @@ extern "C" __declspec(dllexport) VideoInfo* __cdecl openMPEG2SourceMI(char* file
 		return NULL;
 	}
 	p -= 2;
-	if (p[0] == '_' && p[1] == 'P')
-		j->vfapi_progressive = 1;
+	if (p[0] == '_' && p[1] == 'P') j->vfapi_progressive = 1;
 	else
-		j->vfapi_progressive = 0;
-	
-	j->ext_cscale.RGB_Scale  = 0x1000254310002543;
-	j->ext_cscale.RGB_Offset = 0x0010001000100010;
-	j->ext_cscale.RGB_CBU    = 0x0000408D0000408D;
-	j->ext_cscale.RGB_CGX    = 0xF377E5FCF377E5FC;
-	j->ext_cscale.RGB_CRV    = 0x0000331300003313;
+	{
+		// If the D2V filename has _A just before the extension, force
+		// automatic upsampling. Otherwise, force interlaced.
+		p = file + strlen(file);
+		while (*p != '.' && p != file) p--;
+		if (p == file) 
+		{
+			g_LL.remapPointers(j);
+			delete j;
+			return NULL;
+		}
+		p -= 2;
+		if (p[0] == '_' && p[1] == 'A') j->vfapi_progressive = -1;
+		else j->vfapi_progressive = 0;
+	}
 
-	j->vf = new MPEG2Source(file);
+	j->vf = new MPEG2Source(file, j->vfapi_progressive == -1 ? 1 : 0);
 	if (!j->vf || j->vf->m_decoder.Clip_Width < 0) 
 	{
 		g_LL.remapPointers(j);
@@ -1824,7 +2091,18 @@ extern "C" __declspec(dllexport) unsigned char* __cdecl getFrameMI(int frame, in
 		return NULL;
 	}
 
-	i->vf->GetFrame(frame, i->buffer, i->pitch);
+	if (i->vf->GetVideoInfo().pixel_type == VideoInfo::CS_YV12)
+	{
+		i->vf->GetFrame(frame, i->buffer, i->pitch);
+	}
+	else
+	{
+		i->vf->GetFrame(frame, i->picture, i->pitch);
+		conv422toYUV422(i->picture, i->picture+(i->pitch*i->vf->m_decoder.Clip_Height),
+			i->picture+(i->pitch*i->vf->m_decoder.Clip_Height)+((i->pitch*i->vf->m_decoder.Clip_Height)/2),
+			i->buffer,i->pitch,i->pitch/2,i->pitch*2,i->vf->m_decoder.Clip_Width,
+			i->vf->m_decoder.Clip_Height);
+	}
 
 	return i->buffer;
 }
@@ -1855,7 +2133,8 @@ extern "C" __declspec(dllexport) unsigned char* __cdecl getRGBFrameMI(int frame,
 			i->pvi.width, i->pvi.height);
 		conv422to444(i->v422, i->v444, i->pvi.width>>1, i->pvi.width, i->pvi.width, i->pvi.height);
 		conv444toRGB24(y, i->u444, i->v444, i->picture, i->pvi.width, i->pvi.width, 
-			i->pvi.width * 3, i->pvi.width, i->pvi.height, &i->ext_cscale);
+			i->pvi.width * 3, i->pvi.width, i->pvi.height, i->vf->getMatrix(frame), 
+			i->vf->m_decoder.pc_scale);
 	}
 	else
 	{
@@ -1865,7 +2144,8 @@ extern "C" __declspec(dllexport) unsigned char* __cdecl getRGBFrameMI(int frame,
 		conv422to444(u, i->u444, i->pvi.width>>1, i->pvi.width, i->pvi.width, i->pvi.height);
 		conv422to444(v, i->v444, i->pvi.width>>1, i->pvi.width, i->pvi.width, i->pvi.height);
 		conv444toRGB24(y, i->u444, i->v444, i->picture, i->pvi.width, i->pvi.width, 
-			i->pvi.width * 3, i->pvi.width, i->pvi.height, &i->ext_cscale);
+			i->pvi.width * 3, i->pvi.width, i->pvi.height, i->vf->getMatrix(frame), 
+			i->vf->m_decoder.pc_scale);
 	}
 
 	return i->picture;

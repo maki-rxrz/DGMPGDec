@@ -226,24 +226,21 @@ private:
 
   _INLINE_ void Update_Picture_Buffers(void);
   _INLINE_ void picture_data(void);
-  _INLINE_ int slice(int MBAmax);
+  _INLINE_ void slice(int MBAmax, unsigned int code);
   _INLINE_ void macroblock_modes(int *pmacroblock_type, int *pmotion_type, 
-  	int *pmotion_vector_count, int *pmv_format, int *pdmv, int *pmvscale, int *pdct_type);
+								 int *pmotion_vector_count, int *pmv_format, int *pdmv, int *pmvscale, int *pdct_type);
   _INLINE_ void Clear_Block(int count);
   _INLINE_ void Add_Block(int count, int bx, int by, int dct_type, int addflag);
   _INLINE_ void motion_compensation(int MBA, int macroblock_type, int motion_type,
-	  int PMV[2][2][2], int motion_vertical_field_select[2][2], int dmvector[2], int dct_type);
+									int PMV[2][2][2], int motion_vertical_field_select[2][2], int dmvector[2], int dct_type);
   _INLINE_ void skipped_macroblock(int dc_dct_pred[3], int PMV[2][2][2], 
-  	int *motion_type, int motion_vertical_field_select[2][2], int *macroblock_type);
-  _INLINE_ int start_of_slice(int *MBA, int *MBAinc, int dc_dct_pred[3], int PMV[2][2][2]);
-  _INLINE_ int decode_macroblock(int *macroblock_type, int *motion_type, int *dct_type,
-	  int PMV[2][2][2], int dc_dct_pred[3], int motion_vertical_field_select[2][2], int dmvector[2]);
+								   int *motion_type, int motion_vertical_field_select[2][2], int *macroblock_type);
+  _INLINE_ void decode_macroblock(int *macroblock_type, int *motion_type, int *dct_type,
+								  int PMV[2][2][2], int dc_dct_pred[3], int motion_vertical_field_select[2][2], int dmvector[2]);
   _INLINE_ void Decode_MPEG1_Intra_Block(int comp, int dc_dct_pred[]);
   _INLINE_ void Decode_MPEG1_Non_Intra_Block(int comp);
   _INLINE_ void Decode_MPEG2_Intra_Block(int comp, int dc_dct_pred[]);
   _INLINE_ void Decode_MPEG2_Non_Intra_Block(int comp);
-  _INLINE_ void Decode_MPEG2_Intra_Block_SSE(int comp, int dc_dct_pred[]);
-  _INLINE_ void Decode_MPEG2_Non_Intra_Block_SSE(int comp);
 
   _INLINE_ int Get_macroblock_type(void);
   _INLINE_ int Get_I_macroblock_type(void);
@@ -331,13 +328,11 @@ protected:
   // global values
   unsigned char *backward_reference_frame[3], *forward_reference_frame[3];
   unsigned char *auxframe[3], *current_frame[3];
-  unsigned char *u422, *v422, *u444, *v444;
+  unsigned char *u422, *v422;
   YV12PICT *auxFrame1;
   YV12PICT *auxFrame2;
   YV12PICT *saved_active;
   YV12PICT *saved_store;
-
-  __int64 RGB_Scale, RGB_Offset, RGB_CRV, RGB_CBU, RGB_CGX;
 
 
 public:
@@ -414,6 +409,8 @@ protected:
   _INLINE_ void Copyodd(YV12PICT *src, YV12PICT *dst);
   _INLINE_ void Copyeven(YV12PICT *src, YV12PICT *dst);
   _INLINE_ void Copyoddeven(YV12PICT *odd, YV12PICT *even, YV12PICT *dst);
+  _INLINE_ void CopyPlane(unsigned char *src, int src_pitch, unsigned char *dst, int dst_pitch,
+							  int width, int height);
 
 public:
   FILE		*VF_File;
@@ -428,12 +425,13 @@ public:
   void Close();
   void Decode(DWORD frame, YV12PICT *dst);
 
-  int iPP;
+  int iPP, iCC;
   bool fastMC;
   bool showQ;
   int* QP;
-  bool upConv;
+  int upConv;
   bool i420;
+  int pc_scale;
 
   // info option stuff
   int info;

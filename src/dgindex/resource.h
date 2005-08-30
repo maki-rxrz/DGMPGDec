@@ -44,6 +44,7 @@
 #define IDC_FILE                        1027
 #define IDC_PROFILE                     1027
 #define IDC_FPS                         1028
+#define IDC_COLORIMETRY                 1029
 #define IDC_TIMESTAMP                   1030
 #define IDC_LIST                        1031
 #define IDC_FRAME_STRUCTURE             1031
@@ -168,6 +169,19 @@
 #define IDM_PARSE_D2V                   32871
 #define IDM_FIX_D2V                     32872
 #define IDM_SPEED                       32873
+#define IDM_IDCT_SKAL                   32874
+#define IDM_IDCT_SIMPLE                 32875
+#define IDM_LOG_QUANTS                  32877
+#define IDM_SPEED_SUPER_SLOW            32878
+#define IDM_SPEED_SLOW                  32879
+#define IDM_SPEED_NORMAL                32880
+#define IDM_SPEED_FAST                  32881
+#define IDM_SPEED_MAXIMUM               32882
+#define IDM_FORCE_OPEN                  32883
+#define IDM_SPEED_SINGLE_STEP           32884
+#define IDM_DGINDEX_MANUAL              32885
+#define IDM_DGDECODE_MANUAL             32886
+#define IDM_QUICK_START                 32887
 #define IDC_STATIC                      -1
 
 // Next default values for new objects
@@ -175,7 +189,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        144
-#define _APS_NEXT_COMMAND_VALUE         32874
+#define _APS_NEXT_COMMAND_VALUE         32888
 #define _APS_NEXT_CONTROL_VALUE         1075
 #define _APS_NEXT_SYMED_VALUE           107
 #endif

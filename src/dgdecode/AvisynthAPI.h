@@ -36,11 +36,13 @@ protected:
   int _PP_MODE;
   YV12PICT *out;
   unsigned char *bufY, *bufU, *bufV; // for 4:2:2 input support
+  unsigned char *u444, *v444;		 // for RGB24 output
 
 public:
-  MPEG2Source(const char* d2v);
-  MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int moderate_h, int moderate_v, bool showQ, bool fastMC, const char* _cpu2, int _info, bool _upConv, bool _i420, IScriptEnvironment* env);
+  MPEG2Source(const char* d2v, int _upConv);
+  MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int moderate_h, int moderate_v, bool showQ, bool fastMC, const char* _cpu2, int _info, int _upConv, bool _i420, int iCC, IScriptEnvironment* env);
   ~MPEG2Source();
+  int MPEG2Source::getMatrix(int n);
 
   PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
   void GetFrame(int n, unsigned char *buffer, int pitch);
@@ -54,14 +56,6 @@ public:
 					   int pitch1Y, int pitch1UV, int pitch2, int width, int height);
 
   CMPEG2Decoder m_decoder;
-};
-
-struct YUVRGBScale {
-	__int64 RGB_Offset;
-	__int64 RGB_Scale;
-	__int64 RGB_CBU;
-	__int64 RGB_CRV;
-	__int64 RGB_CGX;
 };
 
 class BlindPP : public GenericVideoFilter {
@@ -82,6 +76,15 @@ public:
 
 void conv420to422(const unsigned char *src, unsigned char *dst, int frame_type, int src_pitch,
 				  int dst_pitch, int width, int height);
+void conv420to422P_iSSE(const unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch,
+						int width, int height);
+void conv422to444(const unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch, 
+			int width, int height);
+void conv422to444_iSSE(const unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch, 
+			int width, int height);
+void conv444toRGB24(const unsigned char *py, const unsigned char *pu, const unsigned char *pv, 
+				unsigned char *dst, int src_pitchY, int src_pitchUV, int dst_pitch, int width, 
+				int height, int matrix, int pc_scale);
 
 /* Macros for accessing easily frame pointers and pitch */
 #define YRPLAN(a) (a)->GetReadPtr(PLANAR_Y)

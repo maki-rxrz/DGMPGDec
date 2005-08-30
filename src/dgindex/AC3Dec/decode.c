@@ -174,6 +174,19 @@ error:
 
 void InitialAC3()
 {
+	int i, count;
+
+	for (i = 0, count = 0; i < 8; i++)
+	{
+		if (Track_Flag & (1 << i))
+			count++;
+	}
+	if (count > 1)
+	{
+		MessageBox(hWnd, "Cannot decode multiple AC3 streams at the same time.\nMake sure only one track is selected.", NULL, MB_OK | MB_ICONERROR);
+		ThreadKill();
+	}
+
 	error_flag = buffer_size = 0;
 
 	ZeroMemory(&syncinfo, sizeof(syncinfo));

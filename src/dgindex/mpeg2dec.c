@@ -37,9 +37,9 @@ DWORD WINAPI MPEG2Dec(LPVOID n)
 
 __try
 {
-	Pause_Flag = Stop_Flag = Start_Flag = Fault_Flag = false;
+	Pause_Flag = Stop_Flag = Start_Flag = false;
+	Fault_Flag = 0;
 	Frame_Number = Second_Field = 0;
-	VOB_ID = CELL_ID = 0;
 	Sound_Max = 1; Bitrate_Monitor = 0;
 
 	for (i=0; i<CHANNEL; i++)
@@ -49,7 +49,7 @@ __try
 		ZeroMemory(&dts[i], sizeof(RAWStream));
 	}
 
-	ZeroMemory(&pcm, sizeof(struct PCMStream));
+	ZeroMemory(pcm, sizeof(pcm));
 	ZeroMemory(&Channel, sizeof(Channel));
 	mpafp = mpvfp = NULL;
 
@@ -133,8 +133,9 @@ do_rip_play:
 	if (!Check_Flag)
 	{
 		int code;
-		int i;
+		int i, count;
 		unsigned int show;
+		unsigned char buf[200];
 
 		// Position to start of the first file.
 		CurrentFile = 0;
@@ -154,34 +155,48 @@ do_rip_play:
 			Flush_Buffer(8);
 		}
 
-		// Position to start of the first file.
-		CurrentFile = 0;
+		// First see if it is a transport stream.
+
+		// Skip any leading null characters, because some
+		// captured transport files were seen to start with a large
+		// number of nulls.
 		_lseeki64(Infile[0], 0, SEEK_SET);
-		Initialize_Buffer();
-
-		// Determine the stream type and the MPEG type.
-
-		// First look for transport streams.
-		// Search for a sync byte. Gives some protection against emulation.
-		for(i = 0; i < 188; i++)
+		for (;;)
 		{
-			if (Get_Byte() != 0x47) continue;
-			if (Rdptr + 187 >= Rdbfr + BUFFER_SIZE && Rdptr[-189] == 0x47)
+			if (_read(Infile[0], buf, 1) == 0)
 			{
-				SystemStream_Flag = TRANSPORT_STREAM;
-				mpeg_type = IS_MPEG2;
-				is_program_stream = 0;
+				// EOF
+				MessageBox(hWnd, "File contains all nulls!", NULL, MB_OK | MB_ICONERROR);
+				return 0;
+			}
+			if (buf[0] != 0)
+			{
+				// Unread the non-null byte and exit.
+				_lseeki64(Infile[0], _lseeki64(Infile[0], 0, SEEK_CUR) - 1, SEEK_SET);
 				break;
 			}
-			else if (Rdptr + 187 < Rdbfr + BUFFER_SIZE && Rdptr[+187] == 0x47)
+		}
+
+		// Search for four sync bytes 188 bytes apart.
+		// Gives good protection against sync byte emulation.
+		// Look in the first 10000 good data bytes of the file only,
+		// then give up.
+		for (i = 0, count = 0; i < 10000; i++)
+		{
+			_read(Infile[0], buf, 1);
+			if (buf[0] == 0x47)
 			{
-				SystemStream_Flag = TRANSPORT_STREAM;
-				mpeg_type = IS_MPEG2;
-				is_program_stream = 0;
-				break;
+				if (count++ >= 4)
+				{
+					SystemStream_Flag = TRANSPORT_STREAM;
+					mpeg_type = IS_MPEG2;
+					is_program_stream = 0;
+					break;
+				}
+				_read(Infile[0], buf, 187);
 			}
 			else
-				continue;
+				count = 0;
 		}
 
 		// Now try for PVA streams. Look for a packet start in the first 1024 bytes.
@@ -250,13 +265,18 @@ do_rip_play:
 		CurrentFile = 0;
 		_lseeki64(Infile[0], 0, SEEK_SET);
 		Initialize_Buffer();
-		while (Get_Hdr(0) && picture_coding_type != I_TYPE)
+		for (;;)
+		{
+			if (Stop_Flag) break;
+			Get_Hdr(0);
+			if (picture_coding_type == I_TYPE) break;
+		}
 		LeadingBFrames = 0;
 		for (;;)
 		{
 			if (Get_Hdr(1) == 1)
 			{
-				// We hit a sequence end code, so there are no
+				// We hit a sequence end code or end of file, so there are no
 				// more frames.
 				break;
 			}
@@ -285,7 +305,7 @@ do_rip_play:
 		fprintf(D2VFile, "DGIndexProjectFile%d\n%d\n", D2V_FILE_VERSION, i);
 		while (i)
 		{
-			fprintf(D2VFile, "%d %s\n", strlen(Infilename[NumLoadedFiles-i]), Infilename[NumLoadedFiles-i]);
+			fprintf(D2VFile, "%s\n", Infilename[NumLoadedFiles-i]);
 			i--;
 		}
 
@@ -293,7 +313,7 @@ do_rip_play:
 		if (SystemStream_Flag == TRANSPORT_STREAM)
 			fprintf(D2VFile, "MPEG2_Transport_PID=%x,%x\n", MPEG2_Transport_VideoPID, MPEG2_Transport_AudioPID);
 
-		fprintf(D2VFile, "MPEG_Type=%d\n", mpeg_type == IS_MPEG2 ? 2 : 1);
+		fprintf(D2VFile, "MPEG_Type=%d\n", mpeg_type);
 		fprintf(D2VFile, "iDCT_Algorithm=%d\n", iDCT_Flag);
 		fprintf(D2VFile, "YUVRGB_Scale=%d\n", Scale_Flag);
 		if (Luminance_Flag)
@@ -326,6 +346,7 @@ do_rip_play:
 
 		// Default to ITU-709.
 		matrix_coefficients = 1;
+		setRGBValues();
 	}
 
 	// Start normal decoding from the start position.
@@ -498,4 +519,66 @@ static void InitialDecoder()
 	Clip_Height = Coded_Picture_Height;
 
 	CheckDirectDraw();
+}
+
+void setRGBValues()
+{
+	if (Scale_Flag)
+	{
+		RGB_Scale = 0x1000254310002543;
+		RGB_Offset = 0x0010001000100010;
+		if (matrix_coefficients == 7) // SMPTE 240M (1987)
+		{
+			RGB_CBU = 0x0000428500004285;
+			RGB_CGX = 0xF7BFEEA3F7BFEEA3;
+			RGB_CRV = 0x0000396900003969;
+		}
+		else if (matrix_coefficients == 6 || matrix_coefficients == 5) // SMPTE 170M/ITU-R BT.470-2 -- BT.601
+		{
+			RGB_CBU = 0x0000408D0000408D;
+			RGB_CGX = 0xF377E5FCF377E5FC;
+			RGB_CRV = 0x0000331300003313;
+		}
+		else if (matrix_coefficients == 4) // FCC
+		{
+			RGB_CBU = 0x000040D8000040D8;
+			RGB_CGX = 0xF3E9E611F3E9E611;
+			RGB_CRV = 0x0000330000003300;
+		}
+		else // ITU-R Rec.709 (1990) -- BT.709
+		{
+			RGB_CBU = 0x0000439A0000439A;
+			RGB_CGX = 0xF92CEEF1F92CEEF1;
+			RGB_CRV = 0x0000395F0000395F;
+		}
+	}
+	else
+	{
+		RGB_Scale = 0x1000200010002000;
+		RGB_Offset = 0x0000000000000000;
+		if (matrix_coefficients == 7) // SMPTE 240M (1987)
+		{
+			RGB_CBU = 0x00003A6F00003A6F;
+			RGB_CGX = 0xF8C0F0BFF8C0F0BF;
+			RGB_CRV = 0x0000326E0000326E;
+		}
+		else if (matrix_coefficients == 6 || matrix_coefficients == 5) // SMPTE 170M/ITU-R BT.470-2 -- BT.601
+		{
+			RGB_CBU = 0x000038B4000038B4;
+			RGB_CGX = 0xF4FDE926F4FDE926;
+			RGB_CRV = 0x00002CDD00002CDD;
+		}
+		else if (matrix_coefficients == 4) // FCC
+		{
+			RGB_CBU = 0x000038F6000038F6;
+			RGB_CGX = 0xF561E938F561E938;
+			RGB_CRV = 0x00002CCD00002CCD;
+		}
+		else // ITU-R Rec.709 (1990) -- BT.709
+		{
+			RGB_CBU = 0x00003B6200003B62;
+			RGB_CGX = 0xFA00F104FA00F104;
+			RGB_CRV = 0x0000326600003266;
+		}
+	}
 }

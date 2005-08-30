@@ -34,6 +34,7 @@ __forceinline static void decode_motion_vector(int *pred, int r_size, int motion
 	int motion_residualesidual, int full_pel_vector);
 __forceinline static int Get_motion_code(void);
 __forceinline static int Get_dmvector(void);
+extern void SetFaultFlag(int val);
 
 /* ISO/IEC 13818-2 sections 6.2.5.2, 6.3.17.2, and 7.6.3: Motion vectors */
 void motion_vectors(int PMV[2][2][2],int dmvector[2],
@@ -175,24 +176,24 @@ static int Get_motion_code()
 	{
 		code >>= 6;
 		Flush_Buffer(MVtab0[code].len);
-		return Get_Bits(1)?-MVtab0[code].val:MVtab0[code].val;
+		return (Get_Bits(1) ? -MVtab0[code].val : MVtab0[code].val);
 	}
 
 	if (code>=24)
 	{
 		code >>= 3;
 		Flush_Buffer(MVtab1[code].len);
-		return Get_Bits(1)?-MVtab1[code].val:MVtab1[code].val;
+		return (Get_Bits(1) ? -MVtab1[code].val : MVtab1[code].val);
 	}
 
 	if (code >= 12)
 	{
 		code -= 12;
 		Flush_Buffer(MVtab2[code].len);
-		return Get_Bits(1) ? -MVtab2[code].val : MVtab2[code].val;
+		return (Get_Bits(1) ? -MVtab2[code].val : MVtab2[code].val);
 	}
 
-	Fault_Flag = 10;
+	SetFaultFlag(6);
 	return 0;
 }
 

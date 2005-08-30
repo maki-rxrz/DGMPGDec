@@ -20,6 +20,8 @@
  *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
  *
  */
+#include <windows.h>
+#include "resource.h"
 
 #define GLOBAL
 extern "C"
@@ -29,7 +31,7 @@ extern "C"
 #include "pat.h"
 }
 
-static char Version[] = "DGIndex 1.4.0";
+static char Version[] = "DGIndex 1.4.3";
 
 #define TRACK_HEIGHT	30
 #define INIT_WIDTH		480
@@ -109,7 +111,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	char suffix[_MAX_PATH];
 	char *p, *q;
 	int val;
-	char ucCmdLine[1024];
+	char ucCmdLine[4096];
 	char delimiter1[2], delimiter2[2], save;
 
 	// Load INI
@@ -118,11 +120,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 NEW_VERSION:
 		INIT_X = INIT_Y = 100;
 
-		iDCT_Flag = IDCT_SSE2MMX;
+		iDCT_Flag = IDCT_SKAL;
 		Scale_Flag = true;
+		setRGBValues();
 		FO_Flag = FO_NONE;
 		Method_Flag = AUDIO_DEMUXALL;
-		Track_Flag = TRACK_1;
+		Track_Flag = 1 << TRACK_1;
 		DRC_Flag = DRC_NORMAL;
 		DSDown_Flag = false;
 		SRC_Flag = SRC_NONE;
@@ -130,8 +133,8 @@ NEW_VERSION:
 		Priority_Flag = PRIORITY_NORMAL;
 		MPEG2_Transport_VideoPID = 0x02;
 		MPEG2_Transport_AudioPID = 0x02;
-		PlaybackSpeed = 100;
-		PlaybackDelay = 0;
+		PlaybackSpeed = SPEED_NORMAL;
+		ForceOpenGops = 0;
 	}
 	else
 	{
@@ -154,9 +157,12 @@ NEW_VERSION:
 
 		fscanf(INIFile, "iDCT_Algorithm=%d\n", &iDCT_Flag);
 		fscanf(INIFile, "YUVRGB_Scale=%d\n", &Scale_Flag);
+		setRGBValues();
 		fscanf(INIFile, "Field_Operation=%d\n", &FO_Flag);
 		fscanf(INIFile, "Output_Method=%d\n", &Method_Flag);
 		fscanf(INIFile, "Track_Number=%d\n", &Track_Flag);
+		// To handle old INI files.
+		if (Track_Flag == 0) Track_Flag = 1;
 		fscanf(INIFile, "DR_Control=%d\n", &DRC_Flag);
 		fscanf(INIFile, "DS_Downmix=%d\n", &DSDown_Flag);
 		fscanf(INIFile, "SRC_Precision=%d\n", &SRC_Flag);
@@ -165,9 +171,21 @@ NEW_VERSION:
 		fscanf(INIFile, "Transport_PIDs=%x,%x\n", &MPEG2_Transport_VideoPID, &MPEG2_Transport_AudioPID);
 		if (fscanf(INIFile, "Playback_Speed=%d\n", &PlaybackSpeed) != 1)
 		{
-			PlaybackSpeed = 100;
+			// Old INI file with no PlaybackSpeed option.
+			// Set normal speed.
+			PlaybackSpeed = SPEED_NORMAL;
 		}
-		PlaybackDelay = 100 - PlaybackSpeed;
+		if (PlaybackSpeed > 4)
+		{
+			// Old INI file with wrong PlaybackSpeed value.
+			// Set normal speed.
+			PlaybackSpeed = SPEED_NORMAL;
+		}
+		if (fscanf(INIFile, "Force_Open_Gops=%d\n", &ForceOpenGops) != 1)
+		{
+			// Old INI file with no ForceOpenGops option.
+			ForceOpenGops = 0;
+		}
 
 		fclose(INIFile);
 	}
@@ -223,6 +241,7 @@ TEST_END:
 	if (!cpu.ssemmx)
 	{
 		DeleteMenu(hMenu, IDM_IDCT_SSEMMX, 0);
+		DeleteMenu(hMenu, IDM_IDCT_SKAL, 0);
 	}
 
 	if (cpu.mmx)
@@ -310,7 +329,7 @@ TEST_END:
 			*ende = 0;
 			strcpy(aFName, ptr);
 			*ende = save;
-			while (true)
+			for (;;)
 			{
 				/* If the specified file does not include a path, use the
 				   current directory. */
@@ -471,6 +490,8 @@ TEST_END:
  		CheckMenuItem(hMenu, IDM_IDCT_SSE2MMX, MF_UNCHECKED);
 		CheckMenuItem(hMenu, IDM_IDCT_FPU, MF_UNCHECKED);
 		CheckMenuItem(hMenu, IDM_IDCT_REF, MF_UNCHECKED);
+		CheckMenuItem(hMenu, IDM_IDCT_SKAL, MF_UNCHECKED);
+		CheckMenuItem(hMenu, IDM_IDCT_SIMPLE, MF_UNCHECKED);
    
 		switch (*(strstr(ptr,"=")+1))
 		{
@@ -489,6 +510,12 @@ TEST_END:
 		  break;
 		case '5':
 		  iDCT_Flag = IDCT_REF;
+		  break;
+		case '6':
+		  iDCT_Flag = IDCT_SKAL;
+		  break;
+		case '7':
+		  iDCT_Flag = IDCT_SIMPLE;
 		  break;
 		}
 		CheckFlag();
@@ -532,22 +559,14 @@ TEST_END:
 		{
 		default:
 		case '1':
-		  RGB_Scale = 0x1000254310002543;
-		  RGB_Offset = 0x0010001000100010;
-		  RGB_CBU = 0x0000408D0000408D;
-		  RGB_CGX = 0xF377E5FCF377E5FC;
-		  RGB_CRV = 0x0000331300003313;     
 		  Scale_Flag = true;
+		  setRGBValues();    
 		  CheckMenuItem(hMenu, IDM_PCSCALE, MF_CHECKED);
 		  break;
       
 		case '2':
-		  RGB_Scale = 0x1000200010002000;
-		  RGB_Offset = 0x0000000000000000;
-		  RGB_CBU = 0x000038B4000038B4;
-		  RGB_CGX = 0xF4FDE926F4FDE926;
-		  RGB_CRV = 0x00002CDD00002CDD;     
 		  Scale_Flag = false;
+		  setRGBValues();
 		  CheckMenuItem(hMenu, IDM_TVSCALE, MF_CHECKED);
 		  break;
 		}
@@ -558,11 +577,31 @@ TEST_END:
     //Track number
     if ((ptr = strstr(ucCmdLine,"-TRACK-NUMBER")) || (ptr = strstr(ucCmdLine,"-TN")))
     {
+		int tmp;
+		Track_Flag = 0;
 		ptr = lpCmdLine + (ptr - ucCmdLine);
-		Track_Flag = *(strstr(ptr,"=")+1) - '0' - 1;
-		if (Track_Flag < 0 || Track_Flag > 7) Track_Flag = 0;
+		ptr = strstr(ptr,"=") + 1;
+		for (;;)
+		{
+			// Parse TN=x,y,z
+			sscanf(ptr, "%d", &tmp);
+			if (tmp >= 1 && tmp <= 8)
+			{
+				Track_Flag |= (1 << (tmp - 1));
+			}
+			while (*ptr != ',' && *ptr != ' ')
+				ptr++;
+			if (*ptr == ' ')
+				break;
+			else
+				ptr++;
+		}
 		ClearTrack();
-		CheckMenuItem(hMenu, IDM_TRACK_1 + Track_Flag, MF_CHECKED);
+		for (i = 0; i < 8; i++)
+		{
+			if (Track_Flag & (1 << i))
+				CheckMenuItem(hMenu, IDM_TRACK_1 + i, MF_CHECKED);
+		}
 		Method_Flag = AUDIO_DEMUX;
 		CheckMenuItem(hMenu, IDM_AUDIO_NONE, MF_UNCHECKED);
 		CheckMenuItem(hMenu, IDM_DEMUX, MF_CHECKED);
@@ -683,8 +722,15 @@ TEST_END:
 	RefreshWindow(true);
 
 	// Output D2V file
-    if ((ptr = strstr(ucCmdLine,"-OUTPUT-FILE")) || (ptr = strstr(ucCmdLine,"-OF")))
+    if ((ptr = strstr(ucCmdLine,"-OUTPUT-FILE")) || (ptr = strstr(ucCmdLine,"-OF")) ||
+		(ptr = strstr(ucCmdLine,"-OUTPUT-FILE-DEMUX")) || (ptr = strstr(ucCmdLine,"-OFD")))
     {
+		// Set up demuxing if requested.
+		if (strstr(ucCmdLine,"-OUTPUT-FILE-DEMUX") || strstr(ucCmdLine,"-OFD"))
+		{
+			MuxFile = (struct _iobuf *) 0;
+		}
+
 		// Don't pop up warning box for automatic invocation.
 		gop_warned = true;
 		CLIActive = 1;
@@ -732,6 +778,8 @@ TEST_END:
 	return msg.wParam;
 }
 
+HBITMAP splash = NULL;
+
 // Processes messages for the main window
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -754,7 +802,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			// Kick off a LOCATE_RIP thread.
 			if (wParam == 0xdeadbeef)
 			{
-				goto saved2v;
+				goto proceed;
 			}
 			else if (wParam == 0xa5a5a5a5 || wParam == 0x5a5a5a5a)
 			{
@@ -814,6 +862,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			hMenu = GetMenu(hWnd);
 			hProcess = GetCurrentProcess();
 
+			// Load the splash screen from the file splash.bmp if it exists.
+			GetModuleFileName(NULL, prog, 255);
+			ptr = &prog[strlen(prog)];
+			while (ptr > prog && *ptr != '\\') ptr--;
+			if (*ptr == '\\') ptr++;
+			*ptr = 0;
+			strcat(prog, "splash.bmp");
+			splash = (HBITMAP) ::LoadImage (0, prog, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+//			if (splash == 0)
+//			{
+//				// No splash file. Use the built-in default splash screen.
+//				splash = LoadBitmap(GetModuleHandle(NULL), MAKEINTRESOURCE(IDB_SPLASH));
+//			}
+
 			for (i=0; i<MAX_FILE_NUMBER; i++)
 				Infilename[i] = (char*)malloc(_MAX_PATH);
 
@@ -856,6 +918,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			switch (wmId)
 			{
 				case IDM_OPEN:
+					if (Info_Flag)
+					{
+						DestroyWindow(hDlg);
+						Info_Flag = false;
+					}
 					DialogBox(hInst, (LPCTSTR)IDD_FILELIST, hWnd, (DLGPROC)VideoList);
 					break;
 
@@ -869,6 +936,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					{
 						RunningEnables();
 						Display_Flag = true;
+						// Initialize for single stepping.
+						RightArrowHit = false;
 						ShowInfo(true);
 
 						if (SystemStream_Flag == TRANSPORT_STREAM)
@@ -892,16 +961,26 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					goto proceed;
 
 				case IDM_SAVE_D2V:
-saved2v:
 					// No video demux.
 					MuxFile = (struct _iobuf *) 0xffffffff;
 proceed:
 					if (!Check_Flag)
 					{
 						MessageBox(hWnd, "No data. Check your PIDS.", "Save Project", MB_OK | MB_ICONWARNING);
+						break;
 					}
-
-					else if (CLIActive || PopFileDlg(szOutput, hWnd, SAVE_D2V))
+					if ((FO_Flag == FO_FILM) && ((mpeg_type == IS_MPEG1) || ((int) (frame_rate * 1000) != 29970)))
+					{
+						char buf[255];
+						sprintf(buf, "It is almost always wrong to run Force Film on an MPEG1 stream,\n"
+							"or a stream with a frame rate other than 29.970.\n"
+							"Your stream is %s and has a frame rate of %.3f.\n"
+							"Do you want to do it anyway?",
+							mpeg_type == IS_MPEG1 ? "MPEG1" : "MPEG2", frame_rate); 
+						if (MessageBox(hWnd, buf, "Force Film Warning", MB_YESNO | MB_ICONWARNING) != IDYES)
+							break;
+					}
+					if (CLIActive || PopFileDlg(szOutput, hWnd, SAVE_D2V))
 					{
 						sprintf(szBuffer, "%s.d2v", szOutput);
 						if (CLIActive)
@@ -921,7 +1000,7 @@ proceed:
 								sprintf(line, "%s already exists.\nDo you want to replace it?", szBuffer);
 								if (MessageBox(hWnd, line, "Save D2V",
 									MB_YESNO | MB_ICONWARNING) != IDYES)
-								break;
+									break;
 							}
 							D2VFile = fopen(szBuffer, "w+");
 							strcpy(D2VFilePath, szBuffer);
@@ -929,6 +1008,24 @@ proceed:
 
 						if (D2VFile != 0)
 						{
+							if (LogQuants_Flag)
+							{
+								// Initialize quant matric logging.
+								// Generate the output file name.
+								char *p;
+								p = &szBuffer[strlen(szBuffer)];
+								while (*p != '.') p--;
+								p[1] = 0;
+								strcat(p, "quants.txt");
+								// Open the output file.
+								Quants = fopen(szBuffer, "w");
+								// Init the recorded quant matrices for change detection.
+								memset(intra_quantizer_matrix_log, 0xffffffff, sizeof(intra_quantizer_matrix_log));
+								memset(non_intra_quantizer_matrix_log, 0xffffffff, sizeof(non_intra_quantizer_matrix_log));
+								memset(chroma_intra_quantizer_matrix_log, 0xffffffff, sizeof(chroma_intra_quantizer_matrix_log));
+								memset(chroma_non_intra_quantizer_matrix_log, 0xffffffff, sizeof(chroma_non_intra_quantizer_matrix_log));
+							}
+
 							D2V_Flag = true;
 							Display_Flag = false;
 							RunningEnables();
@@ -985,14 +1082,14 @@ D2V_PROCESS:
 							_close(Infile[NumLoadedFiles]);
 						}
 
-						fscanf(D2VFile, "DGIndexProjectFile%d\n", &NumLoadedFiles); // dummy read
 						fscanf(D2VFile, "%d\n", &NumLoadedFiles);
 
 						i = NumLoadedFiles;
 						while (i)
 						{
-							fscanf(D2VFile, "%d ", &j);
-							fgets(Infilename[NumLoadedFiles-i], j+1, D2VFile);
+							fgets(Infilename[NumLoadedFiles-i], _MAX_PATH - 1, D2VFile);
+							// Strip newline.
+							Infilename[NumLoadedFiles-i][strlen(Infilename[NumLoadedFiles-i])-1] = 0;
 							if ((Infile[NumLoadedFiles-i] = _open(Infilename[NumLoadedFiles-i], _O_RDONLY | _O_BINARY | _O_SEQUENTIAL))==-1)
 							{
 								while (i<NumLoadedFiles)
@@ -1014,10 +1111,9 @@ D2V_PROCESS:
 						if (SystemStream_Flag == TRANSPORT_STREAM)
 							fscanf(D2VFile, "MPEG2_Transport_PID=%x,%x\n", &MPEG2_Transport_VideoPID, &MPEG2_Transport_AudioPID);
 						fscanf(D2VFile, "MPEG_Type=%d\n", &mpeg_type);
-						if (mpeg_type == 1) mpeg_type = IS_MPEG1;
-						else mpeg_type = IS_MPEG2;
 						fscanf(D2VFile, "iDCT_Algorithm=%d (1:MMX 2:SSEMMX 3:FPU 4:REF 5:SSE2MMX)\n", &iDCT_Flag);
 						fscanf(D2VFile, "YUVRGB_Scale=%d (0:TVScale 1:PCScale)\n", &Scale_Flag);
+						setRGBValues();
 						fscanf(D2VFile, "Luminance_Filter=%d,%d (Gamma, Offset)\n", &LumGamma, &LumOffset);
 
 						if (LumGamma || LumOffset)
@@ -1048,7 +1144,7 @@ D2V_PROCESS:
 						fscanf(D2VFile, "Aspect_Ratio=%d:%d\n", &m, &n);
 						fscanf(D2VFile, "Picture_Size=%dx%d\n", &m, &n);
 						fscanf(D2VFile, "Field_Operation=%d (0:None 1:ForcedFILM 2:RawFrames)\n", &FO_Flag);
-						fscanf(D2VFile, "Frame_Rate=%d\n", &frame_rate);
+						fscanf(D2VFile, "Frame_Rate=%d\n", &m);
 
 						CheckFlag();
 
@@ -1103,6 +1199,21 @@ D2V_PROCESS:
 					}
 					break;
 
+				case IDM_LOG_QUANTS:
+					if (LogQuants_Flag == 0)
+					{
+						// Enable quant matrix logging.
+						LogQuants_Flag = 1;
+						CheckMenuItem(hMenu, IDM_LOG_QUANTS, MF_CHECKED);
+					}
+					else
+					{
+						// Disable quant matrix logging.
+						LogQuants_Flag = 0;
+						CheckMenuItem(hMenu, IDM_LOG_QUANTS, MF_UNCHECKED);
+					}
+					break;
+
 				case IDM_STOP:
 					Stop_Flag = true;
 					ExitOnEnd = 0;
@@ -1146,52 +1257,29 @@ D2V_PROCESS:
 					break;
 
 				case IDM_TRACK_1:
-					ClearTrack();
-					Track_Flag = TRACK_1;
-					CheckMenuItem(hMenu, IDM_TRACK_1, MF_CHECKED);
-					break;
-
 				case IDM_TRACK_2:
-					ClearTrack();
-					Track_Flag = TRACK_2;
-					CheckMenuItem(hMenu, IDM_TRACK_2, MF_CHECKED);
-					break;
-
 				case IDM_TRACK_3:
-					ClearTrack();
-					Track_Flag = TRACK_3;
-					CheckMenuItem(hMenu, IDM_TRACK_3, MF_CHECKED);
-					break;
-
 				case IDM_TRACK_4:
-					ClearTrack();
-					Track_Flag = TRACK_4;
-					CheckMenuItem(hMenu, IDM_TRACK_4, MF_CHECKED);
-					break;
-
 				case IDM_TRACK_5:
-					ClearTrack();
-					Track_Flag = TRACK_5;
-					CheckMenuItem(hMenu, IDM_TRACK_5, MF_CHECKED);
-					break;
-
 				case IDM_TRACK_6:
-					ClearTrack();
-					Track_Flag = TRACK_6;
-					CheckMenuItem(hMenu, IDM_TRACK_6, MF_CHECKED);
-					break;
-
 				case IDM_TRACK_7:
-					ClearTrack();
-					Track_Flag = TRACK_7;
-					CheckMenuItem(hMenu, IDM_TRACK_7, MF_CHECKED);
-					break;
-
 				case IDM_TRACK_8:
-					ClearTrack();
-					Track_Flag = TRACK_8;
-					CheckMenuItem(hMenu, IDM_TRACK_8, MF_CHECKED);
+					{
+					int track;
+					track = wmId - IDM_TRACK_1; 
+//					ClearTrack();
+					if (Track_Flag & (1 << track))
+					{
+						Track_Flag &= ~(1 << track);
+						CheckMenuItem(hMenu, wmId, MF_UNCHECKED);
+					}
+					else
+					{
+						Track_Flag |= (1 << track);
+						CheckMenuItem(hMenu, wmId, MF_CHECKED);
+					}
 					break;
+					}
 
 				case IDM_DRC_NONE:
 					DRC_Flag = DRC_NONE;
@@ -1276,6 +1364,8 @@ D2V_PROCESS:
 					CheckMenuItem(hMenu, IDM_IDCT_SSE2MMX, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_IDCT_FPU, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_IDCT_REF, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_IDCT_SKAL, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_IDCT_SIMPLE, MF_UNCHECKED);
 					break;
 
 				case IDM_IDCT_SSEMMX:
@@ -1285,6 +1375,8 @@ D2V_PROCESS:
 					CheckMenuItem(hMenu, IDM_IDCT_SSE2MMX, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_IDCT_FPU, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_IDCT_REF, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_IDCT_SKAL, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_IDCT_SIMPLE, MF_UNCHECKED);
 					break;
 
 				case IDM_IDCT_SSE2MMX:
@@ -1294,6 +1386,8 @@ D2V_PROCESS:
 					CheckMenuItem(hMenu, IDM_IDCT_SSE2MMX, MF_CHECKED);
 					CheckMenuItem(hMenu, IDM_IDCT_FPU, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_IDCT_REF, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_IDCT_SKAL, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_IDCT_SIMPLE, MF_UNCHECKED);
 					break;
 
 				case IDM_IDCT_FPU:
@@ -1303,6 +1397,8 @@ D2V_PROCESS:
 					CheckMenuItem(hMenu, IDM_IDCT_SSE2MMX, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_IDCT_FPU, MF_CHECKED);
 					CheckMenuItem(hMenu, IDM_IDCT_REF, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_IDCT_SKAL, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_IDCT_SIMPLE, MF_UNCHECKED);
 					break;
 
 				case IDM_IDCT_REF:
@@ -1312,6 +1408,30 @@ D2V_PROCESS:
 					CheckMenuItem(hMenu, IDM_IDCT_SSE2MMX, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_IDCT_FPU, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_IDCT_REF, MF_CHECKED);
+					CheckMenuItem(hMenu, IDM_IDCT_SKAL, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_IDCT_SIMPLE, MF_UNCHECKED);
+					break;
+
+				case IDM_IDCT_SKAL:
+					iDCT_Flag = IDCT_SKAL;
+					CheckMenuItem(hMenu, IDM_IDCT_MMX, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_IDCT_SSEMMX, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_IDCT_SSE2MMX, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_IDCT_FPU, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_IDCT_REF, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_IDCT_SKAL, MF_CHECKED);
+					CheckMenuItem(hMenu, IDM_IDCT_SIMPLE, MF_UNCHECKED);
+					break;
+
+				case IDM_IDCT_SIMPLE:
+					iDCT_Flag = IDCT_SIMPLE;
+					CheckMenuItem(hMenu, IDM_IDCT_MMX, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_IDCT_SSEMMX, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_IDCT_SSE2MMX, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_IDCT_FPU, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_IDCT_REF, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_IDCT_SKAL, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_IDCT_SIMPLE, MF_CHECKED);
 					break;
 
 				case IDM_FO_NONE:
@@ -1339,13 +1459,10 @@ D2V_PROCESS:
 					break;
 
 				case IDM_TVSCALE:
-					RGB_Scale = 0x1000200010002000;
-					RGB_Offset = 0x0000000000000000;
-					RGB_CBU = 0x000038B4000038B4;
-					RGB_CGX = 0xF4FDE926F4FDE926;
-					RGB_CRV = 0x00002CDD00002CDD;
-
 					Scale_Flag = false;
+
+					setRGBValues();
+
 					CheckMenuItem(hMenu, IDM_TVSCALE, MF_CHECKED);
 					CheckMenuItem(hMenu, IDM_PCSCALE, MF_UNCHECKED);
 
@@ -1353,13 +1470,10 @@ D2V_PROCESS:
 					break;
 
 				case IDM_PCSCALE:
-					RGB_Scale = 0x1000254310002543;
-					RGB_Offset = 0x0010001000100010;
-					RGB_CBU = 0x0000408D0000408D;
-					RGB_CGX = 0xF377E5FCF377E5FC;
-					RGB_CRV = 0x0000331300003313;
-
 					Scale_Flag = true;
+
+					setRGBValues();
+
 					CheckMenuItem(hMenu, IDM_TVSCALE, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_PCSCALE, MF_CHECKED);
 
@@ -1374,12 +1488,90 @@ D2V_PROCESS:
 					DialogBox(hInst, (LPCTSTR)IDD_LUMINANCE, hWnd, (DLGPROC)Luminance);
 					break;
 
-				case IDM_SPEED:
-					DialogBox(hInst, (LPCTSTR)IDD_SPEED, hWnd, (DLGPROC)Speed);
-					break;
-
 				case IDM_NORM:
 					DialogBox(hInst, (LPCTSTR)IDD_NORM, hWnd, (DLGPROC)Normalization);
+					break;
+
+				case IDM_SPEED_SINGLE_STEP:
+					PlaybackSpeed = SPEED_SINGLE_STEP;
+					SetDlgItemText(hDlg, IDC_FPS, "");
+					if (process.locate == LOCATE_RIP) EnableWindow(hRightArrow, true);
+					CheckMenuItem(hMenu, IDM_SPEED_SINGLE_STEP, MF_CHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_SUPER_SLOW, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_SLOW, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_NORMAL, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_FAST, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_MAXIMUM, MF_UNCHECKED);
+					break;
+
+				case IDM_SPEED_SUPER_SLOW:
+					PlaybackSpeed = SPEED_SUPER_SLOW;
+					// Cancel wait for single-step.
+					RightArrowHit = true;
+					SetDlgItemText(hDlg, IDC_FPS, "");
+					if (process.locate == LOCATE_RIP) EnableWindow(hRightArrow, false);
+					CheckMenuItem(hMenu, IDM_SPEED_SINGLE_STEP, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_SUPER_SLOW, MF_CHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_SLOW, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_NORMAL, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_FAST, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_MAXIMUM, MF_UNCHECKED);
+					break;
+
+				case IDM_SPEED_SLOW:
+					PlaybackSpeed = SPEED_SLOW;
+					// Cancel wait for single-step.
+					RightArrowHit = true;
+					SetDlgItemText(hDlg, IDC_FPS, "");
+					if (process.locate == LOCATE_RIP) EnableWindow(hRightArrow, false);
+					CheckMenuItem(hMenu, IDM_SPEED_SINGLE_STEP, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_SUPER_SLOW, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_SLOW, MF_CHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_NORMAL, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_FAST, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_MAXIMUM, MF_UNCHECKED);
+					break;
+
+				case IDM_SPEED_NORMAL:
+					PlaybackSpeed = SPEED_NORMAL;
+					// Cancel wait for single-step.
+					RightArrowHit = true;
+					SetDlgItemText(hDlg, IDC_FPS, "");
+					if (process.locate == LOCATE_RIP) EnableWindow(hRightArrow, false);
+					CheckMenuItem(hMenu, IDM_SPEED_SINGLE_STEP, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_SUPER_SLOW, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_SLOW, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_NORMAL, MF_CHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_FAST, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_MAXIMUM, MF_UNCHECKED);
+					break;
+
+				case IDM_SPEED_FAST:
+					PlaybackSpeed = SPEED_FAST;
+					// Cancel wait for single-step.
+					RightArrowHit = true;
+					SetDlgItemText(hDlg, IDC_FPS, "");
+					if (process.locate == LOCATE_RIP) EnableWindow(hRightArrow, false);
+					CheckMenuItem(hMenu, IDM_SPEED_SINGLE_STEP, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_SUPER_SLOW, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_SLOW, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_NORMAL, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_FAST, MF_CHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_MAXIMUM, MF_UNCHECKED);
+					break;
+
+				case IDM_SPEED_MAXIMUM:
+					PlaybackSpeed = SPEED_MAXIMUM;
+					// Cancel wait for single-step.
+					RightArrowHit = true;
+					SetDlgItemText(hDlg, IDC_FPS, "");
+					if (process.locate == LOCATE_RIP) EnableWindow(hRightArrow, false);
+					CheckMenuItem(hMenu, IDM_SPEED_SINGLE_STEP, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_SUPER_SLOW, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_SLOW, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_NORMAL, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_FAST, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_SPEED_MAXIMUM, MF_CHECKED);
 					break;
 
 				case IDM_PP_HIGH:
@@ -1404,6 +1596,14 @@ D2V_PROCESS:
 					CheckMenuItem(hMenu, IDM_PP_HIGH, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_PP_NORMAL, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_PP_LOW, MF_CHECKED);
+					break;
+
+				case IDM_FORCE_OPEN:
+					ForceOpenGops ^= 1;
+					if (ForceOpenGops)
+						CheckMenuItem(hMenu, IDM_FORCE_OPEN, MF_CHECKED);
+					else
+						CheckMenuItem(hMenu, IDM_FORCE_OPEN, MF_UNCHECKED);
 					break;
 
 				case IDM_PAUSE:
@@ -1468,6 +1668,25 @@ D2V_PROCESS:
 					DialogBox(hInst, (LPCTSTR)IDD_ABOUT, hWnd, (DLGPROC)About);
 					break;
 
+				case IDM_QUICK_START:
+				case IDM_DGINDEX_MANUAL:
+				case IDM_DGDECODE_MANUAL:
+				{
+					GetModuleFileName(NULL, prog, 255);
+					ptr = &prog[strlen(prog)];
+					while (ptr > prog && *ptr != '\\') ptr--;
+					if (*ptr == '\\') ptr++;
+					*ptr = 0;
+					if (wmId == IDM_QUICK_START)
+						strcat(prog, "QuickStart.html");
+					else if (wmId == IDM_DGINDEX_MANUAL)
+						strcat(prog, "DGIndexManual.html");
+					else
+						strcat(prog, "DGDecodeManual.html");
+					ShellExecute(NULL, "open", prog, NULL, NULL, SW_SHOWNORMAL);
+					break;
+				}
+
 				case IDM_JACKEI:
 					ShellExecute(NULL, "open", "http://arbor.ee.ntu.edu.tw/~jackeikuo/dvd2avi/", NULL, NULL, SW_SHOWNORMAL);
 					break;
@@ -1504,6 +1723,11 @@ D2V_PROCESS:
 				case ID_LEFT_ARROW:
 					SetFocus(hWnd);
 
+					if (Info_Flag)
+					{
+						DestroyWindow(hDlg);
+						Info_Flag = false;
+					}
 					if (WaitForSingleObject(hThread, 0)==WAIT_OBJECT_0)
 					{
 						Display_Flag = true;
@@ -1515,7 +1739,20 @@ D2V_PROCESS:
 
 				case ID_RIGHT_ARROW:
 					SetFocus(hWnd);
+					if (process.locate == LOCATE_RIP)
+					{
+						// We are in play/preview mode. Signal the
+						// display process to step forward one frame.
+						if (PlaybackSpeed == SPEED_SINGLE_STEP)
+							RightArrowHit = true;
+						break;
+					}
 
+					if (Info_Flag)
+					{
+						DestroyWindow(hDlg);
+						Info_Flag = false;
+					}
 					if (WaitForSingleObject(hThread, 0)==WAIT_OBJECT_0)
 					{
 						Display_Flag = true;
@@ -1554,6 +1791,11 @@ D2V_PROCESS:
 		case WM_HSCROLL:
 			SetFocus(hWnd);
 
+			if (Info_Flag)
+			{
+				DestroyWindow(hDlg);
+				Info_Flag = false;
+			}
 			if (WaitForSingleObject(hThread, 0)==WAIT_OBJECT_0)
 			{
 				int trackpos;
@@ -1637,19 +1879,38 @@ D2V_PROCESS:
 			break;
 
 		case WM_PAINT:
+			{
+			BITMAP bm;
+			HDC hdcMem;
+			HBITMAP hbmOld;
+
 			hdc = BeginPaint(hWnd, &ps);
+			// Paint the splash screen if no files are loaded.
+			if (splash && NumLoadedFiles == 0)
+			{
+				hdcMem = CreateCompatibleDC(hdc);
+				hbmOld = (HBITMAP) SelectObject(hdcMem, splash);
+				GetObject(splash, sizeof(bm), &bm);
+				BitBlt(hdc, 0, 0, bm.bmWidth, bm.bmHeight, hdcMem, 0, 0, SRCCOPY);
+				SelectObject(hdcMem, hbmOld);
+				DeleteDC(hdcMem);
+			}
 			EndPaint(hWnd, &ps);
 			ReleaseDC(hWnd, hdc);
-
 			RefreshWindow(false);
-
 			break;
+			}
 
 		case WM_DROPFILES:
 			char *ext, *tmp;
 			int drop_count, drop_index;
 			int n;
-			char path[_MAX_PATH];
+
+			if (Info_Flag)
+			{
+				DestroyWindow(hDlg);
+				Info_Flag = false;
+			}
 
 			DragQueryFile((HDROP)wParam, 0, szInput, sizeof(szInput));
 			SetForegroundWindow(hWnd);
@@ -1736,6 +1997,7 @@ D2V_PROCESS:
 				fprintf(INIFile, "Process_Priority=%d\n", Priority_Flag);
 				fprintf(INIFile, "Transport_PIDs=%x,%x\n", MPEG2_Transport_VideoPID, MPEG2_Transport_AudioPID);
 				fprintf(INIFile, "Playback_Speed=%d\n", PlaybackSpeed);
+				fprintf(INIFile, "Force_Open_Gops=%d\n", ForceOpenGops);
 
 				fclose(INIFile);
 			}
@@ -1754,6 +2016,7 @@ D2V_PROCESS:
 			for (i=0; i<MAX_FILE_NUMBER; i++)
 				free(Infilename[i]);
 
+	        DeleteObject(splash);
 			ReleaseDC(hWnd, hDC);
 			PostQuitMessage(0);
 			break;
@@ -2022,7 +2285,7 @@ static void OpenVideoFile(HWND hVideoListDlg)
 		p = szInput;
 		while (*p++ != 0);
 		// Load the filenames.
-		while (1)
+		for (;;)
 		{
 			// Build full path plus filename.
 			strcpy(filename, path);
@@ -2063,16 +2326,27 @@ static void OpenVideoFile(HWND hVideoListDlg)
 
 void ThreadKill()
 {
-	if (D2V_Flag && (ac3[Track_Flag].rip && Method_Flag==AUDIO_DECODE  ||  pcm.rip))
-	{
-		if (SRC_Flag)
-		{
-			EndSRC(pcm.file);
-			pcm.size = ((int)(0.91875*pcm.size)>>2)<<2;
-		}
+	int i;
 
-		Normalize(NULL, 44, pcm.filename, pcm.file, 44, pcm.size);
-		CloseWAV(pcm.file, pcm.size);
+	// CLose the quants log if necessary.
+	if (Quants)
+		fclose(Quants);
+
+	for (i = 0; i < 8; i++)
+	{
+		if (D2V_Flag && (ac3[i].rip && Method_Flag==AUDIO_DECODE  ||  pcm[i].rip))
+		{
+#if 0
+			if (SRC_Flag)
+			{
+				EndSRC(pcm[i].file);
+				pcm[i].size = ((int)(0.91875*pcm[i].size)>>2)<<2;
+			}
+
+			Normalize(NULL, 44, pcm[i].filename, pcm[i].file, 44, pcm[i].size);
+#endif
+			CloseWAV(pcm[i].file, pcm[i].size);
+		}
 	}
 
 	if (process.locate==LOCATE_INIT || process.locate==LOCATE_RIP)
@@ -2083,8 +2357,8 @@ void ThreadKill()
 			WriteD2VLine(1);
 			fprintf(D2VFile, "\nFINISHED");
 			// Prevent divide by 0.
-			if (FILM_Purity+NTSC_Purity == 0) NTSC_Purity = 1;
-			fprintf(D2VFile, "  %.2f%% FILM\n", (FILM_Purity*100.0)/(FILM_Purity+NTSC_Purity));
+			if (FILM_Purity+VIDEO_Purity == 0) VIDEO_Purity = 1;
+			fprintf(D2VFile, "  %.2f%% FILM\n", (FILM_Purity*100.0)/(FILM_Purity+VIDEO_Purity));
 		}
 
 		_fcloseall();
@@ -2135,6 +2409,9 @@ void ThreadKill()
 		Decision_Flag = false;
 		Display_Flag = false;
 	}
+	// This restores the normal operation of the right arrow button
+	// if we were in single-step playback.
+    process.locate = LOCATE_INIT;
 
 	if (CLIActive) SendMessage(hWnd, WM_USER, 0xdeadbeef, 0);
 	ExitThread(0);
@@ -2365,40 +2642,6 @@ LRESULT CALLBACK Luminance(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPa
     return false;
 }
 
-LRESULT CALLBACK Speed(HWND hDialog, UINT message, WPARAM wParam, LPARAM lParam)
-{
-	switch (message)
-	{
-		case WM_INITDIALOG:
-			SendDlgItemMessage(hDialog, IDC_SPEED_SLIDER, TBM_SETRANGE, 0, MAKELPARAM(0, 100));
-			SendDlgItemMessage(hDialog, IDC_SPEED_SLIDER, TBM_SETPOS, 1, PlaybackSpeed);
-			ShowWindow(hDialog, SW_SHOW);
-			return true;
-
-		case WM_COMMAND:
-			switch (LOWORD(wParam))
-			{
-				case IDCANCEL:
-					EndDialog(hDialog, 0);
-					return true;
-			}
-			break;
-
-		case WM_HSCROLL:
-			switch (GetWindowLong((HWND)lParam, GWL_ID))
-			{
-				case IDC_SPEED_SLIDER:
-					PlaybackSpeed = SendDlgItemMessage(hDialog, IDC_SPEED_SLIDER, TBM_GETPOS, 0, 0);
-					PlaybackDelay = 100 - PlaybackSpeed;
-					break;
-			}
-
-			RefreshWindow(true);
-			break;
-	}
-    return false;
-}
-
 LRESULT CALLBACK SetPids(HWND hDialog, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	char buf[80];
@@ -2570,7 +2813,6 @@ bool PopFileDlg(PTSTR pstrFileName, HWND hOwner, int Status)
 	ofn.nMaxFile          = 10 * _MAX_PATH ;
 	ofn.nMaxFileTitle     = _MAX_PATH ;
 	ofn.lpstrFile         = pstrFileName ;
-	*ofn.lpstrFile        = 0;
 	ofn.lpstrInitialDir   = szSave;
 
 	switch (Status)
@@ -2579,10 +2821,12 @@ bool PopFileDlg(PTSTR pstrFileName, HWND hOwner, int Status)
 		case OPEN_D2V:
 		case OPEN_WAV:
 			gop_warned = false;
+			*ofn.lpstrFile = 0;
 			ofn.Flags = OFN_HIDEREADONLY | OFN_FILEMUSTEXIST | OFN_ALLOWMULTISELECT | OFN_EXPLORER;
 			return GetOpenFileName(&ofn);
 
 		case SAVE_BMP:
+			*ofn.lpstrFile = 0;
 			ofn.Flags = OFN_HIDEREADONLY | OFN_EXPLORER;
 			if (GetSaveFileName(&ofn))
 			{
@@ -2594,6 +2838,7 @@ bool PopFileDlg(PTSTR pstrFileName, HWND hOwner, int Status)
 			break;
 
 		case SAVE_WAV:
+			*ofn.lpstrFile = 0;
 			ofn.Flags = OFN_HIDEREADONLY | OFN_EXPLORER;
 			if (GetSaveFileName(&ofn))
 			{
@@ -2605,7 +2850,21 @@ bool PopFileDlg(PTSTR pstrFileName, HWND hOwner, int Status)
 			break;
 
 		case SAVE_D2V:
+			{
+			char *p;
+
 			ofn.Flags = OFN_HIDEREADONLY | OFN_EXPLORER;
+			// Load a default filename based on the name of the first input file.
+			if (szOutput[0] == NULL)
+			{
+				strcpy(ofn.lpstrFile, Infilename[0]);
+				p = &ofn.lpstrFile[strlen(ofn.lpstrFile)];
+				while (*p != '.' && p >= ofn.lpstrFile) p--;
+				if (p != ofn.lpstrFile)
+				{
+					*p = 0;
+				}
+			}
 			if (GetSaveFileName(&ofn))
 			{
 				ext = strrchr(pstrFileName, '.');
@@ -2614,6 +2873,7 @@ bool PopFileDlg(PTSTR pstrFileName, HWND hOwner, int Status)
 				return true;
 			}
 			break;
+			}
 	}
 	return false;
 }
@@ -2654,6 +2914,8 @@ static void ClearTrack()
 
 static void CheckFlag()
 {
+	int i;
+
 	CheckMenuItem(hMenu, IDM_KEY_OFF, MF_UNCHECKED);
 	CheckMenuItem(hMenu, IDM_KEY_INPUT, MF_UNCHECKED);
 	CheckMenuItem(hMenu, IDM_KEY_OP, MF_UNCHECKED);
@@ -2663,12 +2925,16 @@ static void CheckFlag()
 	CheckMenuItem(hMenu, IDM_IDCT_SSE2MMX, MF_UNCHECKED);
 	CheckMenuItem(hMenu, IDM_IDCT_FPU, MF_UNCHECKED);
 	CheckMenuItem(hMenu, IDM_IDCT_REF, MF_UNCHECKED);
+	CheckMenuItem(hMenu, IDM_IDCT_SKAL, MF_UNCHECKED);
+	CheckMenuItem(hMenu, IDM_IDCT_SIMPLE, MF_UNCHECKED);
 	CheckMenuItem(hMenu, IDM_PCSCALE, MF_UNCHECKED);
 	CheckMenuItem(hMenu, IDM_TVSCALE, MF_UNCHECKED);
 	CheckMenuItem(hMenu, IDM_FO_FILM, MF_UNCHECKED);
 
 	//Downgrade the iDCT if the processor does not support it.
 	if (iDCT_Flag == IDCT_SSE2MMX && !cpu.sse2)
+		iDCT_Flag = IDCT_SKAL;
+	if (iDCT_Flag == IDCT_SKAL && !cpu.ssemmx)
 		iDCT_Flag = IDCT_SSEMMX;
 	if (iDCT_Flag == IDCT_SSEMMX && !cpu.ssemmx)
 		iDCT_Flag = IDCT_MMX;
@@ -2694,28 +2960,19 @@ static void CheckFlag()
 		case IDCT_REF:
 			CheckMenuItem(hMenu, IDM_IDCT_REF, MF_CHECKED);
 			break;
+
+		case IDCT_SKAL:
+			CheckMenuItem(hMenu, IDM_IDCT_SKAL, MF_CHECKED);
+			break;
+
+		case IDCT_SIMPLE:
+			CheckMenuItem(hMenu, IDM_IDCT_SIMPLE, MF_CHECKED);
+			break;
 	}
 
-	if (Scale_Flag)
-	{
-		RGB_Scale = 0x1000254310002543;
-		RGB_Offset = 0x0010001000100010;
-		RGB_CBU = 0x0000408D0000408D;
-		RGB_CGX = 0xF377E5FCF377E5FC;
-		RGB_CRV = 0x0000331300003313;
-
-		CheckMenuItem(hMenu, IDM_PCSCALE, MF_CHECKED);
-	}
-	else
-	{
-		RGB_Scale = 0x1000200010002000;
-		RGB_Offset = 0x0000000000000000;
-		RGB_CBU = 0x000038B4000038B4;
-		RGB_CGX = 0xF4FDE926F4FDE926;
-		RGB_CRV = 0x00002CDD00002CDD;
-
-		CheckMenuItem(hMenu, IDM_TVSCALE, MF_CHECKED);
-	}
+	setRGBValues();
+	if (Scale_Flag) CheckMenuItem(hMenu, IDM_PCSCALE, MF_CHECKED);
+	else CheckMenuItem(hMenu, IDM_TVSCALE, MF_CHECKED);
 
 	switch (FO_Flag)
 	{
@@ -2738,39 +2995,10 @@ static void CheckFlag()
 			break;
 	}
 
-	switch (Track_Flag)
+	for (i = 0; i < 8; i++)
 	{
-		case TRACK_1:
-			CheckMenuItem(hMenu, IDM_TRACK_1, MF_CHECKED);
-			break;
-
-		case TRACK_2:
-			CheckMenuItem(hMenu, IDM_TRACK_2, MF_CHECKED);
-			break;
-
-		case TRACK_3:
-			CheckMenuItem(hMenu, IDM_TRACK_3, MF_CHECKED);
-			break;
-
-		case TRACK_4:
-			CheckMenuItem(hMenu, IDM_TRACK_4, MF_CHECKED);
-			break;
-
-		case TRACK_5:
-			CheckMenuItem(hMenu, IDM_TRACK_5, MF_CHECKED);
-			break;
-
-		case TRACK_6:
-			CheckMenuItem(hMenu, IDM_TRACK_6, MF_CHECKED);
-			break;
-
-		case TRACK_7:
-			CheckMenuItem(hMenu, IDM_TRACK_7, MF_CHECKED);
-			break;
-
-		case TRACK_8:
-			CheckMenuItem(hMenu, IDM_TRACK_8, MF_CHECKED);
-			break;
+		if (Track_Flag & (1 << i))
+			CheckMenuItem(hMenu, IDM_TRACK_1 + i, MF_CHECKED);
 	}
 
 	switch (Method_Flag)
@@ -2861,6 +3089,36 @@ static void CheckFlag()
 			SetPriorityClass(hProcess, IDLE_PRIORITY_CLASS);
 			break;
 	}
+
+	switch (PlaybackSpeed)
+	{
+		case SPEED_SINGLE_STEP:
+			CheckMenuItem(hMenu, IDM_SPEED_SINGLE_STEP, MF_CHECKED);
+			break;
+
+		case SPEED_SUPER_SLOW:
+			CheckMenuItem(hMenu, IDM_SPEED_SUPER_SLOW, MF_CHECKED);
+			break;
+
+		case SPEED_SLOW:
+			CheckMenuItem(hMenu, IDM_SPEED_SLOW, MF_CHECKED);
+			break;
+
+		case SPEED_NORMAL:
+			CheckMenuItem(hMenu, IDM_SPEED_NORMAL, MF_CHECKED);
+			break;
+
+		case SPEED_FAST:
+			CheckMenuItem(hMenu, IDM_SPEED_FAST, MF_CHECKED);
+			break;
+
+		case SPEED_MAXIMUM:
+			CheckMenuItem(hMenu, IDM_SPEED_MAXIMUM, MF_CHECKED);
+			break;
+	}
+
+	if (ForceOpenGops)
+			CheckMenuItem(hMenu, IDM_FORCE_OPEN, MF_CHECKED);
 }
 
 static void Recovery()
@@ -2932,6 +3190,9 @@ static void Recovery()
 
 	ResizeWindow(INIT_WIDTH, INIT_HEIGHT);
 	ResizeWindow(INIT_WIDTH, INIT_HEIGHT);	// 2-line menu antidote
+
+	szOutput[0] = 0;
+	VOB_ID = CELL_ID = 0;
 }
 
 void CheckDirectDraw()
@@ -3075,7 +3336,7 @@ static void RefreshWindow(bool update)
 	{
 		if (Check_Flag && WaitForSingleObject(hThread, 0)==WAIT_OBJECT_0)
 		{
-			Fault_Flag = false;
+			Fault_Flag = 0;
 			Display_Flag = true;
 			Write_Frame(backward_reference_frame, d2v_backward, 0);
 		}
@@ -3245,7 +3506,10 @@ static void RunningEnables(void)
 	EnableWindow(hTrack, false);
 	EnableWindow(hLeftButton, false);
 	EnableWindow(hLeftArrow, false);
-	EnableWindow(hRightArrow, false);
+	if (PlaybackSpeed == SPEED_SINGLE_STEP)
+		EnableWindow(hRightArrow, true);
+	else
+		EnableWindow(hRightArrow, false);
 	EnableWindow(hRightButton, false);
 
 	// Refresh the menu bar.
