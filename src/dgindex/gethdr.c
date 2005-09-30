@@ -68,6 +68,27 @@ static int  extra_bit_information(void);
 static void extension_and_user_data(void);
 void StartVideoDemux(void);
 
+//////////
+// We index the on-disk file position for accessing each I picture. 
+// We prefer to index a sequence header immediately accompanying
+// the GOP, because it might carry new quant matrices that we would need
+// to read if we randomly access the picture. If no sequence header is
+// there, we index the I picture header start code. For ES, we index
+// directly each indexed location. For PES, we index the position of
+// the previous packet start code for each indexed location.
+//
+// There are two different indexing strategies, one for ES and one for PES.
+// The ES scheme directly calculates the required file offset.
+// The PES scheme uses CurrentPackHeaderPosition for the on-disk file
+// offset of the last pack start code. This variable is irrelevant for ES!
+// The pack header position is double-buffered through PackHeaderPosition
+// and CurrentPackHeaderPosition to avoid a vulnerability in which
+// PackHeaderPosition can become invalid due to a Fill_Next() call
+// triggering a Next_Packet() call, which would rewrite PackHeaderPosition.
+// So we record PackHeaderPosition to CurrentPackHeaderPosition as the
+// first thing we do in Fill_Next().
+//////////
+
 // Decode headers up to a picture header and then return.
 // There are two modes of operation. Normally, we return only
 // when we get a picture header and if we hit EOF file, we
@@ -75,6 +96,7 @@ void StartVideoDemux(void);
 // B frames we don't want to kill in order to properly handle
 // files with only one I frame. So in the second mode, we detect
 // the sequence end code and return with an indication.
+
 int Get_Hdr(int mode)
 {
 	int code;
@@ -93,11 +115,23 @@ int Get_Hdr(int mode)
 		switch (code)
 		{
 			case SEQUENCE_HEADER_CODE:
-				if (process.locate == LOCATE_RIP && MuxFile == 0)
+				if (process.locate == LOCATE_RIP && MuxFile == (FILE *) 0)
 					StartVideoDemux();
-				position = PackHeaderPosition;
+				// Index the location of the sequence header for the D2V file.
+				// We prefer to index the sequence header corresponding to this
+				// GOP, but if one doesn't exist, we index the picture header of the I frame.
+				if (SystemStream_Flag != ELEMENTARY_STREAM)
+					d2v_current.position = CurrentPackHeaderPosition;
+				else
+				{
+//					dprintf("DGIndex: Index sequence header at %d\n", Rdptr - 8 + (32 - BitsLeft)/8);
+					d2v_current.position = _telli64(Infile[CurrentFile])
+										   - (BUFFER_SIZE - (Rdptr - Rdbfr))
+										   - 8
+										   + (32 - BitsLeft)/8;
+				}
 				Get_Bits(32);
-				sequence_header(position);
+				sequence_header();
 				HadSequenceHeader = true;
 				break;
 
@@ -112,11 +146,16 @@ int Get_Hdr(int mode)
 				group_of_pictures_header();
 				HadGopHeader = true;
 				GOPSeen = true;
-//				Second_Field = 0;
 				break;
 
 			case PICTURE_START_CODE:
-				position = PackHeaderPosition;
+				if (SystemStream_Flag != ELEMENTARY_STREAM)
+					position = CurrentPackHeaderPosition;
+				else
+					position = _telli64(Infile[CurrentFile])
+										   - (BUFFER_SIZE - (Rdptr - Rdbfr))
+										   - 8
+										   + (32 - BitsLeft)/8;
 				Get_Bits(32);
 				picture_header(position, HadSequenceHeader, HadGopHeader);
 				return 0;
@@ -130,23 +169,12 @@ int Get_Hdr(int mode)
 }
 
 /* decode sequence header */
-void sequence_header(__int64 start)
+void sequence_header()
 {
 	int constrained_parameters_flag;
 	int bit_rate_value;
 	int vbv_buffer_size;
 	int i;
-
-	// Index the location of the sequence header for the D2V file.
-	if (SystemStream_Flag != ELEMENTARY_STREAM)
-	{
-		d2v_current.position = start;
-	}
-	else
-	{
-		d2v_current.position = _telli64(Infile[CurrentFile])
-				- (__int64)BUFFER_SIZE  + (__int64)Rdptr - (__int64)Rdbfr - 12 + ((32 - (__int64)BitsLeft) / 8);
-	}
 
 	horizontal_size             = Get_Bits(12);
 	vertical_size               = Get_Bits(12);
@@ -235,12 +263,15 @@ void sequence_header(__int64 start)
 		}
 	}
 
+	if (mpeg_type == IS_MPEG2)
+		matrix_coefficients = 1;
+	else
+		matrix_coefficients = 5;
+	setRGBValues();
 	// These are MPEG1 defaults. These will be overridden if we have MPEG2
 	// when the sequence header extension is parsed.
 	progressive_sequence = 1;
 	chroma_format = CHROMA420;
-	matrix_coefficients = 5;
-	setRGBValues();
 
 	extension_and_user_data();
 }
@@ -279,21 +310,7 @@ static void picture_header(__int64 start, boolean HadSequenceHeader, boolean Had
 	int vbv_delay;
 	int Extra_Information_Byte_Count;
 	int trackpos;
-	__int64 position = 0;
 	double track;
-
-    // We prefer to index the sequence header, but if one doesn't exist,
-	// we index the picture header of the I frame.
-	if (HadSequenceHeader == false)
-	{
-		if (SystemStream_Flag != ELEMENTARY_STREAM)
-			position = start;
-		else
-		{
-			position = _telli64(Infile[CurrentFile])
-				- (__int64)BUFFER_SIZE  + (__int64)Rdptr - (__int64)Rdbfr - 12 + ((32 - (__int64)BitsLeft) / 8);
-		}
-	}
 
 	temporal_reference  = Get_Bits(10);
 	picture_coding_type = Get_Bits(3);
@@ -388,11 +405,16 @@ static void picture_header(__int64 start, boolean HadSequenceHeader, boolean Had
 	Extra_Information_Byte_Count = extra_bit_information();
 	extension_and_user_data();
 
+    // We prefer to index the sequence header, but if one doesn't exist,
+	// we index the picture header of the I frame.
 	if (HadSequenceHeader == false)
 	{
 		// Indexing for the D2V file.
-		if (picture_coding_type == I_TYPE && picture_structure != BOTTOM_FIELD) 
-			d2v_current.position = position;
+		if (picture_coding_type == I_TYPE && picture_structure != BOTTOM_FIELD)
+		{
+//			dprintf("DGIndex: Index picture header at %d\n", Rdptr - Rdbfr);
+			d2v_current.position = start;
+		}
 	}
 }
 

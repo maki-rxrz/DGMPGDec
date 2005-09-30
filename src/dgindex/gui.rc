@@ -518,7 +518,6 @@ BEGIN
     POPUP "&Tools"
     BEGIN
         MENUITEM "Parse D2V",                   IDM_PARSE_D2V
-        MENUITEM "Fix D2V",                     IDM_FIX_D2V
     END
     POPUP "&Help"
     BEGIN

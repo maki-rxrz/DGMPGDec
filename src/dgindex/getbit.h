@@ -30,6 +30,7 @@ void Next_File(void);
 
 unsigned char Rdbfr[BUFFER_SIZE], *Rdptr, *Rdmax;
 unsigned int BitsLeft, CurrentBfr, NextBfr, Val, Read;
+__int64 CurrentPackHeaderPosition;
 
 __forceinline static unsigned int Show_Bits(unsigned int N)
 {
@@ -97,12 +98,12 @@ __forceinline static void Fill_Next()
 	if (Rdptr >= buffer_invalid)
 	{
 		// Ran out of good data.
-//		ThreadKill();
 		Stop_Flag = 1;
 		NextBfr = 0xffffffff;
 		return;
 	}
 
+	CurrentPackHeaderPosition = PackHeaderPosition;
 	if (SystemStream_Flag != ELEMENTARY_STREAM && Rdptr > Rdmax - 4)
 	{
 		if (Rdptr >= Rdmax)

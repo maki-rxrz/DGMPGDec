@@ -51,6 +51,12 @@ int PTSDifference(unsigned int apts, unsigned int vpts, int *result)
 	return 0;
 }
 
+FILE *OpenAudio(char *path, char *mode)
+{
+	strcpy(AudioFilePath, path);
+	return fopen(path, mode);
+}
+
 #define LOCATE												\
 while (Rdptr >= (Rdbfr + BUFFER_SIZE))						\
 {															\
@@ -277,7 +283,7 @@ void Initialize_Buffer()
 	}
 
 	BitsLeft = 32;
-	if (!Stop_Flag && MuxFile != (struct _iobuf *) 0xffffffff && MuxFile > 0)
+	if (!Stop_Flag && MuxFile != (FILE *) 0xffffffff && MuxFile > 0)
 	{
 		VideoDemux();
 	}
@@ -469,20 +475,6 @@ void Next_Transport_Packet()
 		{
 			LOCATE
 
-#if 0
-			code = Get_Short();
-			code = (code & 0xffff)<<16 | Get_Short();
-			Packet_Length = Packet_Length - 4; // remove these two bytes
-
-			// Packet start?
-			if (code < 0x000001E0 || code > 0x000001EF ) 		
-			{
-				// No, move the buffer-pointer back.
-				Rdptr -= 4; 
-				Packet_Length = Packet_Length + 4; // restore these four bytes
-			}
-			else
-#endif
 			if (tp.payload_unit_start_indicator)
 			{
 				Get_Short();
@@ -643,7 +635,7 @@ void Next_Transport_Packet()
 					Rdptr -= 2;
 					if (D2V_Flag)
 					{
-						mpafp = fopen(szBuffer, "wb");
+						mpafp = OpenAudio(szBuffer, "wb");
 						if (mpafp == NULL)
 						{
 							// Cannot open the output file, Disable further audio processing.
@@ -775,7 +767,7 @@ void Next_Transport_Packet()
 							AC3ModeDash[ac3[0].mode], AC3Rate[ac3[0].rate], FTType[SRC_Flag]);
 
 						strcpy(pcm[0].filename, szBuffer);
-						pcm[0].file = fopen(szBuffer, "wb");
+						pcm[0].file = OpenAudio(szBuffer, "wb");
 						if (pcm[0].file == NULL)
 						{
 							// Cannot open the output file, Disable further audio processing.
@@ -855,7 +847,7 @@ void Next_Transport_Packet()
 							sprintf(szBuffer, "%s PID %03x T%02d %sch %dKbps DELAY %dms.ac3", szOutput, MPEG2_Transport_AudioPID, 1, 
 								AC3ModeDash[ac3[0].mode], AC3Rate[ac3[0].rate], PTSDiff);
 
-						ac3[0].file = fopen(szBuffer, "wb");
+						ac3[0].file = OpenAudio(szBuffer, "wb");
 						if (ac3[0].file == NULL)
 						{
 							// Cannot open the output file, Disable further audio processing.
@@ -1121,7 +1113,7 @@ void Next_PVA_Packet()
 					Rdptr -= 2;
 					if (D2V_Flag)
 					{
-						mpafp = fopen(szBuffer, "wb");
+						mpafp = OpenAudio(szBuffer, "wb");
 						if (mpafp == NULL)
 						{
 							// Cannot open the output file.
@@ -1282,10 +1274,10 @@ void Next_Packet()
 								sprintf(szBuffer, "%s T%02d %sch %dKbps %s.wav", szOutput, This_Track+1, 
 									AC3ModeDash[ac3[This_Track].mode], AC3Rate[ac3[This_Track].rate], FTType[SRC_Flag]);
 
-								strcpy(pcm[0].filename, szBuffer);
-								pcm[0].file = fopen(szBuffer, "wb");
+								strcpy(pcm[This_Track].filename, szBuffer);
+								pcm[This_Track].file = OpenAudio(szBuffer, "wb");
 
-								StartWAV(pcm[0].file, 0x01);	// 48K, 16bit, 2ch
+								StartWAV(pcm[This_Track].file, 0x01);	// 48K, 16bit, 2ch
 
 								// Adjust the VideoPTS to account for frame reordering.
 								if (!PTSAdjustDone && StartTemporalReference != -1 && StartTemporalReference < 18)
@@ -1298,41 +1290,41 @@ void Next_Packet()
 								}
 
 								if (PTSDifference(AudioPTS, VideoPTS, &PTSDiff))
-									pcm[0].delay = 0;
+									pcm[This_Track].delay = 0;
 								else
-									pcm[0].delay = PTSDiff * 192;
+									pcm[This_Track].delay = PTSDiff * 192;
 
 								if (SRC_Flag)
 								{
-									DownWAV(pcm[0].file);
+									DownWAV(pcm[This_Track].file);
 									InitialSRC();
 								}
 
-								if (pcm[0].delay > 0)
+								if (pcm[This_Track].delay > 0)
 								{
 									if (SRC_Flag)
-										pcm[0].delay = ((int)(0.91875*pcm[0].delay)>>2)<<2;
+										pcm[This_Track].delay = ((int)(0.91875*pcm[This_Track].delay)>>2)<<2;
 
-									for (i=0; i<pcm[0].delay; i++)
-										fputc(0, pcm[0].file);
+									for (i=0; i<pcm[This_Track].delay; i++)
+										fputc(0, pcm[This_Track].file);
 
-									pcm[0].size += pcm[0].delay;
-									pcm[0].delay = 0;
+									pcm[This_Track].size += pcm[This_Track].delay;
+									pcm[This_Track].delay = 0;
 								}
 
 								DECODE_AC3
 
-								if (-pcm[0].delay > size)
-									pcm[0].delay += size;
+								if (-pcm[This_Track].delay > size)
+									pcm[This_Track].delay += size;
 								else
 								{
 									if (SRC_Flag)
-										Wavefs44(pcm[0].file, size+pcm[0].delay, AC3Dec_Buffer-pcm[0].delay);
+										Wavefs44(pcm[This_Track].file, size+pcm[This_Track].delay, AC3Dec_Buffer-pcm[This_Track].delay);
 									else
-										fwrite(AC3Dec_Buffer-pcm[0].delay, size+pcm[0].delay, 1, pcm[0].file);
+										fwrite(AC3Dec_Buffer-pcm[This_Track].delay, size+pcm[This_Track].delay, 1, pcm[This_Track].file);
 
-									pcm[0].size += size+pcm[0].delay;
- 									pcm[0].delay = 0;
+									pcm[This_Track].size += size+pcm[This_Track].delay;
+ 									pcm[This_Track].delay = 0;
 								}
 
 								ac3[This_Track].rip = true;
@@ -1358,7 +1350,7 @@ void Next_Packet()
 
 //								dprintf("DGIndex: Using Video PTS = %d, Audio PTS = %d [%d], reference = %d, rate = %f\n",
 //										VideoPTS/90, AudioPTS/90, PTSDiff, StartTemporalReference, frame_rate);
-								ac3[This_Track].file = fopen(szBuffer, "wb");
+								ac3[This_Track].file = OpenAudio(szBuffer, "wb");
 
 								DEMUX_AC3
 
@@ -1374,17 +1366,17 @@ void Next_Packet()
 						{
 							DECODE_AC3
 
-							if (-pcm[0].delay > size)
-								pcm[0].delay += size;
+							if (-pcm[This_Track].delay > size)
+								pcm[This_Track].delay += size;
 							else
 							{
 								if (SRC_Flag)
-									Wavefs44(pcm[0].file, size+pcm[0].delay, AC3Dec_Buffer-pcm[0].delay);
+									Wavefs44(pcm[This_Track].file, size+pcm[This_Track].delay, AC3Dec_Buffer-pcm[This_Track].delay);
 								else
-									fwrite(AC3Dec_Buffer-pcm[0].delay, size+pcm[0].delay, 1, pcm[0].file);
+									fwrite(AC3Dec_Buffer-pcm[This_Track].delay, size+pcm[This_Track].delay, 1, pcm[This_Track].file);
 
-								pcm[0].size += size+pcm[0].delay;
- 								pcm[0].delay = 0;
+								pcm[This_Track].size += size+pcm[This_Track].delay;
+ 								pcm[This_Track].delay = 0;
 							}
 						}
 						else
@@ -1434,7 +1426,7 @@ void Next_Packet()
 									(pcm[This_Track].format & 0x07) + 1);
 								strcpy(pcm[This_Track].filename, szBuffer);
 
-								pcm[This_Track].file = fopen(szBuffer, "wb");
+								pcm[This_Track].file = OpenAudio(szBuffer, "wb");
 								StartWAV(pcm[This_Track].file, pcm[This_Track].format);
 
 								if (pcm[This_Track].delay > 0)
@@ -1504,7 +1496,7 @@ void Next_Packet()
 								else
 									sprintf(szBuffer, "%s T%02d DELAY %dms.dts", szOutput, This_Track+1, PTSDiff);
 
-								dts[This_Track].file = fopen(szBuffer, "wb");
+								dts[This_Track].file = OpenAudio(szBuffer, "wb");
 
 								DEMUX_DTS
 
@@ -1615,7 +1607,7 @@ void Next_Packet()
 									sprintf(szBuffer, "%s T%02d.mpa", szOutput, MPA_Track+1);
 								else
 									sprintf(szBuffer, "%s T%02d DELAY %dms.mpa", szOutput, MPA_Track+1, PTSDiff);
-								mpa[MPA_Track].file = fopen(szBuffer, "wb");
+								mpa[MPA_Track].file = OpenAudio(szBuffer, "wb");
 
 								DEMUX_MPA_AAC(mpa[MPA_Track].file);
 
@@ -1689,7 +1681,7 @@ void Next_Packet()
 										sprintf(szBuffer, "%s T%02d.mpa", szOutput, MPA_Track+1);
 									else
 										sprintf(szBuffer, "%s T%02d DELAY %dms.mpa", szOutput, MPA_Track+1, PTSDiff);
-									mpa[MPA_Track].file = fopen(szBuffer, "wb");
+									mpa[MPA_Track].file = OpenAudio(szBuffer, "wb");
 
 									DEMUX_MPA_AAC(mpa[MPA_Track].file);
 
@@ -1841,8 +1833,7 @@ unsigned int Get_Bits_All(unsigned int N)
 	CurrentBfr = NextBfr;
 	BitsLeft = 32 - N;
 	Fill_Next();
-
-	if (!Stop_Flag && MuxFile != (struct _iobuf *) 0xffffffff && MuxFile > 0)
+	if (!Stop_Flag && MuxFile != (FILE *) 0xffffffff && MuxFile > 0)
 	{
 		VideoDemux();
 	}
@@ -1855,7 +1846,7 @@ void Flush_Buffer_All(unsigned int N)
 	CurrentBfr = NextBfr;
 	BitsLeft = BitsLeft + 32 - N;
 	Fill_Next();
-	if (!Stop_Flag && MuxFile != (struct _iobuf *) 0xffffffff && MuxFile > 0)
+	if (!Stop_Flag && MuxFile != (FILE *) 0xffffffff && MuxFile > 0)
 	{
 		VideoDemux();
 	}
@@ -1865,6 +1856,7 @@ void Fill_Buffer()
 {
 	Read = _donread(Infile[CurrentFile], Rdbfr, BUFFER_SIZE);
 
+//	dprintf("DGIndex: Fill buffer\n");
 	if (Read < BUFFER_SIZE)	Next_File();
 
 	Rdptr = Rdbfr;
@@ -1888,6 +1880,7 @@ void Next_File()
 		for (i=0; i<CurrentFile; i++) process.run += Infilelength[i];
 		_lseeki64(Infile[CurrentFile], 0, SEEK_SET);
 		bytes = _donread(Infile[CurrentFile], Rdbfr + Read, BUFFER_SIZE - Read);
+//		dprintf("DGIndex: Next file at %d\n", Rdbfr + Read);
 		if (Read + bytes == BUFFER_SIZE)
 			// The whole buffer has valid data.
 			buffer_invalid = (unsigned char *) 0xffffffff;
@@ -2057,6 +2050,9 @@ void UpdateInfo()
 
 			sprintf(szBuffer, "%d:%02d:%02d", remain/3600, (remain%3600)/60, remain%60);
 			SetDlgItemText(hDlg, IDC_REMAIN, szBuffer);
+			// This isn't working right yet.
+//			sprintf(szBuffer, "%d%% DGIndex", (unsigned int) percent);
+//			SendMessage(hWnd, SET_WINDOW_TEXT_MESSAGE, 0, 0);
 		}
 	}
 	else if (GetDlgItemText(hDlg, IDC_ELAPSED, szBuffer, 9))
@@ -2097,10 +2093,10 @@ void StartVideoDemux(void)
 	else
 		strcat(p, "demuxed.m1v");
 	MuxFile = fopen(path, "wb");
-	if (MuxFile == 0)
+	if (MuxFile == (FILE *) 0)
 	{
 		MessageBox(hWnd, "Cannot open file for video demux output.", NULL, MB_OK | MB_ICONERROR);
-		MuxFile = (struct _iobuf *) 0xffffffff;
+		MuxFile = (FILE *) 0xffffffff;
 		return;
 	}
 	if (BitsLeft == 32)

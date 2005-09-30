@@ -94,6 +94,7 @@ __try
 			process.startfile = process.file;
 			process.startloc = process.lba * BUFFER_SIZE;
 			process.endfile = NumLoadedFiles - 1;
+			process.endloc = (Infilelength[NumLoadedFiles-1]/BUFFER_SIZE - 1) * BUFFER_SIZE;
 			process.locate = LOCATE_RIP;
 do_rip_play:
 			process.run = 0;
@@ -251,7 +252,7 @@ do_rip_play:
 			case SEQUENCE_HEADER_CODE:
 				if (Stop_Flag == true)
 					ThreadKill();
-				sequence_header(0);
+				sequence_header();
 				InitialDecoder();
 				Check_Flag = true;
 				break;
@@ -343,10 +344,6 @@ do_rip_play:
 		fprintf(D2VFile, "Frame_Rate=%d\n", (int)(Frame_Rate*1000));
 		fprintf(D2VFile, "Location=%d,%X,%d,%X\n\n", process.leftfile, (int)process.leftlba, 
 				process.rightfile, (int)process.rightlba);
-
-		// Default to ITU-709.
-		matrix_coefficients = 1;
-		setRGBValues();
 	}
 
 	// Start normal decoding from the start position.
@@ -468,7 +465,7 @@ static BOOL GOPBack()
 				// This is a kludge. For PES streams, the pack start
 				// might be in the previous LBA!
 				if (SystemStream_Flag != ELEMENTARY_STREAM)
-					process.startloc -= BUFFER_SIZE;
+					process.startloc -= BUFFER_SIZE + 4;
 				return true;
 			}
 		}

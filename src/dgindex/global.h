@@ -42,6 +42,11 @@
 #define		true	TRUE
 #define		false	FALSE
 
+// Messages to the window procedure.
+#define CLI_RIP_MESSAGE			(WM_APP)
+#define D2V_DONE_MESSAGE		(WM_APP + 1)
+#define SET_WINDOW_TEXT_MESSAGE	(WM_APP + 2)
+
 /* code definition */
 #define PICTURE_START_CODE			0x100
 #define SLICE_START_CODE_MIN		0x101
@@ -158,8 +163,8 @@
 
 #define AUDIO_NONE			0
 #define AUDIO_DEMUX			1
-#define AUDIO_DECODE		2
-#define AUDIO_DEMUXALL		3
+#define AUDIO_DEMUXALL		2
+#define AUDIO_DECODE		3
 
 #define DRC_NONE		0
 #define DRC_LIGHT		1
@@ -267,7 +272,6 @@ bool Pause_Flag;
 bool Scale_Flag;
 bool Start_Flag;
 bool Stop_Flag;
-int Store_Flag;
 int SystemStream_Flag;
 #define ELEMENTARY_STREAM 0
 #define PROGRAM_STREAM 1
@@ -303,8 +307,11 @@ DDOVERLAYFX ddofx;
 HMENU hMenu; HDC hDC;
 
 /* Global Value */
+int CLIActive;
+char ExePath[_MAX_PATH];
 FILE *D2VFile;
 char D2VFilePath[_MAX_PATH];
+char AudioFilePath[_MAX_PATH];
 int VOB_ID, CELL_ID;
 FILE *MuxFile;
 #define D2V_FILE_VERSION 11
@@ -397,7 +404,7 @@ void UpdateInfo(void);
 
 /* gethdr.c */
 int Get_Hdr(int);
-void sequence_header(__int64 start);
+void sequence_header(void);
 int slice_header(void);
 bool GOPSeen;
 

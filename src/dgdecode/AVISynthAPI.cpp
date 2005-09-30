@@ -31,10 +31,12 @@
 #include "utilities.h"
 #include <string.h>
 
-#define VERSION "DGDecode 1.4.3"
+#define VERSION "DGDecode 1.4.5"
 
 MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int moderate_h, int moderate_v, bool showQ, bool fastMC, const char* _cpu2, int _info, int _upConv, bool _i420, int iCC, IScriptEnvironment* env)
 {
+	int status;
+
 	CheckCPU();
 
 	#ifdef PROFILING
@@ -80,8 +82,21 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
 	
 	fclose(f);
 
-	if (!m_decoder.Open(path))
-		env->ThrowError("MPEG2Source: couldn't open source file, or obsolete D2V file");
+	status = m_decoder.Open(path);
+	if (status == 1)
+		env->ThrowError("MPEG2Source: Invalid D2V file, it's empty!");
+	else if (status == 2)
+		env->ThrowError("MPEG2Source: DGIndex/DGDecode mismatch. You are picking up\n"
+		                "a version of DGDecode, possibly from your plugins directory,\n"
+						"that does not match the version of DGIndex used to make the D2V\n"
+						"file. Search your hard disk for all copies of DGDecode.dll\n"
+						"and delete or rename all of them except for the one that\n"
+						"has the same version number as the DGIndex.exe that was used\n"
+						"to make the D2V file.");
+	else if (status == 3)
+		env->ThrowError("MPEG2Source: Could not open one of the input files.");
+	else if (status == 4)
+		env->ThrowError("MPEG2Source: Could not find a sequence header in the input stream.");
 
 	memset(&vi, 0, sizeof(vi));
 	vi.width = m_decoder.Clip_Width;
@@ -1837,9 +1852,9 @@ MPEG2Source::MPEG2Source(const char* d2v, int _upConv)
 	
 	fclose(f);
 
-	if (!m_decoder.Open(path))
+	if (m_decoder.Open(path))
 	{
-		dprintf("MPEG2Source: couldn't open file");
+		dprintf("MPEG2Source: couldn't open file or obsolete D2V file");
 		return;
 	}
 

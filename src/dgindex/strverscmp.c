@@ -108,30 +108,3 @@ strverscmp(const char *s1, const char *s2)
       return state;
   }
 }
-
-#if 0
-int main(int argc, char *argv[])
-{
-    char string1[255];
-    char string2[255];
-    int result;
-
-    while (1)
-    {
-        printf("Enter string 1: ");
-        gets(string1);
-        printf("Enter string 2: ");
-        gets(string2);
-        result = strverscmp(string1, string2);
-        if (result <= 0)
-        {
-            printf("%s\n%s\n\n", string1, string2);
-        }
-        else
-        {
-            printf("%s\n%s\n\n", string2, string1);
-        }
-    }
-    return 0;
-}
-#endif

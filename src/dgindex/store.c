@@ -28,12 +28,10 @@
 #define MAX_WINDOW_HEIGHT 768
 
 __forceinline static void Store_RGB24(unsigned char *src[]);
-__forceinline static void Store_YUY2(unsigned char *src[]);
 
 static void FlushRGB24(void);
-static void FlushYUY2(void);
 
-static BITMAPINFOHEADER birgb, birgbsmall, biyuv;
+static BITMAPINFOHEADER birgb, birgbsmall;
 
 static char VideoOut[_MAX_PATH];
 static unsigned char *y444;
@@ -137,12 +135,6 @@ void Write_Frame(unsigned char *src[], D2VData d2v, DWORD frame)
 		birgbsmall.biBitCount = 24;
 		birgbsmall.biCompression = BI_RGB;
 		birgbsmall.biSizeImage = Clip_Width * Clip_Height * 3;
-
-		ZeroMemory(&biyuv, sizeof(BITMAPINFOHEADER));
-		biyuv = birgb;
-		biyuv.biBitCount = 16;
-		biyuv.biCompression = mmioFOURCC('Y','U','Y','2');
-		biyuv.biSizeImage = Clip_Width * Clip_Height * 2;
 
 		if (FO_Flag!=FO_FILM)
 		{
@@ -325,72 +317,6 @@ static void FlushRGB24()
 			}
 			DisplayTime += (float) 1000.0 / rate;
 		}
-		playback++;
-		TFB = BFB = false;
-	}
-}
-
-static void Store_YUY2(unsigned char *src[])
-{
-	if (chroma_format==CHROMA420)
-	{
-		conv420to422(src[1], u422, frame_type);
-		conv420to422(src[2], v422, frame_type);
-	}
-	else
-	{
-		u422 = src[1];
-		v422 = src[2];
-	}
-
-	if (Luminance_Flag)
-	{
-		LuminanceFilter(src[0], lum);
-		y444 = lum;
-	}
-	else
-		y444 = src[0];
-
-	if (BFB)
-	{
-		conv422toyuy2odd(y444, u422, v422, yuy2);
-		TFB = true;
-		FlushYUY2();
-
-		conv422toyuy2even(y444, u422, v422, yuy2);
-		BFB = true;
-		FlushYUY2();
-	}
-	else
-	{
-		conv422toyuy2even(y444, u422, v422, yuy2);
-		BFB = true;
-		FlushYUY2();
-
-		conv422toyuy2odd(y444, u422, v422, yuy2);
-		TFB = true;
-		FlushYUY2();
-	}
-
-	if (FO_Flag!=FO_FILM && FO_Flag!=FO_RAW && RFF)
-		if (TFF)
-		{
-			TFB = true;
-			FlushYUY2();
-		}
-		else
-		{
-			BFB = true;
-			FlushYUY2();
-		}
-}
-
-static void FlushYUY2()
-{
-	if (TFB & BFB)
-	{
-		ShowFrame(false);
-
 		playback++;
 		TFB = BFB = false;
 	}

@@ -151,7 +151,7 @@ int parse_d2v(HWND hWnd, char *szInput)
 			// Show vob cell id.
 //			printf(" [vob/cell=%d/%d]", vob, cell);
 
-			// Print warnings for 3:2 breaks and illegal transitions.
+			// Print warnings for 3:2 breaks and field order transitions.
 			if ((prev_val >= 0) && ((val == 0 && prev_val == 3) || (val != 0 && val == prev_val + 1)))
 			{
 					fprintf(wfp, " *");
@@ -160,21 +160,21 @@ int parse_d2v(HWND hWnd, char *szInput)
 			if (prev_val >= 0)
 			{
 				if ((val == 2 && prev_val == 0) || (val == 2 && prev_val == 0))
-					fprintf(wfp, " [ILLEGAL TRANSITION!]");
+					fprintf(wfp, " [FIELD ORDER TRANSITION!]");
 				else if ((val == 3 && prev_val == 0) || (val == 2 && prev_val == 0))
-					fprintf(wfp, " [ILLEGAL TRANSITION!]");
+					fprintf(wfp, " [FIELD ORDER TRANSITION!]");
 				else if ((val == 0 && prev_val == 1) || (val == 2 && prev_val == 0))
-					fprintf(wfp, " [ILLEGAL TRANSITION!]");
+					fprintf(wfp, " [FIELD ORDER TRANSITION!]");
 				else if ((val == 1 && prev_val == 1) || (val == 2 && prev_val == 0))
-					fprintf(wfp, " [ILLEGAL TRANSITION!]");
+					fprintf(wfp, " [FIELD ORDER TRANSITION!]");
 				else if ((val == 0 && prev_val == 2) || (val == 2 && prev_val == 0))
-					fprintf(wfp, " [ILLEGAL TRANSITION!]");
+					fprintf(wfp, " [FIELD ORDER TRANSITION!]");
 				else if ((val == 1 && prev_val == 2) || (val == 2 && prev_val == 0))
-					fprintf(wfp, " [ILLEGAL TRANSITION!]");
+					fprintf(wfp, " [FIELD ORDER TRANSITION!]");
 				else if ((val == 2 && prev_val == 3) || (val == 2 && prev_val == 0))
-					fprintf(wfp, " [ILLEGAL TRANSITION!]");
+					fprintf(wfp, " [FIELD ORDER TRANSITION!]");
 				else if ((val == 3 && prev_val == 3) || (val == 2 && prev_val == 0))
-					fprintf(wfp, " [ILLEGAL TRANSITION!]");
+					fprintf(wfp, " [FIELD ORDER TRANSITION!]");
 			}
 
 			fprintf(wfp, "\n");
@@ -196,15 +196,15 @@ int parse_d2v(HWND hWnd, char *szInput)
 	return 1;
 }
 
-int fix_d2v(HWND hWnd, char *szInput)
+int fix_d2v(HWND hWnd, char *Input, int silent)
 {
 	FILE *fp, *wfp, *dfp;
-	char line[2048], prev_line[2048], wfile[2048], *p, *q;
+	char line[2048], prev_line[2048], wfile[2048], logfile[2048], *p, *q;
 	int val, mval, prev_val, mprev_val, fix;
 	bool first, found;
 	int D2Vformat = 0;
 
-	fp = fopen(szInput, "r");
+	fp = fopen(Input, "r");
 	if (fp == 0)
 	{
 		MessageBox(hWnd, "Cannot open the D2V file!", NULL, MB_OK | MB_ICONERROR);
@@ -226,7 +226,7 @@ int fix_d2v(HWND hWnd, char *szInput)
 		return 0;
 	}
 
-	strcpy(wfile, szInput);
+	strcpy(wfile, Input);
 	strcat(wfile,".fixed");
 	wfp = fopen(wfile, "w");
 	if (wfp == 0)
@@ -237,12 +237,13 @@ int fix_d2v(HWND hWnd, char *szInput)
 	}
 	fputs(line, wfp);
 	// Mutate the file name to the output text file to receive processing status information.
-	p = &szInput[strlen(szInput)];
+	strcpy(logfile, Input);
+	p = &logfile[strlen(logfile)];
 	while (*p != '.') p--;
 	p[1] = 0;
 	strcat(p, "fix.txt");
 	// Open the output file.
-	dfp = fopen(szInput, "w");
+	dfp = fopen(logfile, "w");
 	if (dfp == 0)
 	{
 		fclose(fp);
@@ -283,7 +284,7 @@ int fix_d2v(HWND hWnd, char *szInput)
 			// Isolate the TFF/RFF bits.
 			mval = val & 0x3;
 			if (prev_val >= 0) mprev_val = prev_val & 0x3;
-			// Detect illegal transitions.
+			// Detect field order transitions.
 			if (mval == 2 && mprev_val == 0)      fix = 1;
 			else if (mval == 3 && mprev_val == 0) fix = 1;
 			else if (mval == 0 && mprev_val == 1) fix = 0;
@@ -292,11 +293,11 @@ int fix_d2v(HWND hWnd, char *szInput)
 			else if (mval == 1 && mprev_val == 2) fix = 3;
 			else if (mval == 2 && mprev_val == 3) fix = 2;
 			else if (mval == 3 && mprev_val == 3) fix = 2;
-			// Correct the illegal transition.
+			// Correct the field order transition.
 			if (fix >= 0)
 			{
 				found = true;
-				fprintf(dfp, "Illegal transition: %x -> %x\n", mprev_val, mval);
+				fprintf(dfp, "Field order transition: %x -> %x\n", mprev_val, mval);
 				fprintf(dfp, prev_line);
 				fprintf(dfp, line);
 				if (first == false)
@@ -332,13 +333,59 @@ int fix_d2v(HWND hWnd, char *szInput)
 	fclose(wfp);
 	if (found == false)
 	{
-		fprintf(dfp, "No errors found.\n");
-		MessageBox(hWnd, "No errors found.", "Fix D2V", MB_OK | MB_ICONINFORMATION);
-		unlink(wfile);
-		fclose(dfp);
+		if (silent)
+		{
+			fclose(dfp);
+			unlink(wfile);
+			unlink(logfile);
+		}
+		else
+		{
+			fprintf(dfp, "No errors found.\n");
+			fclose(dfp);
+			unlink(wfile);
+			MessageBox(hWnd, "No errors found.", "Fix D2V", MB_OK | MB_ICONINFORMATION);
+		}
 		return 0;
 	}
-	fclose(dfp);
+	else
+	{
+		FILE *bad, *good, *fixed;
+		char c;
+
+		fclose(dfp);
+		// Copy the D2V file to *.d2v.bad version.
+		good = fopen(Input, "r");
+		if (good == 0)
+			return 1;
+		sprintf(line, "%s.bad", Input);
+		bad = fopen(line, "w");
+		if (bad == 0)
+		{
+			fclose(good);
+			return 1;
+		}
+		while ((c = fgetc(good)) != EOF) fputc(c, bad);
+		fclose(good);
+		fclose(bad);
+		// Copy the *.d2v.fixed version to the D2V file.
+		good = fopen(Input, "w");
+		if (good == 0)
+			return 1;
+		sprintf(line, "%s.fixed", Input);
+		fixed = fopen(line, "r");
+		while ((c = fgetc(fixed)) != EOF) fputc(c, good);
+		fclose(good);
+		fclose(fixed);
+		// Ditch the *.d2v.fixed version.
+		unlink(line);
+		if (!CLIActive)
+		{
+			MessageBox(hWnd, "D2V file corrected. The errored version was\nsaved with the extension \".bad\".", "Fix D2V", MB_OK | MB_ICONINFORMATION);
+			if (!silent)
+				ShellExecute(hDlg, "open", logfile, NULL, NULL, SW_SHOWNORMAL);
+		}
+	}
 
 	return 1;
 }

@@ -93,9 +93,9 @@ int CMPEG2Decoder::Open(const char *path)
 
 	out->VF_File = fopen(path, "r");
 	if (fgets(ID, 79, out->VF_File)==NULL)
-		return 0;
+		return 1;
 	if (strncmp(ID, PASS, 20))
-		return 0;
+		return 2;
 
 	fscanf(out->VF_File, "%d\n", &File_Limit);
 	i = File_Limit;
@@ -106,7 +106,7 @@ int CMPEG2Decoder::Open(const char *path)
 		// Strip newline.
 		Infilename[File_Limit-i][strlen(Infilename[File_Limit-i])-1] = 0;
 		if ((Infile[File_Limit-i] = _open(Infilename[File_Limit-i], _O_RDONLY | _O_BINARY))==-1)
-			return 0;
+			return 3;
 		i--;
 	}
 
@@ -187,7 +187,7 @@ int CMPEG2Decoder::Open(const char *path)
 
 	do
 	{
-		if (Fault_Flag == OUT_OF_BITS) return 0;
+		if (Fault_Flag == OUT_OF_BITS) return 4;
 		next_start_code();
 		code = Get_Bits(32);
 	}
@@ -484,6 +484,18 @@ int CMPEG2Decoder::Open(const char *path)
 		out->VF_FrameLimit = ntsc;
 	}
 
+#if 0
+	{
+		unsigned int i;
+		char buf[80];
+		for (i = 0; i < ntsc; i++)
+		{
+			sprintf(buf, "DGDecode: %d: top = %d, bot = %d\n", i, FrameList[i].top, FrameList[i].bottom);
+			OutputDebugString(buf);
+		}
+	}
+#endif
+
 	// Count the number of nondecodable frames at the start of the clip
 	// (due to an open GOP). This will be used to avoid displaying these
 	// bad frames.
@@ -521,7 +533,7 @@ int CMPEG2Decoder::Open(const char *path)
 			BadStartingFrames = i;
 		}
 	}
-	return 1;
+	return 0;
 }
 
 // Decode function rewritten by Donald Graft as part of fix for dropped frames and random frame access.
@@ -580,8 +592,8 @@ __try
 
 			/* When RFFs are present or we are doing FORCE FILM, we may have already decoded
 			   the frame that we need. So decode the next frame only when we need to. */
-			if (((Field_Order == 1) && (FrameList[frame].bottom != FrameList[frame-1].bottom)) ||
-				((Field_Order == 0) && (FrameList[frame].top != FrameList[frame-1].top)))
+			if (max(FrameList[frame].top, FrameList[frame].bottom) >
+				max(FrameList[frame-1].top, FrameList[frame-1].bottom))
 			{			
 				if (!Get_Hdr())
 				{
@@ -694,8 +706,7 @@ __try
 	}
 	if (HaveRFFs == true && count == 0)
 	{
-		if (Field_Order == 0) Copyeven(dst, saved_active);
-		else  Copyodd(dst, saved_active);
+		Copyall(dst, saved_active);
 	}
 	if (!Get_Hdr())
 	{
@@ -716,8 +727,7 @@ __try
 	}
 	if (HaveRFFs == true && count == 1)
 	{
-		if (Field_Order == 0) Copyeven(dst, saved_active);
-		else  Copyodd(dst, saved_active);
+		Copyall(dst, saved_active);
 	}
 	for (i = 0; i < count; i++)
 	{
@@ -740,8 +750,7 @@ __try
 		}
 		if ((HaveRFFs == true) && (count > 1) && (i == count - 2))
 		{
-			if (Field_Order == 0) Copyeven(dst, saved_active);
-			else  Copyodd(dst, saved_active);
+			Copyall(dst, saved_active);
 		}
 	}
 

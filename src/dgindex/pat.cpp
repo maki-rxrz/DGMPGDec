@@ -43,7 +43,7 @@ int PATParser::AnalyzeRaw(HWND hDialog, char *filename, unsigned int audio_pid, 
 	unsigned char buffer[188];
 	int read, pes_offset;
 	char listbox_line[255], description[80];
-#define MAX_PIDS 100
+#define MAX_PIDS 500
 #define MAX_PACKETS 100000
 	struct
 	{
