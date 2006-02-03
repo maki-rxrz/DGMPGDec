@@ -381,7 +381,7 @@ int fix_d2v(HWND hWnd, char *Input, int silent)
 		unlink(line);
 		if (!CLIActive)
 		{
-			MessageBox(hWnd, "D2V file corrected. The errored version was\nsaved with the extension \".bad\".", "Fix D2V", MB_OK | MB_ICONINFORMATION);
+			MessageBox(hWnd, "Field order corrected. The original version was\nsaved with the extension \".bad\".", "Correct Field Order", MB_OK | MB_ICONINFORMATION);
 			if (!silent)
 				ShellExecute(hDlg, "open", logfile, NULL, NULL, SW_SHOWNORMAL);
 		}

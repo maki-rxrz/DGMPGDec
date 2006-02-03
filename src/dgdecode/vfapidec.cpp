@@ -36,7 +36,7 @@ CMPEG2Decoder::CMPEG2Decoder()
   VF_File = 0;
   VF_FrameLimit = 0;
   VF_GOPLimit = 0;
-  VF_FrameRate = 0;
+  VF_FrameRate = VF_FrameRate_Num = VF_FrameRate_Den = 0;
   prev_frame = 0xfffffffe;
   memset(Rdbfr, 0, sizeof(Rdbfr));
   Rdptr = Rdmax = 0;
@@ -82,7 +82,7 @@ int CMPEG2Decoder::Open(const char *path)
 
 	Choose_Prediction(this->fastMC);
 
-	char ID[80], PASS[80] = "DGIndexProjectFile11";
+	char ID[80], PASS[80] = "DGIndexProjectFile13";
 	DWORD i, j, size, code, type, tff, rff, film, ntsc, gop, top, bottom, mapping;
 	int repeat_on, repeat_off, repeat_init;
 	int vob_id, cell_id;
@@ -214,9 +214,6 @@ int CMPEG2Decoder::Open(const char *path)
 		block[i]   = (short *)((long)p_block[i] + 64 - (long)p_block[i]%64);
 	}
 
-	p_fTempArray = (void *)aligned_malloc(sizeof(float)*128 + 64, 32);
-	fTempArray = (void *)((long)p_fTempArray + 64 - (long)p_fTempArray%64);
-
 	for (i=0; i<3; i++)
 	{
 		if (i==0)
@@ -268,7 +265,7 @@ int CMPEG2Decoder::Open(const char *path)
 	saved_store = auxFrame2;
 
 	fscanf(out->VF_File, "Field_Operation=%d\n", &FO_Flag);
-	fscanf(out->VF_File, "Frame_Rate=%d\n", &(out->VF_FrameRate));
+	fscanf(out->VF_File, "Frame_Rate=%d (%u/%u)\n", &(out->VF_FrameRate), &(out->VF_FrameRate_Num), &(out->VF_FrameRate_Den));
 	fscanf(out->VF_File, "Location=%d,%X,%d,%X\n", &i, &j, &i, &j);
 
 	ntsc = film = top = bottom = gop = mapping = repeat_on = repeat_off = repeat_init = 0;
@@ -696,14 +693,23 @@ __try
 			return;
 		}
 		Decode_Picture(dst);
-		if (picture_coding_type == I_TYPE) HadI = 1;
+		if (picture_coding_type == I_TYPE)
+			HadI = 1;
 		if (picture_structure != FRAME_PICTURE)
 		{
 			Get_Hdr();
 			Decode_Picture(dst);
+			if (picture_coding_type == I_TYPE)
+				HadI = 1;
+			if (Second_Field == 1)
+			{
+				Get_Hdr();
+				Decode_Picture(dst);
+			}
 		}
 		if (HadI) break;
 	}
+	Second_Field = 0;
 	if (HaveRFFs == true && count == 0)
 	{
 		Copyall(dst, saved_active);
@@ -809,8 +815,6 @@ void CMPEG2Decoder::Close()
 
 	for (i=0; i<8; i++)
 		aligned_free(p_block[i]);
-
-	aligned_free(p_fTempArray);
 
 	if (GOPList != NULL)
 	{

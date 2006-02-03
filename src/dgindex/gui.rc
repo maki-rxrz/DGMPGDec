@@ -53,12 +53,12 @@ BEGIN
                     IDC_STATIC,9,74,153,44,NOT WS_GROUP
 END
 
-IDD_INFO DIALOG DISCARDABLE  0, 0, 248, 203
+IDD_INFO DIALOG DISCARDABLE  0, 0, 248, 218
 STYLE DS_MODALFRAME | DS_NOIDLEMSG | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Information"
 FONT 10, "System"
 BEGIN
-    GROUPBOX        "Video",IDC_STATIC,3,5,119,141,BS_LEFT
+    GROUPBOX        "Video",IDC_STATIC,3,5,119,153,BS_LEFT
     RTEXT           "Frame Type",IDC_STATIC,13,65,40,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
     RTEXT           "Aspect Ratio",IDC_STATIC,9,15,44,9,SS_CENTERIMAGE | NOT 
@@ -74,9 +74,9 @@ BEGIN
     CTEXT           "",IDC_CODED_NUMBER,56,105,59,9,SS_CENTERIMAGE | 
                     SS_SUNKEN | NOT WS_GROUP
     GROUPBOX        "Audio",IDC_STATIC,125,5,119,141
-    LTEXT           "Elapsed",IDC_STATIC,16,157,27,9,SS_CENTERIMAGE | NOT 
+    LTEXT           "Elapsed",IDC_STATIC,16,172,27,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    LTEXT           "Remain",IDC_STATIC,18,167,27,9,SS_CENTERIMAGE | NOT 
+    LTEXT           "Remain",IDC_STATIC,18,182,27,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
     CTEXT           "",IDC_PLAYBACK_NUMBER,56,115,59,9,SS_CENTERIMAGE | 
                     SS_SUNKEN | NOT WS_GROUP
@@ -88,32 +88,32 @@ BEGIN
                     NOT WS_GROUP
     CTEXT           "",IDC_ASPECT_RATIO,56,15,59,9,SS_CENTERIMAGE | 
                     SS_SUNKEN | NOT WS_GROUP
-    CTEXT           "",IDC_REMAIN,46,167,69,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_REMAIN,46,182,69,9,SS_CENTERIMAGE | SS_SUNKEN | 
                     NOT WS_GROUP
-    CTEXT           "",IDC_ELAPSED,46,157,69,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_ELAPSED,46,172,69,9,SS_CENTERIMAGE | SS_SUNKEN | 
                     NOT WS_GROUP
-    CTEXT           "",IDC_FPS,46,177,69,9,SS_CENTERIMAGE | SS_SUNKEN | NOT 
+    CTEXT           "",IDC_FPS,46,192,69,9,SS_CENTERIMAGE | SS_SUNKEN | NOT 
                     WS_GROUP
-    RTEXT           "FPS",IDC_STATIC,27,177,16,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "FPS",IDC_STATIC,27,192,16,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    CTEXT           "",IDC_INFO,46,187,69,9,SS_SUNKEN | NOT WS_GROUP
+    CTEXT           "",IDC_INFO,46,202,69,9,SS_SUNKEN | NOT WS_GROUP
     LTEXT           "Track 1",IDC_STATIC,131,15,23,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
     CTEXT           "",IDC_AUDIO_TYPE,157,15,80,9,SS_CENTERIMAGE | SS_SUNKEN | 
                     NOT WS_GROUP
-    RTEXT           "Info",IDC_STATIC,27,187,16,8,NOT WS_GROUP
+    RTEXT           "Info",IDC_STATIC,27,202,16,8,NOT WS_GROUP
     RTEXT           "Timestamp",IDC_STATIC,128,95,39,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
     CTEXT           "",IDC_TIMESTAMP,169,95,68,9,SS_CENTERIMAGE | SS_SUNKEN | 
                     NOT WS_GROUP
-    GROUPBOX        "Status",IDC_STATIC,3,147,119,51,BS_LEFT
+    GROUPBOX        "Status",IDC_STATIC,3,162,119,51,BS_LEFT
     RTEXT           "Vob Cell ID",IDC_STATIC,10,125,43,9,SS_CENTERIMAGE | 
                     NOT WS_GROUP
     CTEXT           "",IDC_VOB_ID,56,125,29,9,SS_CENTERIMAGE | SS_SUNKEN | 
                     NOT WS_GROUP
     CTEXT           "",IDC_CELL_ID,87,125,28,9,SS_CENTERIMAGE | SS_SUNKEN | 
                     NOT WS_GROUP
-    RTEXT           "Bitrate",IDC_STATIC,10,134,43,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Bitrate",IDC_STATIC,10,135,43,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
     CTEXT           "",IDC_BITRATE,56,135,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
                     NOT WS_GROUP
@@ -165,6 +165,10 @@ BEGIN
                     WS_GROUP
     CTEXT           "",IDC_COLORIMETRY,56,75,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
                     NOT WS_GROUP
+    RTEXT           "Bitrate (Avg)",IDC_STATIC,10,144,43,9,SS_CENTERIMAGE | 
+                    NOT WS_GROUP
+    CTEXT           "",IDC_BITRATE_AVG,56,145,59,9,SS_CENTERIMAGE | 
+                    SS_SUNKEN | NOT WS_GROUP
 END
 
 IDD_FILELIST DIALOGEX 0, 0, 270, 151
@@ -348,7 +352,7 @@ BEGIN
     IDD_INFO, DIALOG
     BEGIN
         RIGHTMARGIN, 247
-        BOTTOMMARGIN, 198
+        BOTTOMMARGIN, 213
     END
 
     IDD_FILELIST, DIALOG
@@ -512,6 +516,7 @@ BEGIN
             MENUITEM "Fast",                        IDM_SPEED_FAST
             MENUITEM "Maximum",                     IDM_SPEED_MAXIMUM
         END
+        MENUITEM "Correct Field Order",         IDM_CORRECT_FIELD_ORDER
         MENUITEM "Force open GOPs in D2V File", IDM_FORCE_OPEN
         MENUITEM "Log Quant Matrices",          IDM_LOG_QUANTS
     END
@@ -541,6 +546,52 @@ BEGIN
         MENUITEM "neuron2's Web Site",          IDM_NEURON2
     END
 END
+
+
+#ifndef _MAC
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,4,6,0
+ PRODUCTVERSION 1,4,6,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x29L
+#else
+ FILEFLAGS 0x28L
+#endif
+ FILEOS 0x4L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "Comments", "DGIndex is the indexing component of DGMPGDec, an MPEG decoding and frame serving utility.\0"
+            VALUE "CompanyName", "Freeware licensed under GPL\0"
+            VALUE "FileDescription", "\0"
+            VALUE "FileVersion", "1, 4, 6, 0\0"
+            VALUE "InternalName", "DGIndex\0"
+            VALUE "LegalCopyright", "Copyright (C) 2001-2005 Donald A. Graft\0"
+            VALUE "LegalTrademarks", "\0"
+            VALUE "OriginalFilename", "DGIndex.exe\0"
+            VALUE "PrivateBuild", "Final\0"
+            VALUE "ProductName", "DGIndex\0"
+            VALUE "ProductVersion", "1, 4, 6, 0\0"
+            VALUE "SpecialBuild", "Final\0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
+
+#endif    // !_MAC
 
 
 /////////////////////////////////////////////////////////////////////////////

@@ -29,6 +29,8 @@ extern "C" HRESULT __stdcall close_file(VF_FileHandle p);
 extern "C" HRESULT __stdcall get_file_info(VF_FileHandle in, LPVF_FileInfo out);
 extern "C" HRESULT __stdcall get_stream_info(VF_FileHandle in, DWORD s, void *out);
 extern "C" HRESULT __stdcall read_data(VF_FileHandle in, DWORD s, void *out);
+IScriptEnvironment* findOpenAVSEnv();
+void closeAVS(vfMI *j);
 
 int vfMI::instance = 0;
 
@@ -47,7 +49,7 @@ extern "C" HRESULT __stdcall vfGetPluginInfo(LPVF_PluginInfo info)
 	info->dwSupportStreamType = VF_STREAM_VIDEO;
 	info->dwSupportStreamType |= VF_STREAM_AUDIO;
 
-	strcpy(info->cPluginInfo, "DGMPGDec 1.4.5 D2V/AVS Reader");
+	strcpy(info->cPluginInfo, "DGMPGDec 1.4.6 D2V/AVS Reader");
 	strcpy(info->cFileType, "DGIndex or AviSynth File (*.d2v;*.avs)|*.d2v;*.avs");
 
 	return VF_OK;
@@ -68,6 +70,36 @@ extern "C" HRESULT __stdcall vfGetPluginFunc(LPVF_PluginFunc func)
 	func->ReadData = read_data;
 
 	return VF_OK;
+}
+
+IScriptEnvironment* findOpenAVSEnv()
+{
+	for (vfMI* i = g_LL.LLB; i; i = i->nxt)
+	{
+		if (i->avsEnv != NULL) 
+			return i->avsEnv;
+	}
+	return NULL;
+}
+
+void closeAVS(vfMI *j)
+{
+	if (!j || !j->avsEnv) return;
+	if (j->clip)
+	{ 
+		delete j->clip; 
+		j->clip = NULL;
+	}
+	for (vfMI* i = g_LL.LLB; i; i = i->nxt)
+	{
+		if (i != j && i->avsEnv == j->avsEnv) 
+		{
+			j->avsEnv = NULL;
+			return;
+		}
+	}
+	delete j->avsEnv;
+	j->avsEnv = NULL;
 }
 
 #define D2V_TYPE 0
@@ -159,7 +191,12 @@ extern "C" HRESULT __stdcall open_file(char *path, LPVF_FileHandle out)
 			return VF_ERROR;
 		}
 
-		j->avsEnv = j->CreateScriptEnvironment(AVISYNTH_INTERFACE_VERSION);
+		// look for a currently open IScriptEnvironment first
+		j->avsEnv = findOpenAVSEnv();
+
+		// else create a new one
+		if (!j->avsEnv)
+			j->avsEnv = j->CreateScriptEnvironment(AVISYNTH_INTERFACE_VERSION);
 
 		if (!j->avsEnv)
 		{
@@ -172,8 +209,7 @@ extern "C" HRESULT __stdcall open_file(char *path, LPVF_FileHandle out)
 			j->clip = new PClip();
 			if (!j->clip) 
 			{
-				delete j->avsEnv;
-				j->avsEnv = NULL;
+				closeAVS(j);
 				return VF_ERROR;
 			}
 
@@ -192,25 +228,24 @@ extern "C" HRESULT __stdcall open_file(char *path, LPVF_FileHandle out)
 
 			// Read the first frame to make sure that everything works
 			PVideoFrame temp = (*j->clip)->GetFrame(0, j->avsEnv);
+			if ((*j->clip)->GetVideoInfo().HasAudio() && (*j->clip)->GetVideoInfo().SampleType() != 2)
+			{
+				AVSValue args4[1] = { *(j->clip) };
+				*(j->clip) = j->avsEnv->Invoke("ConvertAudioTo16bit", AVSValue(args4, 1)).AsClip();
+			}
 		}
 		catch (AvisynthError e)
 		{
 			OutputDebugString("DGVfapi: error (Avisynth Error) loading avisynth script!\n");
 			sprintf(buf,"DGVfapi: %s.\n", e.msg);
 			OutputDebugString(buf);
-			delete j->clip;
-			j->clip = NULL;
-			delete j->avsEnv;
-			j->avsEnv = NULL;
+			closeAVS(j);
 			return VF_ERROR;
 		}
 		catch (...)
 		{
 			OutputDebugString("DGVfapi: error (Unknown) loading avisynth script!\n");
-			delete j->clip;
-			j->clip = NULL;
-			delete j->avsEnv;
-			j->avsEnv = NULL;
+			closeAVS(j);
 			return VF_ERROR;
 		}
 	}
@@ -225,6 +260,8 @@ extern "C" HRESULT __stdcall close_file(VF_FileHandle in)
 	vfMI *i = (vfMI *)in;
 
 	g_LL.Remove(i);
+
+	closeAVS(i);
 
 	delete i;
 
@@ -311,6 +348,7 @@ extern "C" HRESULT __stdcall get_stream_info(VF_FileHandle in, DWORD stream, voi
 			info->dwRate = vit.audio_samples_per_second * vit.BytesPerAudioSample();
 			info->dwScale = vit.BytesPerAudioSample();
 			info->dwBitsPerSample = vit.BytesPerChannelSample()*8;
+			info->dwBlockAlign = vit.BytesPerAudioSample();
 		}
 	}
 	else return VF_ERROR;
@@ -365,6 +403,8 @@ extern "C" HRESULT __stdcall read_data(VF_FileHandle in, DWORD stream, void *out
 		{
 			if (!(*i->clip)->GetVideoInfo().HasAudio()) return VF_ERROR;
 			(*i->clip)->GetAudio(data->lpBuf, data->dwSamplePosL, data->dwSampleCount, i->avsEnv);
+			data->dwReadedSampleCount = (unsigned long) min(data->dwSampleCount,
+				max((*i->clip)->GetVideoInfo().num_audio_samples-data->dwSamplePosL,0));
 		}
 	}
 	else return VF_ERROR;

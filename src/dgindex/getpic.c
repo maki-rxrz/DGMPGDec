@@ -199,15 +199,15 @@ void Decode_Picture()
 	// D2V file generation rewritten by Donald Graft to support IBBPBBP...
 	if (D2V_Flag && (picture_structure==FRAME_PICTURE  || !Second_Field))
 	{	
-		if (picture_coding_type == I_TYPE && GOPSeen == true)
-			gop_entries[gop_entries_ndx].gop_start = true;
-		else
-			gop_entries[gop_entries_ndx].gop_start = false;
-
 		if (picture_coding_type == I_TYPE && gop_entries_ndx > 0)
 		{
 			WriteD2VLine(0);
 		}
+		if (GOPSeen == true && picture_coding_type == I_TYPE)
+			gop_entries[gop_entries_ndx].gop_start = true;
+		else
+			gop_entries[gop_entries_ndx].gop_start = false;
+		GOPSeen = false;
 		gop_entries[gop_entries_ndx].lba = (int) d2v_current.lba;
 		gop_entries[gop_entries_ndx].position = d2v_current.position;
 		gop_entries[gop_entries_ndx].pf = progressive_frame;

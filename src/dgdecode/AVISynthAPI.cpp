@@ -31,7 +31,7 @@
 #include "utilities.h"
 #include <string.h>
 
-#define VERSION "DGDecode 1.4.5"
+#define VERSION "DGDecode 1.4.6"
 
 MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int moderate_h, int moderate_v, bool showQ, bool fastMC, const char* _cpu2, int _info, int _upConv, bool _i420, int iCC, IScriptEnvironment* env)
 {
@@ -113,8 +113,8 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
 	else if (m_decoder.chroma_format == 2 && _upConv != 2) vi.pixel_type = VideoInfo::CS_YUY2;
 	else if (m_decoder.chroma_format == 2 && _upConv == 2) vi.pixel_type = VideoInfo::CS_BGR24;
 	else env->ThrowError("MPEG2Source:  currently unsupported input color format (4:4:4)");
-	vi.fps_numerator = m_decoder.VF_FrameRate;
-	vi.fps_denominator = 1000;
+	vi.fps_numerator = m_decoder.VF_FrameRate_Num;
+	vi.fps_denominator = m_decoder.VF_FrameRate_Den;
 	vi.num_frames = m_decoder.VF_FrameLimit;
 	vi.SetFieldBased(false);
 
@@ -385,7 +385,7 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
 		sprintf(msg1,"%s (c) 2005 Donald A. Graft\n" \
 					 "---------------------------------------\n" \
 					 "Source:        %s\n" \
-					 "Frame Rate:    %3.3f fps %s\n" \
+					 "Frame Rate:    %3.6f fps (%u/%u) %s\n" \
 			         "Field Order:   %s\n" \
 			         "Picture Size:  %d x %d\n" \
  					 "Aspect Ratio:  %s\n"  \
@@ -400,7 +400,11 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
  					 "Quants:        %d/%d/%d (avg/min/max)\n",
 		VERSION,
  		m_decoder.Infilename[m_decoder.GOPList[gop]->file],
-		m_decoder.VF_FrameRate / 1000.0f, m_decoder.VF_FrameRate == 25000 ? "(PAL)" : m_decoder.VF_FrameRate == 29970 ? "(NTSC)" : "", 
+		double(m_decoder.VF_FrameRate_Num) / double(m_decoder.VF_FrameRate_Den),
+			m_decoder.VF_FrameRate_Num,
+			m_decoder.VF_FrameRate_Den,
+			(m_decoder.VF_FrameRate == 25000 || m_decoder.VF_FrameRate == 50000) ? "(PAL)" :
+			m_decoder.VF_FrameRate == 29970 ? "(NTSC)" : "",
 		m_decoder.Field_Order == 1 ? "Top Field First" : "Bottom Field First",
 		m_decoder.Coded_Picture_Width, m_decoder.Coded_Picture_Height,
 		m_decoder.Aspect_Ratio,
@@ -419,7 +423,10 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
 	{
 		dprintf("DGDecode: DGDecode %s (c) 2005 Donald A. Graft\n", VERSION);
 		dprintf("DGDecode: Source:            %s\n", m_decoder.Infilename[m_decoder.GOPList[gop]->file]);
-		dprintf("DGDecode: Frame Rate:        %3.3f fps %s\n", m_decoder.VF_FrameRate / 1000.0f, m_decoder.VF_FrameRate == 25000 ? "(PAL)" : m_decoder.VF_FrameRate == 29970 ? "(NTSC)" : "");
+		dprintf("DGDecode: Frame Rate:        %3.6f fps (%u/%u) %s\n",
+			double(m_decoder.VF_FrameRate_Num) / double(m_decoder.VF_FrameRate_Den),
+			m_decoder.VF_FrameRate_Num, m_decoder.VF_FrameRate_Den,
+			(m_decoder.VF_FrameRate == 25000 || m_decoder.VF_FrameRate == 50000) ? "(PAL)" : m_decoder.VF_FrameRate == 29970 ? "(NTSC)" : "");
 		dprintf("DGDecode: Field Order:       %s\n", m_decoder.Field_Order == 1 ? "Top Field First" : "Bottom Field First");
 		dprintf("DGDecode: Picture Size:      %d x %d\n", m_decoder.Coded_Picture_Width, m_decoder.Coded_Picture_Height);
 		dprintf("DGDecode: Aspect Ratio:      %s\n", m_decoder.Aspect_Ratio);
@@ -1868,8 +1875,8 @@ MPEG2Source::MPEG2Source(const char* d2v, int _upConv)
 		dprintf("MPEG2Source: unsupported color format (4:4:4)");
 		return;
 	}
-	vi.fps_numerator = m_decoder.VF_FrameRate;
-	vi.fps_denominator = 1000;
+	vi.fps_numerator = m_decoder.VF_FrameRate_Num;
+	vi.fps_denominator = m_decoder.VF_FrameRate_Den;
 	vi.num_frames = m_decoder.VF_FrameLimit;
 	vi.SetFieldBased(false);
 

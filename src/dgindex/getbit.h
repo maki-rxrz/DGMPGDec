@@ -124,7 +124,46 @@ __forceinline static void Fill_Next()
 	}
 	else if (Rdptr <= Rdbfr+BUFFER_SIZE - 4)
 	{
+#if 1
 		NextBfr = (*Rdptr << 24) + (*(Rdptr+1) << 16) + (*(Rdptr+2) << 8) + *(Rdptr+3);
+#else
+		if (Rdptr < buffer_invalid)
+		{
+			NextBfr = (*Rdptr << 24);
+			if (Rdptr+1 < buffer_invalid)
+			{
+				NextBfr += (*(Rdptr+1) << 16);
+				if (Rdptr+2 < buffer_invalid)
+				{
+					NextBfr += (*(Rdptr+2) << 8);
+					if (Rdptr+3 < buffer_invalid)
+					{
+						NextBfr += (*(Rdptr+3));
+					}
+					else
+					{
+						NextBfr += 0xff;
+						Stop_Flag = 1;
+					}
+				}
+				else
+				{
+					NextBfr += 0xffff;
+					Stop_Flag = 1;
+				}
+			}
+			else
+			{
+				NextBfr += 0xffffff;
+				Stop_Flag = 1;
+			}
+		}
+		else
+		{
+			NextBfr = 0xffffffff;
+			Stop_Flag = 1;
+		}
+#endif
 		Rdptr += 4;
 	}
 	else

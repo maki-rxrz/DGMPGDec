@@ -123,7 +123,7 @@
 #define CHROMA444		3
 
 #define BUFFER_SIZE				2048
-#define MAX_FILE_NUMBER			256
+#define MAX_FILE_NUMBER			512
 #define MAX_PICTURES_PER_GOP	500
 
 #define STORE_RGB24		1
@@ -281,6 +281,7 @@ __int64 PackHeaderPosition;
 
 int LeadingBFrames;
 int ForceOpenGops;
+int CorrectFieldOrder;
 
 bool Luminance_Flag;
 bool ClipResize_Flag;
@@ -314,10 +315,11 @@ char D2VFilePath[_MAX_PATH];
 char AudioFilePath[_MAX_PATH];
 int VOB_ID, CELL_ID;
 FILE *MuxFile;
-#define D2V_FILE_VERSION 11
+#define D2V_FILE_VERSION 13
 
+int WindowMode;
 HWND hWnd, hDlg, hTrack;
-char szInput[10*_MAX_PATH], szOutput[_MAX_PATH], szBuffer[_MAX_PATH], szSave[_MAX_PATH];
+char szInput[MAX_FILE_NUMBER*_MAX_PATH], szOutput[_MAX_PATH], szBuffer[_MAX_PATH], szSave[_MAX_PATH];
 
 unsigned char *backward_reference_frame[3], *forward_reference_frame[3];
 unsigned char *auxframe[3], *current_frame[3];
@@ -339,8 +341,10 @@ int Coded_Picture_Width, Coded_Picture_Height, Chroma_Width, Chroma_Height;
 int block_count, Second_Field;
 int horizontal_size, vertical_size, mb_width, mb_height;
 
-float frame_rate, Frame_Rate;
+double frame_rate, Frame_Rate;
+unsigned int fr_num, fr_den;
 int FILM_Purity, VIDEO_Purity, Bitrate_Monitor;
+double Bitrate_Average;
 
 int Clip_Left, Clip_Right, Clip_Top, Clip_Bottom;
 

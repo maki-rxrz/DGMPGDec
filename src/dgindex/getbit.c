@@ -283,10 +283,7 @@ void Initialize_Buffer()
 	}
 
 	BitsLeft = 32;
-	if (!Stop_Flag && MuxFile != (FILE *) 0xffffffff && MuxFile > 0)
-	{
-		VideoDemux();
-	}
+	VideoDemux();
 }
 
 // Skips ahead in transport stream by specified number of bytes.
@@ -370,7 +367,7 @@ void Next_Transport_Packet()
 		time = timeGetTime();
 		if (time - start > 2000)
 		{
-			MessageBox(hWnd, "Cannot find audio or video data. Check your PIDs.",
+			MessageBox(hWnd, "Cannot find audio or video data. Ensure that your PIDs\nare set correctly in the Stream menu. Refer to the\nUsers Manual for details.",
 					   NULL, MB_OK | MB_ICONERROR);
 			ThreadKill();
 		}
@@ -521,7 +518,7 @@ void Next_Transport_Packet()
 
 			Bitrate_Monitor += (Rdmax - Rdptr);
 			return;
-		}  // if ( (tp.pid == MPEG2_Transport_VideoPID ) ) 
+		}  // if ( (tp.pid == MPEG2_Transport_VideoPID ) )
 
 		else if ((Method_Flag == AUDIO_DEMUXALL || Method_Flag == AUDIO_DEMUX) &&
 				 (Start_Flag || MPEG2_Transport_VideoPID == 0) &&    // User sets video pid 0 for audio only.
@@ -1228,6 +1225,7 @@ void Next_Packet()
 					Rdptr += Packet_Header_Length;
 
 				AUDIO_ID = Get_Byte();	// +1
+//				dprintf("DGIndex: AUDIO_ID = %d\n", AUDIO_ID);
 				Packet_Length -= Packet_Header_Length+4;
 
 				if (AUDIO_ID>=SUB_AC3 && AUDIO_ID<SUB_AC3+CHANNEL)
@@ -1833,10 +1831,7 @@ unsigned int Get_Bits_All(unsigned int N)
 	CurrentBfr = NextBfr;
 	BitsLeft = 32 - N;
 	Fill_Next();
-	if (!Stop_Flag && MuxFile != (FILE *) 0xffffffff && MuxFile > 0)
-	{
-		VideoDemux();
-	}
+	VideoDemux();
 
 	return Val;
 }
@@ -1846,10 +1841,7 @@ void Flush_Buffer_All(unsigned int N)
 	CurrentBfr = NextBfr;
 	BitsLeft = BitsLeft + 32 - N;
 	Fill_Next();
-	if (!Stop_Flag && MuxFile != (FILE *) 0xffffffff && MuxFile > 0)
-	{
-		VideoDemux();
-	}
+	VideoDemux();
 }
 
 void Fill_Buffer()
@@ -1872,6 +1864,7 @@ void Fill_Buffer()
 void Next_File()
 {
 	int i, bytes;
+	unsigned char *p;
 	
 	if (CurrentFile < NumLoadedFiles-1)
 	{
@@ -1885,12 +1878,18 @@ void Next_File()
 			// The whole buffer has valid data.
 			buffer_invalid = (unsigned char *) 0xffffffff;
 		else
+		{
 			// Point to the first invalid buffer location.
 			buffer_invalid = Rdbfr + Read + bytes;
+			p = Rdbfr + Read + bytes;
+			while (p < Rdbfr + BUFFER_SIZE) *p++ = 0xFF;
+		}
 	}
 	else
 	{
 		buffer_invalid = Rdbfr + Read;
+		p = Rdbfr + Read;
+		while (p < Rdbfr + BUFFER_SIZE) *p++ = 0xFF;
 	}
 }
 
@@ -1960,7 +1959,7 @@ void UpdateInfo()
 		SetDlgItemText(hDlg, IDC_PROFILE, "[MPEG1]");
 	}
 
-	sprintf(szBuffer, "%.3f fps", Frame_Rate);
+	sprintf(szBuffer, "%.6f fps", Frame_Rate);
 	SetDlgItemText(hDlg, IDC_FRAME_RATE, szBuffer);
 
 	for (i = 0; i < 8; i++)
@@ -2020,7 +2019,7 @@ void UpdateInfo()
 		{
 			if (!FILM_Purity)
 			{
-				if (frame_rate==25)
+				if (frame_rate==25 || frame_rate==50)
 					sprintf(szBuffer, "PAL");
 				else
 					sprintf(szBuffer, "NTSC");
@@ -2062,6 +2061,7 @@ void UpdateInfo()
 		SetDlgItemText(hDlg, IDC_CODED_NUMBER, "");
 		SetDlgItemText(hDlg, IDC_PLAYBACK_NUMBER, "");
 		SetDlgItemText(hDlg, IDC_BITRATE,"");
+		SetDlgItemText(hDlg, IDC_BITRATE_AVG,"");
 		SetDlgItemText(hDlg, IDC_FILE, "");
 		SetDlgItemText(hDlg, IDC_FILE_SIZE, "");
 		SetDlgItemText(hDlg, IDC_ELAPSED, "");
@@ -2093,6 +2093,7 @@ void StartVideoDemux(void)
 	else
 		strcat(p, "demuxed.m1v");
 	MuxFile = fopen(path, "wb");
+//	setvbuf(MuxFile, NULL, _IOFBF, 32*1024*1024);
 	if (MuxFile == (FILE *) 0)
 	{
 		MessageBox(hWnd, "Cannot open file for video demux output.", NULL, MB_OK | MB_ICONERROR);
@@ -2131,6 +2132,8 @@ void VideoDemux(void)
 {
 	unsigned char buf[4];
 
+	if (MuxFile == (FILE *) 0xffffffff || MuxFile <= 0)
+		return;
 	buf[0] = CurrentBfr >> 24;
 	buf[1] = (CurrentBfr >> 16) & 0xff;
 	buf[2] = (CurrentBfr >> 8) & 0xff;

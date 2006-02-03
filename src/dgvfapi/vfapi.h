@@ -121,8 +121,6 @@ public:
 	vfMI::~vfMI()
 	{
 		if (vi && closeVideoMI) closeVideoMI(ident);
-		if (clip) delete clip;
-		if (avsEnv) delete avsEnv;
 		if (hDLL) FreeLibrary(hDLL);
 	}
 };
@@ -137,6 +135,17 @@ public:
 		for (vfMI *i=LLB; i;)
 		{
 			vfMI *j = i->nxt;
+			if (i->avsEnv)
+			{
+				if (i->clip) delete i->clip; 
+				for (vfMI* k = i->nxt; k; k = k->nxt)
+				{
+					if (k != i && k->avsEnv == i->avsEnv) 
+						goto noavsdelete;
+				}
+				delete i->avsEnv;
+			}
+noavsdelete:
 			delete i;
 			i = j;
 		}

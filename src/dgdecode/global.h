@@ -321,7 +321,6 @@ protected:
   int alternate_scan;
   int quantizer_scale;
 
-  void *fTempArray, *p_fTempArray;
   short *block[8], *p_block[8];
   int pf_backward, pf_forward, pf_current;
 
@@ -415,6 +414,8 @@ protected:
 public:
   FILE		*VF_File;
   int		VF_FrameRate;
+  unsigned int VF_FrameRate_Num;
+  unsigned int VF_FrameRate_Den;
   DWORD		VF_FrameLimit;
   DWORD		VF_GOPLimit;
   DWORD		prev_frame;

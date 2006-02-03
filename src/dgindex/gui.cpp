@@ -31,7 +31,7 @@ extern "C"
 #include "pat.h"
 }
 
-static char Version[] = "DGIndex 1.4.5";
+static char Version[] = "DGIndex 1.4.6";
 
 #define TRACK_HEIGHT	30
 #define INIT_WIDTH		480
@@ -79,7 +79,6 @@ static void StartupEnables(void);
 static void FileLoadedEnables(void);
 static void RunningEnables(void);
 
-static int WindowMode;
 static int INIT_X, INIT_Y, Priority_Flag, Edge_Width, Edge_Height;
 
 static FILE *INIFile;
@@ -145,6 +144,7 @@ NEW_VERSION:
 		MPEG2_Transport_AudioPID = 0x02;
 		PlaybackSpeed = SPEED_NORMAL;
 		ForceOpenGops = 0;
+		CorrectFieldOrder = 1;
 	}
 	else
 	{
@@ -179,6 +179,7 @@ NEW_VERSION:
 		fscanf(INIFile, "Transport_PIDs=%x,%x\n", &MPEG2_Transport_VideoPID, &MPEG2_Transport_AudioPID);
 		fscanf(INIFile, "Playback_Speed=%d\n", &PlaybackSpeed);
 		fscanf(INIFile, "Force_Open_Gops=%d\n", &ForceOpenGops);
+		fscanf(INIFile, "Correct_Field_Order=%d\n", &CorrectFieldOrder);
 		fclose(INIFile);
 	}
 
@@ -468,6 +469,11 @@ TEST_END:
 			}
 		}
 		Recovery();
+		if (NumLoadedFiles == 0 && WindowMode == SW_HIDE)
+		{
+			MessageBox(hWnd, "Couldn't open input file in HIDE mode! Exiting.", NULL, MB_OK | MB_ICONERROR);
+			exit(0);
+		}
 
 		// Transport PIDs
 		if ((ptr = strstr(ucCmdLine,"-VIDEO-PID")) || (ptr = strstr(ucCmdLine,"-VP")))
@@ -743,6 +749,12 @@ TEST_END:
 			strcpy(szOutput, ptr);
 			*ende = save;
 		}
+		if (!CLIActive && WindowMode == SW_HIDE)
+		{
+			MessageBox(hWnd, "No output file in HIDE mode! Exiting.", NULL, MB_OK | MB_ICONERROR);
+			exit(0);
+		}
+
 
 		if (NumLoadedFiles)
 		{
@@ -1042,6 +1054,7 @@ proceed:
 					{
 D2V_PROCESS:
 						int m, n;
+						unsigned int num, den;
 						char line[2048];
 						int D2Vformat;
 
@@ -1099,10 +1112,10 @@ D2V_PROCESS:
 						if (SystemStream_Flag == TRANSPORT_STREAM)
 							fscanf(D2VFile, "MPEG2_Transport_PID=%x,%x\n", &MPEG2_Transport_VideoPID, &MPEG2_Transport_AudioPID);
 						fscanf(D2VFile, "MPEG_Type=%d\n", &mpeg_type);
-						fscanf(D2VFile, "iDCT_Algorithm=%d (1:MMX 2:SSEMMX 3:FPU 4:REF 5:SSE2MMX)\n", &iDCT_Flag);
-						fscanf(D2VFile, "YUVRGB_Scale=%d (0:TVScale 1:PCScale)\n", &Scale_Flag);
+						fscanf(D2VFile, "iDCT_Algorithm=%d\n", &iDCT_Flag);
+						fscanf(D2VFile, "YUVRGB_Scale=%d\n", &Scale_Flag);
 						setRGBValues();
-						fscanf(D2VFile, "Luminance_Filter=%d,%d (Gamma, Offset)\n", &LumGamma, &LumOffset);
+						fscanf(D2VFile, "Luminance_Filter=%d,%d\n", &LumGamma, &LumOffset);
 
 						if (LumGamma || LumOffset)
 						{
@@ -1115,7 +1128,7 @@ D2V_PROCESS:
 							Luminance_Flag = false;
 						}
 
-						fscanf(D2VFile, "Clipping=%d,%d,%d,%d (ClipLeft, ClipRight, ClipTop, ClipBottom)\n", 
+						fscanf(D2VFile, "Clipping=%d,%d,%d,%d\n", 
 								&Clip_Left, &Clip_Right, &Clip_Top, &Clip_Bottom);
 
 						if (Clip_Top || Clip_Bottom || Clip_Left || Clip_Right)
@@ -1131,8 +1144,8 @@ D2V_PROCESS:
 
 						fscanf(D2VFile, "Aspect_Ratio=%d:%d\n", &m, &n);
 						fscanf(D2VFile, "Picture_Size=%dx%d\n", &m, &n);
-						fscanf(D2VFile, "Field_Operation=%d (0:None 1:ForcedFILM 2:RawFrames)\n", &FO_Flag);
-						fscanf(D2VFile, "Frame_Rate=%d\n", &m);
+						fscanf(D2VFile, "Field_Operation=%d\n", &FO_Flag);
+						fscanf(D2VFile, "Frame_Rate=%d (%u/%u)\n", &m, &num, &den);
 
 						CheckFlag();
 
@@ -1602,6 +1615,14 @@ D2V_PROCESS:
 					CheckMenuItem(hMenu, IDM_PP_LOW, MF_CHECKED);
 					break;
 
+				case IDM_CORRECT_FIELD_ORDER:
+					CorrectFieldOrder ^= 1;
+					if (CorrectFieldOrder)
+						CheckMenuItem(hMenu, IDM_CORRECT_FIELD_ORDER, MF_CHECKED);
+					else
+						CheckMenuItem(hMenu, IDM_CORRECT_FIELD_ORDER, MF_UNCHECKED);
+					break;
+
 				case IDM_FORCE_OPEN:
 					ForceOpenGops ^= 1;
 					if (ForceOpenGops)
@@ -2051,6 +2072,7 @@ D2V_PROCESS:
 				fprintf(INIFile, "Transport_PIDs=%x,%x\n", MPEG2_Transport_VideoPID, MPEG2_Transport_AudioPID);
 				fprintf(INIFile, "Playback_Speed=%d\n", PlaybackSpeed);
 				fprintf(INIFile, "Force_Open_Gops=%d\n", ForceOpenGops);
+				fprintf(INIFile, "Correct_Field_Order=%d\n", CorrectFieldOrder);
 
 				fclose(INIFile);
 			}
@@ -2377,12 +2399,13 @@ static void OpenVideoFile(HWND hVideoListDlg)
 	}
 }
 
+extern "C" unsigned int NextBfr;
+
 void ThreadKill()
 {
 	int i;
-//	char d2vpath[2048];
 
-	// CLose the quants log if necessary.
+	// Close the quants log if necessary.
 	if (Quants)
 		fclose(Quants);
 
@@ -2411,9 +2434,13 @@ void ThreadKill()
 			// Prevent divide by 0.
 			if (FILM_Purity+VIDEO_Purity == 0) VIDEO_Purity = 1;
 			fprintf(D2VFile, "  %.2f%% FILM\n", (FILM_Purity*100.0)/(FILM_Purity+VIDEO_Purity));
-//			sprintf(d2vpath, "%s.d2v", szOutput);
-//			fclose(D2VFile);
-//			fix_d2v(hWnd, d2vpath, 1);
+			if (CorrectFieldOrder)
+			{
+				char d2vpath[2048];
+				sprintf(d2vpath, "%s.d2v", szOutput);
+				fclose(D2VFile);
+				fix_d2v(hWnd, d2vpath, 1);
+			}
 		}
 
 		_fcloseall();
@@ -2867,7 +2894,7 @@ bool PopFileDlg(PTSTR pstrFileName, HWND hOwner, int Status)
 	ofn.hwndOwner         = hOwner ;
 	ofn.hInstance         = hInst ;
 	ofn.lpstrFilter       = szFilter ;
-	ofn.nMaxFile          = 10 * _MAX_PATH ;
+	ofn.nMaxFile          = MAX_FILE_NUMBER * _MAX_PATH ;
 	ofn.nMaxFileTitle     = _MAX_PATH ;
 	ofn.lpstrFile         = pstrFileName ;
 	ofn.lpstrInitialDir   = szSave;
@@ -3176,6 +3203,9 @@ static void CheckFlag()
 
 	if (ForceOpenGops)
 			CheckMenuItem(hMenu, IDM_FORCE_OPEN, MF_CHECKED);
+
+	if (CorrectFieldOrder)
+			CheckMenuItem(hMenu, IDM_CORRECT_FIELD_ORDER, MF_CHECKED);
 }
 
 static void Recovery()

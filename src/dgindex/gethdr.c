@@ -45,7 +45,6 @@ static double frame_rate_Table[16] =
 	50.0,
 	((60.0*1000.0)/1001.0),
 	60.0,
-
 	-1,		// reserved
 	-1,
 	-1,
@@ -53,6 +52,46 @@ static double frame_rate_Table[16] =
 	-1,
 	-1,
 	-1
+};
+
+static unsigned int frame_rate_Table_Num[16] = 
+{
+	0,
+	24000,
+	24,
+	25,
+	30000,
+	30,
+	50,
+	60000,
+	60,
+	0xFFFFFFFF,		// reserved
+	0xFFFFFFFF,
+	0xFFFFFFFF,
+	0xFFFFFFFF,
+	0xFFFFFFFF,
+	0xFFFFFFFF,
+	0xFFFFFFFF
+};
+
+static unsigned int frame_rate_Table_Den[16] = 
+{
+	0,
+	1001,
+	1,
+	1,
+	1001,
+	1,
+	1,
+	1001,
+	1,
+	0xFFFFFFFF,		// reserved
+	0xFFFFFFFF,
+	0xFFFFFFFF,
+	0xFFFFFFFF,
+	0xFFFFFFFF,
+	0xFFFFFFFF,
+	0xFFFFFFFF
 };
 
 __forceinline static void group_of_pictures_header(void);
@@ -181,7 +220,11 @@ void sequence_header()
 	aspect_ratio_information    = Get_Bits(4);
 	frame_rate_code             = Get_Bits(4);
 	if (mpeg_type == IS_MPEG1)
-		frame_rate = (float) frame_rate_Table[frame_rate_code];
+	{
+		frame_rate = frame_rate_Table[frame_rate_code];
+		fr_num = frame_rate_Table_Num[frame_rate_code];
+		fr_den = frame_rate_Table_Den[frame_rate_code];
+	}
 	bit_rate_value              = Get_Bits(18);
 	Flush_Buffer(1);	// marker bit
 	vbv_buffer_size             = Get_Bits(10);
@@ -410,7 +453,8 @@ static void picture_header(__int64 start, boolean HadSequenceHeader, boolean Had
 	if (HadSequenceHeader == false)
 	{
 		// Indexing for the D2V file.
-		if (picture_coding_type == I_TYPE && picture_structure != BOTTOM_FIELD)
+//		if (picture_coding_type == I_TYPE && picture_structure != BOTTOM_FIELD)
+		if (picture_coding_type == I_TYPE && !Second_Field)
 		{
 //			dprintf("DGIndex: Index picture header at %d\n", Rdptr - Rdbfr);
 			d2v_current.position = start;
@@ -521,7 +565,9 @@ static void sequence_extension()
  
 	frame_rate_extension_n       = Get_Bits(2);
 	frame_rate_extension_d       = Get_Bits(5);
-	frame_rate = (float)(frame_rate_Table[frame_rate_code] * (frame_rate_extension_n+1)/(frame_rate_extension_d+1));
+	frame_rate = frame_rate_Table[frame_rate_code] * (frame_rate_extension_n+1)/(frame_rate_extension_d+1);
+	fr_num = frame_rate_Table_Num[frame_rate_code] * (frame_rate_extension_n+1);
+	fr_den = frame_rate_Table_Den[frame_rate_code] * (frame_rate_extension_d+1);
 
 	horizontal_size = (horizontal_size_extension<<12) | (horizontal_size&0x0fff);
 	vertical_size = (vertical_size_extension<<12) | (vertical_size&0x0fff);

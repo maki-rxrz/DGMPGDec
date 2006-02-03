@@ -47,10 +47,12 @@ int CMPEG2Decoder::Get_Hdr()
 		{
 			case SEQUENCE_HEADER_CODE:
 				sequence_header();
+				Second_Field = 0;
 				break;
 
 			case GROUP_START_CODE:
 				group_of_pictures_header();
+				Second_Field = 0;
 				break;
 
 			case PICTURE_START_CODE:

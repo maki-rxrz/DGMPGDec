@@ -177,16 +177,20 @@ void Write_Frame(unsigned char *src[], D2VData d2v, DWORD frame)
 		sprintf(szBuffer, "%d", playback);
 		SetDlgItemText(hDlg, IDC_PLAYBACK_NUMBER, szBuffer);
 
-		if ((frame & 63) == 63)
+		if ((frame & 31) == 31)
 		{
-			double rate;
+			double rate, rate_avg;
 			timing.ed = timeGetTime();
 
 			sprintf(szBuffer, "%.2f", 1000.0*(playback-Old_Playback)/(timing.ed-timing.mi+1));
 			SetDlgItemText(hDlg, IDC_FPS, szBuffer);
 			rate = ((double) (Bitrate_Monitor * 8 * Frame_Rate) / (playback-Old_Playback)) / 1000000.0;
+			Bitrate_Average += Bitrate_Monitor;
+			rate_avg = (Bitrate_Average * 8 * Frame_Rate) / playback / 1000000.0;
 			sprintf(szBuffer, "%.3f Mbps", rate);
 			SetDlgItemText(hDlg, IDC_BITRATE, szBuffer);
+			sprintf(szBuffer, "%.3f Mbps", rate_avg);
+			SetDlgItemText(hDlg, IDC_BITRATE_AVG, szBuffer);
 			Bitrate_Monitor = 0;
 			timing.mi = timing.ed;
 			Old_Playback = playback;
@@ -254,10 +258,10 @@ static void Store_RGB24(unsigned char *src[])
 
 static void FlushRGB24()
 {
-	static float DisplayTime = 0;
+	static double DisplayTime = 0;
 	static unsigned int timeOffset = 0;
 	static old_speed;
-	float rate;
+	double rate;
 	int sleep_time;
 	int elapsed;
 	
@@ -315,7 +319,7 @@ static void FlushRGB24()
 					rate = 2 * Frame_Rate;
 					break;
 			}
-			DisplayTime += (float) 1000.0 / rate;
+			DisplayTime += 1000.0 / rate;
 		}
 		playback++;
 		TFB = BFB = false;

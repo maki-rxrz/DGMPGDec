@@ -23,6 +23,7 @@
 
 #include "global.h"
 #include "getbit.h"
+#include "math.h"
 
 static BOOL GOPBack(void);
 static void InitialDecoder(void);
@@ -41,6 +42,8 @@ __try
 	Fault_Flag = 0;
 	Frame_Number = Second_Field = 0;
 	Sound_Max = 1; Bitrate_Monitor = 0;
+	Bitrate_Average = 0.0;
+	GOPSeen = false;
 
 	for (i=0; i<CHANNEL; i++)
 	{
@@ -294,7 +297,7 @@ do_rip_play:
 		Stop_Flag = false;
 	}
 
-	Frame_Rate = (FO_Flag==FO_FILM) ? frame_rate * 0.8f : frame_rate;
+	Frame_Rate = (FO_Flag==FO_FILM) ? frame_rate * 0.8 : frame_rate;
 
 	if (D2V_Flag)
 	{
@@ -341,7 +344,20 @@ do_rip_play:
 			fprintf(D2VFile, "Aspect_Ratio=%s\n", AspectRatioMPEG1[aspect_ratio_information]);
 		fprintf(D2VFile, "Picture_Size=%dx%d\n", Coded_Picture_Width, Coded_Picture_Height);
 		fprintf(D2VFile, "Field_Operation=%d\n", FO_Flag);
-		fprintf(D2VFile, "Frame_Rate=%d\n", (int)(Frame_Rate*1000));
+		if (FO_Flag == FO_FILM)
+		{
+			if (fabs(Frame_Rate - 23.976) < 0.001)
+			{
+				fr_num = 24000;
+				fr_den = 1001;
+			}
+			else
+			{
+				fr_num = (unsigned int) (1000 * Frame_Rate);
+				fr_den = 1000;
+			}
+		}
+		fprintf(D2VFile, "Frame_Rate=%d (%u/%u)\n", (int)(Frame_Rate*1000), fr_num, fr_den);
 		fprintf(D2VFile, "Location=%d,%X,%d,%X\n\n", process.leftfile, (int)process.leftlba, 
 				process.rightfile, (int)process.rightlba);
 	}
@@ -515,7 +531,8 @@ static void InitialDecoder()
 	Clip_Width = Coded_Picture_Width;
 	Clip_Height = Coded_Picture_Height;
 
-	CheckDirectDraw();
+	if (WindowMode == SW_SHOW)
+		CheckDirectDraw();
 }
 
 void setRGBValues()

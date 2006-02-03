@@ -53,6 +53,7 @@
 #define IDC_DELAY                       1034
 #define IDC_FIELD_ORDER                 1034
 #define IDC_OFFSET_SLIDER               1035
+#define IDC_BITRATE_AVG                 1035
 #define IDC_GAMMA_SLIDER                1036
 #define IDC_LUM_CHECK                   1037
 #define IDC_OFFSET                      1038
@@ -182,6 +183,7 @@
 #define IDM_DGINDEX_MANUAL              32885
 #define IDM_DGDECODE_MANUAL             32886
 #define IDM_QUICK_START                 32887
+#define IDM_CORRECT_FIELD_ORDER         32888
 #define IDC_STATIC                      -1
 
 // Next default values for new objects
@@ -189,7 +191,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        144
-#define _APS_NEXT_COMMAND_VALUE         32888
+#define _APS_NEXT_COMMAND_VALUE         32889
 #define _APS_NEXT_CONTROL_VALUE         1075
 #define _APS_NEXT_SYMED_VALUE           107
 #endif
