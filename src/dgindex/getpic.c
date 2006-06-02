@@ -187,6 +187,8 @@ void Decode_Picture()
 {
 	extern int closed_gop;
 
+__try
+{
 	if (picture_structure==FRAME_PICTURE && Second_Field)
 		Second_Field = 0;
 
@@ -282,6 +284,12 @@ void Decode_Picture()
 	if (!Second_Field)
 		Frame_Number++;
 }
+__except (EXCEPTION_EXECUTE_HANDLER)
+{
+//	MessageBox(hWnd, "Caught an exception during decoding! Continuing...", NULL, MB_OK | MB_ICONERROR);
+	return;
+}
+}
 
 /* reuse old picture buffers as soon as they are no longer needed */
 static void Update_Picture_Buffers()
@@ -317,7 +325,7 @@ static void Update_Picture_Buffers()
 		}
 
 	    if (picture_structure==BOTTOM_FIELD)
-			current_frame[cc] += (cc==0) ? Coded_Picture_Width : Chroma_Width;
+			current_frame[cc] += (cc==0) ? Coded_Picture_Width : ((chroma_format==CHROMA444) ? Coded_Picture_Width : Coded_Picture_Width>>1);
 	}
 }
 
@@ -496,6 +504,7 @@ static void macroblock_modes(int *pmacroblock_type, int *pmotion_type,
 static void Add_Block(int count, int bx, int by, int dct_type, int addflag)
 {
 	static const __int64 mmmask_128 = 0x0080008000800080;
+	int Chroma_Width = (chroma_format==CHROMA444) ? Coded_Picture_Width : Coded_Picture_Width>>1;
 
 	int comp, cc, iincr, bxh, byh;
 	unsigned char *rfp;

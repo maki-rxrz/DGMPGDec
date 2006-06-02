@@ -219,12 +219,14 @@ void sequence_header()
 	vertical_size               = Get_Bits(12);
 	aspect_ratio_information    = Get_Bits(4);
 	frame_rate_code             = Get_Bits(4);
-	if (mpeg_type == IS_MPEG1)
-	{
-		frame_rate = frame_rate_Table[frame_rate_code];
-		fr_num = frame_rate_Table_Num[frame_rate_code];
-		fr_den = frame_rate_Table_Den[frame_rate_code];
-	}
+
+	// This is default MPEG1 handling.
+	// It may be overridden to MPEG2 if a
+	// sequence extension arrives.
+	frame_rate = frame_rate_Table[frame_rate_code];
+	fr_num = frame_rate_Table_Num[frame_rate_code];
+	fr_den = frame_rate_Table_Den[frame_rate_code];
+
 	bit_rate_value              = Get_Bits(18);
 	Flush_Buffer(1);	// marker bit
 	vbv_buffer_size             = Get_Bits(10);
@@ -271,7 +273,7 @@ void sequence_header()
 		if (i < 64)
 		{
 			// The matrix changed, so log it.
-			fprintf(Quants, "Intra Luma and Chroma Matrix:\n");
+			fprintf(Quants, "Intra Luma and Chroma Matrix at encoded frame %d:\n", Frame_Number);
 			for (i=0; i<64; i++)
 			{
 				fprintf(Quants, "%d ", intra_quantizer_matrix[i]);
@@ -292,7 +294,7 @@ void sequence_header()
 		if (i < 64)
 		{
 			// The matrix changed, so log it.
-			fprintf(Quants, "NonIntra Luma and Chroma Matrix:\n");
+			fprintf(Quants, "NonIntra Luma and Chroma Matrix at encoded frame %d:\n", Frame_Number);
 			for (i=0; i<64; i++)
 			{
 				fprintf(Quants, "%d ", non_intra_quantizer_matrix[i]);
@@ -306,10 +308,11 @@ void sequence_header()
 		}
 	}
 
-	if (mpeg_type == IS_MPEG2)
-		matrix_coefficients = 1;
-	else
-		matrix_coefficients = 5;
+	// This is default MPEG1 handling.
+	// It may be overridden to MPEG2 if a
+	// sequence extension arrives.
+	matrix_coefficients = 5;
+
 	setRGBValues();
 	// These are MPEG1 defaults. These will be overridden if we have MPEG2
 	// when the sequence header extension is parsed.
@@ -332,6 +335,8 @@ static void group_of_pictures_header()
 	int broken_link;
 	static cgop_prev = 0;
 
+	if (LogTimestamps_Flag && D2V_Flag)
+		fprintf(Timestamps, "GOP start\n");
 	drop_flag   = Get_Bits(1);
 	gop_hour    = Get_Bits(5);
 	gop_minute  = Get_Bits(6);
@@ -357,6 +362,23 @@ static void picture_header(__int64 start, boolean HadSequenceHeader, boolean Had
 
 	temporal_reference  = Get_Bits(10);
 	picture_coding_type = Get_Bits(3);
+	if (LogTimestamps_Flag && D2V_Flag)
+	{
+		fprintf(Timestamps, "Decode picture: temporal reference %d", temporal_reference);
+		switch (picture_coding_type)
+		{
+		case I_TYPE:
+			fprintf(Timestamps, "[I]\n");
+			break;
+		case P_TYPE:
+			fprintf(Timestamps, "[P]\n");
+			break;
+		case B_TYPE:
+			fprintf(Timestamps, "[B]\n");
+			break;
+		}
+	}
+
 
 	if (StartTemporalReference == -1 && HadGopHeader == true && picture_coding_type == I_TYPE)
 	{
@@ -551,6 +573,12 @@ static void sequence_extension()
 	int vbv_buffer_size_extension;
 	static int pseq_prev = 0;
 
+	// This extension means we must have MPEG2, so
+	// override the earlier assumption of MPEG1 for
+	// transport streams.
+	mpeg_type = IS_MPEG2;
+	matrix_coefficients = 1;
+
 	profile_and_level_indication = Get_Bits(8);
 	progressive_sequence         = Get_Bits(1);
 	progressive_sequence_prev = pseq_prev;
@@ -635,7 +663,7 @@ static void quant_matrix_extension()
 		if (i < 64)
 		{
 			// The matrix changed, so log it.
-			fprintf(Quants, "Intra Luma Matrix:\n");
+			fprintf(Quants, "Intra Luma Matrix at encoded frame %d:\n", Frame_Number);
 			for (i=0; i<64; i++)
 			{
 				fprintf(Quants, "%d ", intra_quantizer_matrix[i]);
@@ -655,7 +683,7 @@ static void quant_matrix_extension()
 		if (i < 64)
 		{
 			// The matrix changed, so log it.
-			fprintf(Quants, "NonIntra Luma Matrix:\n");
+			fprintf(Quants, "NonIntra Luma Matrix at encoded frame %d:\n", Frame_Number);
 			for (i=0; i<64; i++)
 			{
 				fprintf(Quants, "%d ", non_intra_quantizer_matrix[i]);
@@ -675,7 +703,7 @@ static void quant_matrix_extension()
 		if (i < 64)
 		{
 			// The matrix changed, so log it.
-			fprintf(Quants, "Intra Chroma Matrix:\n");
+			fprintf(Quants, "Intra Chroma Matrix at encoded frame %d:\n", Frame_Number);
 			for (i=0; i<64; i++)
 			{
 				fprintf(Quants, "%d ", chroma_intra_quantizer_matrix[i]);
@@ -695,7 +723,7 @@ static void quant_matrix_extension()
 		if (i < 64)
 		{
 			// The matrix changed, so log it.
-			fprintf(Quants, "NonIntra Chroma Matrix:\n");
+			fprintf(Quants, "NonIntra Chroma Matrix at encoded frame %d:\n", Frame_Number);
 			for (i=0; i<64; i++)
 			{
 				fprintf(Quants, "%d ", chroma_non_intra_quantizer_matrix[i]);

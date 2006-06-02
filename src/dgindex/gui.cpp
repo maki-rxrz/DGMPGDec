@@ -31,13 +31,13 @@ extern "C"
 #include "pat.h"
 }
 
-static char Version[] = "DGIndex 1.4.6";
+static char Version[] = "DGIndex 1.4.7";
 
 #define TRACK_HEIGHT	30
 #define INIT_WIDTH		480
 #define INIT_HEIGHT		270
 #define MIN_WIDTH		160
-#define MIN_HEIGHT		16
+#define MIN_HEIGHT		32
 
 #define MASKCOLOR		RGB(0, 6, 0)
 
@@ -47,6 +47,7 @@ static char Version[] = "DGIndex 1.4.6";
 #define OPEN_VOB		4
 #define OPEN_WAV		5
 #define SAVE_BMP		6
+#define OPEN_AVS		7
 
 #define PRIORITY_HIGH		1
 #define PRIORITY_NORMAL		2
@@ -57,11 +58,12 @@ ATOM MyRegisterClass(HINSTANCE);
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK Info(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK VideoList(HWND, UINT, WPARAM, LPARAM);
-LRESULT CALLBACK ClipResize(HWND, UINT, WPARAM, LPARAM);
+LRESULT CALLBACK Cropping(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK Luminance(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK Speed(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK Normalization(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK SetPids(HWND, UINT, WPARAM, LPARAM);
+LRESULT CALLBACK AVSTemplate(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK DetectPids(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK About(HWND, UINT, WPARAM, LPARAM);
 static DWORD DDColorMatch(LPDIRECTDRAWSURFACE, COLORREF);
@@ -116,9 +118,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	// Get the path to the DGIndex executable.
 	GetModuleFileName(NULL, ExePath, 255);
-	ptr = &ExePath[strlen(ExePath)];
-	while (ptr > ExePath && *ptr != '\\') ptr--;
-	if (*ptr == '\\') ptr++;
+
+	
+	// Find first char after last backslash.
+    if ((ptr = strrchr(ExePath,'\\')) != 0) ptr++;
+    else ptr = ExePath;
 	*ptr = 0;
 
 	// Load INI
@@ -145,6 +149,10 @@ NEW_VERSION:
 		PlaybackSpeed = SPEED_NORMAL;
 		ForceOpenGops = 0;
 		CorrectFieldOrder = 1;
+		AVSTemplatePath[0] = 0;
+		FullPathInFiles = 1;
+		UseOverlay = 1;
+		FusionAudio = 0;
 	}
 	else
 	{
@@ -180,6 +188,14 @@ NEW_VERSION:
 		fscanf(INIFile, "Playback_Speed=%d\n", &PlaybackSpeed);
 		fscanf(INIFile, "Force_Open_Gops=%d\n", &ForceOpenGops);
 		fscanf(INIFile, "Correct_Field_Order=%d\n", &CorrectFieldOrder);
+		fgets(line, _MAX_PATH - 1, INIFile);
+		line[strlen(line)-1] = 0;
+		p = line;
+		while (*p++ != '=');
+		strcpy (AVSTemplatePath, p);
+        fscanf(INIFile, "Full_Path_In_Files=%d\n",&FullPathInFiles);
+        fscanf(INIFile, "Use_Overlay=%d\n",&UseOverlay);
+        fscanf(INIFile, "Fusion_Audio=%d\n",&FusionAudio);
 		fclose(INIFile);
 	}
 
@@ -578,7 +594,7 @@ TEST_END:
 			}
 		}
 
-		// Luminance filter and clipping not implemented
+		// Luminance filter and cropping not implemented
 
 		//Track number
 		if ((ptr = strstr(ucCmdLine,"-TRACK-NUMBER")) || (ptr = strstr(ucCmdLine,"-TN")))
@@ -727,6 +743,53 @@ TEST_END:
 
 		RefreshWindow(true);
 
+		// AVS Template
+		if ((ptr = strstr(ucCmdLine,"-AVS-TEMPLATE")) || (ptr = strstr(ucCmdLine,"-AT")))
+		{
+			FILE *bf;
+
+			ptr = lpCmdLine + (ptr - ucCmdLine);
+			ptr  = strstr(ptr, delimiter1) + 1;
+			if (*ptr == ']')
+			{
+				// A null file name specifies no template.
+				AVSTemplatePath[0] = 0;
+			}
+			else
+			{
+				ende = strstr(ptr + 1, delimiter2);
+				save = *ende;
+				*ende = 0;
+				strcpy(aFName, ptr);
+				*ende = save;
+				/* If the specified template file does not include a path, use the
+				   current directory. */
+				if (!strstr(aFName, "\\"))
+				{
+					GetCurrentDirectory(sizeof(cwd) - 1, cwd);
+					strcat(cwd, "\\");
+					strcat(cwd, aFName);
+				}
+				else
+				{
+					strcpy(cwd, aFName);
+				}
+				// Check that the specified template file exists and is readable.
+				bf = fopen(cwd, "r");
+				if (bf != 0)
+				{
+					// Looks good; save the path.
+					fclose(bf);
+					strcpy(AVSTemplatePath, cwd);
+				}
+				else
+				{
+					// Something is wrong, so don't use a template.
+					AVSTemplatePath[0] = 0;
+				}
+			}
+		}
+
 		// Output D2V file
 		if ((ptr = strstr(ucCmdLine,"-OUTPUT-FILE")) || (ptr = strstr(ucCmdLine,"-OF")) ||
 			(ptr = strstr(ucCmdLine,"-OUTPUT-FILE-DEMUX")) || (ptr = strstr(ucCmdLine,"-OFD")))
@@ -800,13 +863,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	FILE *tplate, *avs;
 
 	int i, j;
-	char *ext;
 
 	switch (message)
 	{
-		case SET_WINDOW_TEXT_MESSAGE:
+#if 0
+	// This isn't working yet.
+	case SET_WINDOW_TEXT_MESSAGE:
+		{
 			// This is used to write the completion percentage into the
 			// minimized taskbar button.
+			char *ext;
 			if (!IsIconic(hWnd))
 			{
 				sprintf(szBuffer, "DGIndex - ");
@@ -815,6 +881,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			}
 			SetWindowText(hWnd, szBuffer);
 			break;
+		}
+#endif
 
 		case CLI_RIP_MESSAGE:
 			// The CLI-invoked LOCATE_INIT thread is finished.
@@ -823,12 +891,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 		case D2V_DONE_MESSAGE:
 			// Make an AVS file if it doesn't already exist and a template exists.
-			strcpy(prog, ExePath);
-			strcat(prog, "template.avs");
 			strcpy(avsfile, D2VFilePath);
 			ptr = strrchr(avsfile, '.');
 			strcpy(++ptr, "avs");
-			if (!fopen(avsfile, "r") && (tplate = fopen(prog, "r")))
+			if (*AVSTemplatePath && !fopen(avsfile, "r") && (tplate = fopen(AVSTemplatePath, "r")))
 			{
 				avs = fopen(avsfile, "w");
 				if (avs)
@@ -839,7 +905,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 						{
 							ptr[0] = 0;
 							strcpy(prog, path);
-							strcat(prog, D2VFilePath);
+							if (FullPathInFiles)
+								strcat(prog, D2VFilePath);
+							else
+							{
+								char *p;
+								if ((p = strrchr(D2VFilePath,'\\')) != 0) p++;
+								else p = D2VFilePath;
+								strcat(prog, p);
+							}
 							strcat(prog, ptr+7);
 							fputs(prog, avs);
 						}
@@ -847,7 +921,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 						{
 							ptr[0] = 0;
 							strcpy(prog, path);
-							strcat(prog, AudioFilePath);
+							if (FullPathInFiles)
+								strcat(prog, AudioFilePath);
+							else
+							{
+								char *p;
+								if ((p = strrchr(AudioFilePath,'\\')) != 0) p++;
+								else p = AudioFilePath;
+								strcat(prog, p);
+							}
 							strcat(prog, ptr+7);
 							fputs(prog, avs);
 						}
@@ -1027,6 +1109,19 @@ proceed:
 								memset(chroma_non_intra_quantizer_matrix_log, 0xffffffff, sizeof(chroma_non_intra_quantizer_matrix_log));
 							}
 
+							if (LogTimestamps_Flag)
+							{
+								// Initialize timestamp logging.
+								// Generate the output file name.
+								char *p;
+								p = &szBuffer[strlen(szBuffer)];
+								while (*p != '.') p--;
+								p[1] = 0;
+								strcat(p, "timestamps.txt");
+								// Open the output file.
+								Timestamps = fopen(szBuffer, "w");
+							}
+
 							D2V_Flag = true;
 							Display_Flag = false;
 							RunningEnables();
@@ -1133,13 +1228,13 @@ D2V_PROCESS:
 
 						if (Clip_Top || Clip_Bottom || Clip_Left || Clip_Right)
 						{
-							CheckMenuItem(hMenu, IDM_CLIPRESIZE, MF_CHECKED);
-							ClipResize_Flag = true;				
+							CheckMenuItem(hMenu, IDM_CROPPING, MF_CHECKED);
+							Cropping_Flag = true;				
 						}
 						else
 						{
-							CheckMenuItem(hMenu, IDM_CLIPRESIZE, MF_UNCHECKED);
-							ClipResize_Flag = false;
+							CheckMenuItem(hMenu, IDM_CROPPING, MF_UNCHECKED);
+							Cropping_Flag = false;
 						}
 
 						fscanf(D2VFile, "Aspect_Ratio=%d:%d\n", &m, &n);
@@ -1215,6 +1310,21 @@ D2V_PROCESS:
 					}
 					break;
 
+				case IDM_LOG_TIMESTAMPS:
+					if (LogTimestamps_Flag == 0)
+					{
+						// Enable quant matrix logging.
+						LogTimestamps_Flag = 1;
+						CheckMenuItem(hMenu, IDM_LOG_TIMESTAMPS, MF_CHECKED);
+					}
+					else
+					{
+						// Disable quant matrix logging.
+						LogTimestamps_Flag = 0;
+						CheckMenuItem(hMenu, IDM_LOG_TIMESTAMPS, MF_UNCHECKED);
+					}
+					break;
+
 				case IDM_STOP:
 					Stop_Flag = true;
 					ExitOnEnd = 0;
@@ -1284,7 +1394,6 @@ D2V_PROCESS:
 					{
 					int track;
 					track = wmId - IDM_TRACK_1; 
-//					ClearTrack();
 					if (Track_Flag & (1 << track))
 					{
 						Track_Flag &= ~(1 << track);
@@ -1497,16 +1606,16 @@ D2V_PROCESS:
 					RefreshWindow(true);
 					break;
 
-				case IDM_CLIPRESIZE:
-					DialogBox(hInst, (LPCTSTR)IDD_CLIPRESIZE, hWnd, (DLGPROC)ClipResize);
+				case IDM_CROPPING:
+					DialogBox(hInst, (LPCTSTR)IDD_CROPPING, hWnd, (DLGPROC) Cropping);
 					break;
 
 				case IDM_LUMINANCE:
-					DialogBox(hInst, (LPCTSTR)IDD_LUMINANCE, hWnd, (DLGPROC)Luminance);
+					DialogBox(hInst, (LPCTSTR)IDD_LUMINANCE, hWnd, (DLGPROC) Luminance);
 					break;
 
 				case IDM_NORM:
-					DialogBox(hInst, (LPCTSTR)IDD_NORM, hWnd, (DLGPROC)Normalization);
+					DialogBox(hInst, (LPCTSTR)IDD_NORM, hWnd, (DLGPROC) Normalization);
 					break;
 
 				case IDM_SPEED_SINGLE_STEP:
@@ -1615,6 +1724,10 @@ D2V_PROCESS:
 					CheckMenuItem(hMenu, IDM_PP_LOW, MF_CHECKED);
 					break;
 
+				case IDM_AVS_TEMPLATE:
+					DialogBox(hInst, (LPCTSTR)IDD_AVS_TEMPLATE, hWnd, (DLGPROC) AVSTemplate);
+					break;
+
 				case IDM_CORRECT_FIELD_ORDER:
 					CorrectFieldOrder ^= 1;
 					if (CorrectFieldOrder)
@@ -1630,6 +1743,30 @@ D2V_PROCESS:
 					else
 						CheckMenuItem(hMenu, IDM_FORCE_OPEN, MF_UNCHECKED);
 					break;
+
+                case IDM_FULL_PATH:
+                    FullPathInFiles ^= 1;
+                    if (FullPathInFiles)
+                        CheckMenuItem(hMenu, IDM_FULL_PATH, MF_CHECKED);
+                    else
+                        CheckMenuItem(hMenu, IDM_FULL_PATH, MF_UNCHECKED);
+                    break;
+
+                case IDM_USE_OVERLAY:
+                    UseOverlay ^= 1;
+                    if (UseOverlay)
+                        CheckMenuItem(hMenu, IDM_USE_OVERLAY, MF_CHECKED);
+                    else
+                        CheckMenuItem(hMenu, IDM_USE_OVERLAY, MF_UNCHECKED);
+                    break;
+
+                case IDM_FUSION_AUDIO:
+                    FusionAudio ^= 1;
+                    if (FusionAudio)
+                        CheckMenuItem(hMenu, IDM_FUSION_AUDIO, MF_CHECKED);
+                    else
+                        CheckMenuItem(hMenu, IDM_FUSION_AUDIO, MF_UNCHECKED);
+                    break;
 
 				case IDM_PAUSE:
 					if (Pause_Flag)
@@ -2073,6 +2210,10 @@ D2V_PROCESS:
 				fprintf(INIFile, "Playback_Speed=%d\n", PlaybackSpeed);
 				fprintf(INIFile, "Force_Open_Gops=%d\n", ForceOpenGops);
 				fprintf(INIFile, "Correct_Field_Order=%d\n", CorrectFieldOrder);
+				fprintf(INIFile, "AVS_Template_Path=%s\n", AVSTemplatePath);
+				fprintf(INIFile, "Full_Path_In_Files=%d\n", FullPathInFiles);
+				fprintf(INIFile, "Use_Overlay=%d\n", UseOverlay);
+				fprintf(INIFile, "Fusion_Audio=%d\n", FusionAudio);
 
 				fclose(INIFile);
 			}
@@ -2207,7 +2348,7 @@ LRESULT CALLBACK VideoList(HWND hVideoListDlg, UINT message, WPARAM wParam, LPAR
 
 				case ID_UP:
 					i = SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_GETCURSEL, 0, 0);
-					if (i != 0)
+					if (i > 0)
 					{
 						name = Infilename[i];
 						Infilename[i] = Infilename[i-1];
@@ -2538,7 +2679,7 @@ LRESULT CALLBACK About(HWND hAboutDlg, UINT message, WPARAM wParam, LPARAM lPara
     return false;
 }
 
-LRESULT CALLBACK ClipResize(HWND hDialog, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK Cropping(HWND hDialog, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	int i;
 
@@ -2546,44 +2687,43 @@ LRESULT CALLBACK ClipResize(HWND hDialog, UINT message, WPARAM wParam, LPARAM lP
 	{
 		case WM_INITDIALOG:
 			SendDlgItemMessage(hDialog, IDC_LEFT_SLIDER, TBM_SETRANGE, 0, MAKELPARAM(0, 256));
-			SendDlgItemMessage(hDialog, IDC_LEFT_SLIDER, TBM_SETPOS, 1, Clip_Left/2);
-			sprintf(szTemp, "%d", Clip_Left);
-			SetDlgItemText(hDialog, IDC_LEFT, szTemp);
+			SendDlgItemMessage(hDialog, IDC_LEFT_SLIDER, TBM_SETPOS, 1, Clip_Left/4);
+			SetDlgItemInt(hDialog, IDC_LEFT, Clip_Left, 0);
 
 			SendDlgItemMessage(hDialog, IDC_RIGHT_SLIDER, TBM_SETRANGE, 0, MAKELPARAM(0, 256));
-			SendDlgItemMessage(hDialog, IDC_RIGHT_SLIDER, TBM_SETPOS, 1, Clip_Right/2);
-			sprintf(szTemp, "%d", Clip_Right);
-			SetDlgItemText(hDialog, IDC_RIGHT, szTemp);
+			SendDlgItemMessage(hDialog, IDC_RIGHT_SLIDER, TBM_SETPOS, 1, Clip_Right/4);
+			SetDlgItemInt(hDialog, IDC_RIGHT, Clip_Right, 0);
 
-			SendDlgItemMessage(hDialog, IDC_TOP_SLIDER, TBM_SETRANGE, 0, MAKELPARAM(0, 128));
-			SendDlgItemMessage(hDialog, IDC_TOP_SLIDER, TBM_SETPOS, 1, Clip_Top/2);
-			sprintf(szTemp, "%d", Clip_Top);
-			SetDlgItemText(hDialog, IDC_TOP, szTemp);
+			SendDlgItemMessage(hDialog, IDC_TOP_SLIDER, TBM_SETRANGE, 0, MAKELPARAM(0, 256));
+			SendDlgItemMessage(hDialog, IDC_TOP_SLIDER, TBM_SETPOS, 1, Clip_Top/4);
+			SetDlgItemInt(hDialog, IDC_TOP, Clip_Top, 0);
 
-			SendDlgItemMessage(hDialog, IDC_BOTTOM_SLIDER, TBM_SETRANGE, 0, MAKELPARAM(0, 128));
-			SendDlgItemMessage(hDialog, IDC_BOTTOM_SLIDER, TBM_SETPOS, 1, Clip_Bottom/2);
-			sprintf(szTemp, "%d", Clip_Bottom);
-			SetDlgItemText(hDialog, IDC_BOTTOM, szTemp);
+			SendDlgItemMessage(hDialog, IDC_BOTTOM_SLIDER, TBM_SETRANGE, 0, MAKELPARAM(0, 256));
+			SendDlgItemMessage(hDialog, IDC_BOTTOM_SLIDER, TBM_SETPOS, 1, Clip_Bottom/4);
+			SetDlgItemInt(hDialog, IDC_BOTTOM, Clip_Bottom, 0);
+
+			SetDlgItemInt(hDialog, IDC_WIDTH, horizontal_size-Clip_Left-Clip_Right, 0);
+			SetDlgItemInt(hDialog, IDC_HEIGHT, vertical_size-Clip_Left-Clip_Right, 0);
 
 			ShowWindow(hDialog, SW_SHOW);
 
-			if (ClipResize_Flag)
-				SendDlgItemMessage(hDialog, IDC_CLIPRESIZE_CHECK, BM_SETCHECK, BST_CHECKED, 0);
+			if (Cropping_Flag)
+				SendDlgItemMessage(hDialog, IDC_CROPPING_CHECK, BM_SETCHECK, BST_CHECKED, 0);
 			return true;
 
 		case WM_COMMAND:
 			switch (LOWORD(wParam))
 			{
-				case IDC_CLIPRESIZE_CHECK:
-					if (SendDlgItemMessage(hDialog, IDC_CLIPRESIZE_CHECK, BM_GETCHECK, 1, 0)==BST_CHECKED)
+				case IDC_CROPPING_CHECK:
+					if (SendDlgItemMessage(hDialog, IDC_CROPPING_CHECK, BM_GETCHECK, 1, 0)==BST_CHECKED)
 					{
-						CheckMenuItem(hMenu, IDM_CLIPRESIZE, MF_CHECKED);
-						ClipResize_Flag = true;
+						CheckMenuItem(hMenu, IDM_CROPPING, MF_CHECKED);
+						Cropping_Flag = true;
 					}
 					else
 					{
-						CheckMenuItem(hMenu, IDM_CLIPRESIZE, MF_UNCHECKED);
-						ClipResize_Flag = false;
+						CheckMenuItem(hMenu, IDM_CROPPING, MF_UNCHECKED);
+						Cropping_Flag = false;
 					}
 
 					RefreshWindow(true);
@@ -2600,53 +2740,43 @@ LRESULT CALLBACK ClipResize(HWND hDialog, UINT message, WPARAM wParam, LPARAM lP
 			switch (GetWindowLong((HWND)lParam, GWL_ID))
 			{
 				case IDC_LEFT_SLIDER:
-					i = SendDlgItemMessage(hDialog, IDC_LEFT_SLIDER, TBM_GETPOS, 0, 0)*2;
-					if (i+Clip_Right+MIN_WIDTH <= Coded_Picture_Width)
-					{
+					i = SendDlgItemMessage(hDialog, IDC_LEFT_SLIDER, TBM_GETPOS, 0, 0)*4;
+					if (i+Clip_Right+MIN_WIDTH <= horizontal_size)
 						Clip_Left = i;
-						sprintf(szTemp, "%d", Clip_Left);
-						SetDlgItemText(hDialog, IDC_LEFT, szTemp);
-
-						Clip_Right = 8 - Clip_Left%8;
-						sprintf(szTemp, "%d", Clip_Right);
-						SetDlgItemText(hDialog, IDC_RIGHT, szTemp);
-						SendDlgItemMessage(hDialog, IDC_RIGHT_SLIDER, TBM_SETPOS, 1, Clip_Right/2);
-					}
+					else
+						Clip_Left = horizontal_size - (Clip_Right+MIN_WIDTH);
+					SetDlgItemInt(hDialog, IDC_LEFT, Clip_Left, 0);
+					SetDlgItemInt(hDialog, IDC_WIDTH, horizontal_size-Clip_Left-Clip_Right, 0);
 					break;
 
 				case IDC_RIGHT_SLIDER:
-					i = SendDlgItemMessage(hDialog, IDC_RIGHT_SLIDER, TBM_GETPOS, 0, 0)*2;
-					if (i+Clip_Left+MIN_WIDTH<=Coded_Picture_Width && (i+Clip_Left)%8==0)
-					{
+					i = SendDlgItemMessage(hDialog, IDC_RIGHT_SLIDER, TBM_GETPOS, 0, 0)*4;
+					if (i+Clip_Left+MIN_WIDTH <= horizontal_size)
 						Clip_Right = i;
-						sprintf(szTemp, "%d", Clip_Right);
-						SetDlgItemText(hDialog, IDC_RIGHT, szTemp);
-					}
+					else
+						Clip_Right = horizontal_size - (Clip_Left+MIN_WIDTH);
+					SetDlgItemInt(hDialog, IDC_RIGHT, Clip_Right, 0);
+					SetDlgItemInt(hDialog, IDC_WIDTH, horizontal_size-Clip_Left-Clip_Right, 0);
 					break;
 
 				case IDC_TOP_SLIDER:
-					i = SendDlgItemMessage(hDialog, IDC_TOP_SLIDER, TBM_GETPOS, 0, 0)*2;
-					if (i+Clip_Bottom+MIN_HEIGHT <= Coded_Picture_Height)
-					{
+					i = SendDlgItemMessage(hDialog, IDC_TOP_SLIDER, TBM_GETPOS, 0, 0)*4;
+					if (i+Clip_Bottom+MIN_HEIGHT <= vertical_size)
 						Clip_Top = i;
-						sprintf(szTemp, "%d", Clip_Top);
-						SetDlgItemText(hDialog, IDC_TOP, szTemp);
-
-						Clip_Bottom = 8 - Clip_Top%8;
-						sprintf(szTemp, "%d", Clip_Bottom);
-						SetDlgItemText(hDialog, IDC_BOTTOM, szTemp);
-						SendDlgItemMessage(hDialog, IDC_BOTTOM_SLIDER, TBM_SETPOS, 1, Clip_Bottom/2);
-					}
+					else
+						Clip_Top = vertical_size - (Clip_Bottom+MIN_HEIGHT);
+					SetDlgItemInt(hDialog, IDC_TOP, Clip_Top, 0);
+					SetDlgItemInt(hDialog, IDC_HEIGHT, vertical_size-Clip_Top-Clip_Bottom, 0);
 					break;
 
 				case IDC_BOTTOM_SLIDER:
-					i = SendDlgItemMessage(hDialog, IDC_BOTTOM_SLIDER, TBM_GETPOS, 0, 0)*2;
-					if (i+Clip_Top+MIN_HEIGHT<=Coded_Picture_Height && (i+Clip_Top)%8==0)
-					{
+					i = SendDlgItemMessage(hDialog, IDC_BOTTOM_SLIDER, TBM_GETPOS, 0, 0)*4;
+					if (i+Clip_Top+MIN_HEIGHT <= vertical_size)
 						Clip_Bottom = i;
-						sprintf(szTemp, "%d", Clip_Bottom);
-						SetDlgItemText(hDialog, IDC_BOTTOM, szTemp);
-					}
+					else
+						Clip_Bottom = vertical_size - (Clip_Top+MIN_HEIGHT);
+					SetDlgItemInt(hDialog, IDC_BOTTOM, Clip_Bottom, 0);
+					SetDlgItemInt(hDialog, IDC_HEIGHT, vertical_size-Clip_Top-Clip_Bottom, 0);
 					break;
 			}
 
@@ -2662,17 +2792,13 @@ LRESULT CALLBACK Luminance(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPa
 	switch (message)
 	{
 		case WM_INITDIALOG:
-			SendDlgItemMessage(hDialog, IDC_GAMMA_SLIDER, TBM_SETRANGE, 0, MAKELPARAM(0, 512));
-			SendDlgItemMessage(hDialog, IDC_GAMMA_SLIDER, TBM_SETTICFREQ, 256, 0);
-			SendDlgItemMessage(hDialog, IDC_GAMMA_SLIDER, TBM_SETPOS, 1, LumGamma+256);
-			sprintf(szTemp, "%d", LumGamma);
-			SetDlgItemText(hDialog, IDC_GAIN, szTemp);
+			SendDlgItemMessage(hDialog, IDC_GAMMA_SPIN, UDM_SETRANGE, 0, MAKELPARAM(511, 1));
+			SendDlgItemMessage(hDialog, IDC_GAMMA_SPIN, UDM_SETPOS, 1, LumGamma + 256);
+			SetDlgItemInt(hDialog, IDC_GAMMA_BOX, LumGamma, 0);
 
-			SendDlgItemMessage(hDialog, IDC_OFFSET_SLIDER, TBM_SETRANGE, 0, MAKELPARAM(0, 512));
-			SendDlgItemMessage(hDialog, IDC_OFFSET_SLIDER, TBM_SETTICFREQ, 256, 0);
-			SendDlgItemMessage(hDialog, IDC_OFFSET_SLIDER, TBM_SETPOS, 1, LumOffset+256);
-			sprintf(szTemp, "%d", LumOffset);
-			SetDlgItemText(hDialog, IDC_OFFSET, szTemp);
+			SendDlgItemMessage(hDialog, IDC_OFFSET_SPIN, UDM_SETRANGE, 0, MAKELPARAM(511, 1));
+			SendDlgItemMessage(hDialog, IDC_OFFSET_SPIN, UDM_SETPOS, 1, LumOffset + 256);
+			SetDlgItemInt(hDialog, IDC_OFFSET_BOX, LumOffset, 0);
 
 			ShowWindow(hDialog, SW_SHOW);
 
@@ -2704,23 +2830,67 @@ LRESULT CALLBACK Luminance(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPa
 			}
 			break;
 
-		case WM_HSCROLL:
+		case WM_VSCROLL:
 			switch (GetWindowLong((HWND)lParam, GWL_ID))
 			{
-				case IDC_GAMMA_SLIDER:
-					LumGamma = SendDlgItemMessage(hDialog, IDC_GAMMA_SLIDER, TBM_GETPOS, 0, 0) - 256;
+				case IDC_GAMMA_SPIN:
+					LumGamma = LOWORD(SendDlgItemMessage(hDialog, IDC_GAMMA_SPIN, UDM_GETPOS, 0,0)) - 256;
 					sprintf(szTemp, "%d", LumGamma);
-					SetDlgItemText(hDialog, IDC_GAIN, szTemp);	
+					SetDlgItemText(hDialog, IDC_GAMMA_BOX, szTemp);	
 					break;
-
-				case IDC_OFFSET_SLIDER:
-					LumOffset = SendDlgItemMessage(hDialog, IDC_OFFSET_SLIDER, TBM_GETPOS, 0, 0) - 256;
+				case IDC_OFFSET_SPIN:
+					LumOffset = LOWORD(SendDlgItemMessage(hDialog, IDC_OFFSET_SPIN, UDM_GETPOS, 0,0)) - 256;
 					sprintf(szTemp, "%d", LumOffset);
-					SetDlgItemText(hDialog, IDC_OFFSET, szTemp);
+					SetDlgItemText(hDialog, IDC_OFFSET_BOX, szTemp);	
 					break;
 			}
 
 			RefreshWindow(true);
+			break;
+	}
+    return false;
+}
+
+LRESULT CALLBACK AVSTemplate(HWND hDialog, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	switch (message)
+	{
+		case WM_INITDIALOG:
+			sprintf(szTemp, "%s", AVSTemplatePath);
+			SetDlgItemText(hDialog, IDC_AVS_TEMPLATE, szTemp);
+			ShowWindow(hDialog, SW_SHOW);
+			return true;
+
+		case WM_COMMAND:
+			switch (LOWORD(wParam))
+			{
+				case IDC_NO_TEMPLATE:
+					AVSTemplatePath[0] = 0;
+					sprintf(szTemp, "%s", "");
+					SetDlgItemText(hDialog, IDC_AVS_TEMPLATE, szTemp);
+					ShowWindow(hDialog, SW_SHOW);
+					EndDialog(hDialog, 0);
+					return true;
+				case IDC_CHANGE_TEMPLATE:
+					if (PopFileDlg(AVSTemplatePath, hWnd, OPEN_AVS))
+					{
+						sprintf(szTemp, "%s", AVSTemplatePath);
+						SetDlgItemText(hDialog, IDC_AVS_TEMPLATE, szTemp);
+					}
+					else
+					{
+						AVSTemplatePath[0] = 0;
+						sprintf(szTemp, "%s", "");
+						SetDlgItemText(hDialog, IDC_AVS_TEMPLATE, szTemp);
+					}
+					ShowWindow(hDialog, SW_SHOW);
+					EndDialog(hDialog, 0);
+					return true;
+				case IDC_KEEP_TEMPLATE:
+				case IDCANCEL:
+					EndDialog(hDialog, 0);
+					return true;
+			}
 			break;
 	}
     return false;
@@ -2873,6 +3043,11 @@ bool PopFileDlg(PTSTR pstrFileName, HWND hOwner, int Status)
 				TEXT ("All Files (*.*)\0*.*\0");
 			break;
 
+		case OPEN_AVS:
+			szFilter = TEXT ("AVS File (*.avs)\0*.avs\0")  \
+				TEXT ("All Files (*.*)\0*.*\0");
+			break;
+
 		case SAVE_D2V:
 			szFilter = TEXT ("DGIndex Project File (*.d2v)\0*.d2v\0")  \
 				TEXT ("All Files (*.*)\0*.*\0");
@@ -2905,6 +3080,11 @@ bool PopFileDlg(PTSTR pstrFileName, HWND hOwner, int Status)
 		case OPEN_D2V:
 		case OPEN_WAV:
 			gop_warned = false;
+			*ofn.lpstrFile = 0;
+			ofn.Flags = OFN_HIDEREADONLY | OFN_FILEMUSTEXIST | OFN_ALLOWMULTISELECT | OFN_EXPLORER;
+			return GetOpenFileName(&ofn);
+
+		case OPEN_AVS:
 			*ofn.lpstrFile = 0;
 			ofn.Flags = OFN_HIDEREADONLY | OFN_FILEMUSTEXIST | OFN_ALLOWMULTISELECT | OFN_EXPLORER;
 			return GetOpenFileName(&ofn);
@@ -3206,6 +3386,15 @@ static void CheckFlag()
 
 	if (CorrectFieldOrder)
 			CheckMenuItem(hMenu, IDM_CORRECT_FIELD_ORDER, MF_CHECKED);
+
+    if (FullPathInFiles)
+            CheckMenuItem(hMenu, IDM_FULL_PATH, MF_CHECKED);
+
+    if (UseOverlay)
+            CheckMenuItem(hMenu, IDM_USE_OVERLAY, MF_CHECKED);
+
+    if (FusionAudio)
+            CheckMenuItem(hMenu, IDM_FUSION_AUDIO, MF_CHECKED);
 }
 
 static void Recovery()
@@ -3254,8 +3443,8 @@ static void Recovery()
 	CheckMenuItem(hMenu, IDM_LUMINANCE, MF_UNCHECKED);
 
 	Clip_Left = Clip_Right = Clip_Top = Clip_Bottom = 0;
-	ClipResize_Flag = false;
-	CheckMenuItem(hMenu, IDM_CLIPRESIZE, MF_UNCHECKED);
+	Cropping_Flag = false;
+	CheckMenuItem(hMenu, IDM_CROPPING, MF_UNCHECKED);
 
 	PreScale_Ratio = 1.0;
 	CheckMenuItem(hMenu, IDM_PRESCALE, MF_UNCHECKED);
@@ -3315,8 +3504,8 @@ void CheckDirectDraw()
 							ddsd.dwSize = sizeof(DDSURFACEDESC);
 							ddsd.dwFlags = DDSD_CAPS | DDSD_WIDTH | DDSD_HEIGHT | DDSD_PIXELFORMAT;
 							ddsd.ddsCaps.dwCaps = DDSCAPS_OVERLAY | DDSCAPS_VIDEOMEMORY;
-							ddsd.dwWidth = Coded_Picture_Width;
-							ddsd.dwHeight = Coded_Picture_Height;
+							ddsd.dwWidth = horizontal_size;
+							ddsd.dwHeight = vertical_size;
 
 							memcpy(&(ddsd.ddpfPixelFormat), &ddPixelFormat, sizeof(DDPIXELFORMAT));
 
@@ -3335,9 +3524,9 @@ void CheckDirectDraw()
 									int i, j;
 									unsigned char *dst = (unsigned char *)ddsd.lpSurface;
 
-									for (i=0; i<Coded_Picture_Height; i++)
+									for (i=0; i<vertical_size; i++)
 									{
-										for (j=0; j<Coded_Picture_Width; j++)
+										for (j=0; j<horizontal_size; j++)
 										{
 											dst[j*2] = 0;
 											dst[j*2+1] = 128;
@@ -3403,8 +3592,8 @@ void ResizeWindow(int width, int height)
 {
 	// Don't let window get too small so
 	// that the trackbar does not become a joke.
-	if (width < 320) width = 320;
-	if (height < 240) height = 240;
+//	if (width < 320) width = 320;
+//	if (height < 240) height = 240;
 	MoveWindow(hTrack, 0, height, width-4*TRACK_HEIGHT, TRACK_HEIGHT, true);
 	MoveWindow(hLeftButton, width-4*TRACK_HEIGHT, height, TRACK_HEIGHT, TRACK_HEIGHT, true);
 	MoveWindow(hLeftArrow, width-3*TRACK_HEIGHT, height, TRACK_HEIGHT, TRACK_HEIGHT, true);
@@ -3451,10 +3640,10 @@ static void SaveBMP()
 	if ((BMPFile = fopen(szTemp, "wb")) == NULL)
 		return;
 
-	int width = Coded_Picture_Width;
-	int height = Coded_Picture_Height;
+	int width = horizontal_size;
+	int height = vertical_size;
 
-	if (ClipResize_Flag)
+	if (Cropping_Flag)
 	{
 		width -= Clip_Left+Clip_Right;
 		height -= Clip_Top+Clip_Bottom;
@@ -3509,6 +3698,10 @@ static void StartupEnables(void)
 	EnableMenuItem(hMenu, IDM_STOP, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_PAUSE, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_EXIT, MF_ENABLED);
+
+	// Video menu.
+	EnableMenuItem(hMenu, IDM_LUMINANCE, MF_GRAYED);
+	EnableMenuItem(hMenu, IDM_CROPPING, MF_GRAYED);
 
 	// Audio menu.
 	if (Method_Flag == AUDIO_NONE)
@@ -3582,6 +3775,10 @@ static void FileLoadedEnables(void)
 	EnableMenuItem(hMenu, IDM_STOP, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_PAUSE, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_EXIT, MF_ENABLED);
+
+	// Video menu.
+	EnableMenuItem(hMenu, IDM_LUMINANCE, MF_ENABLED);
+	EnableMenuItem(hMenu, IDM_CROPPING, MF_ENABLED);
 
 	// Drag and drop.
 	DragAcceptFiles(hWnd, true);

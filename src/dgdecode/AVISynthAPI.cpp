@@ -31,7 +31,7 @@
 #include "utilities.h"
 #include <string.h>
 
-#define VERSION "DGDecode 1.4.6"
+#define VERSION "DGDecode 1.4.7"
 
 MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int moderate_h, int moderate_v, bool showQ, bool fastMC, const char* _cpu2, int _info, int _upConv, bool _i420, int iCC, IScriptEnvironment* env)
 {
@@ -97,6 +97,8 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
 		env->ThrowError("MPEG2Source: Could not open one of the input files.");
 	else if (status == 4)
 		env->ThrowError("MPEG2Source: Could not find a sequence header in the input stream.");
+	else if (status == 5)
+		env->ThrowError("MPEG2Source: The input file is not a D2V project file.");
 
 	memset(&vi, 0, sizeof(vi));
 	vi.width = m_decoder.Clip_Width;
@@ -1698,19 +1700,25 @@ if (strncmp(buf, name, len) == 0) \
 										args[11].AsBool(i420),
 										iCC,
 										env );
-		// Only bother invokeing crop if we have to
-		if ( dec->m_decoder.Clip_Top    || 
+		// Only bother invoking crop if we have to.
+		if (dec->m_decoder.Clip_Top    || 
 			dec->m_decoder.Clip_Bottom || 
 			dec->m_decoder.Clip_Left   || 
-			dec->m_decoder.Clip_Right )
+			dec->m_decoder.Clip_Right ||
+			// This is cheap but it works.
+			dec->m_decoder.vertical_size != dec->m_decoder.Clip_Height ||
+			dec->m_decoder.horizontal_size != dec->m_decoder.Clip_Width)
 		{
-			AVSValue CropArgs[5] = { dec,
-									dec->m_decoder.Clip_Left, 
-									dec->m_decoder.Clip_Top, 
-									-dec->m_decoder.Clip_Right,
-									-dec->m_decoder.Clip_Bottom };
+			AVSValue CropArgs[5] =
+			{
+				dec,
+				dec->m_decoder.Clip_Left, 
+				dec->m_decoder.Clip_Top, 
+				-(dec->m_decoder.Clip_Right + (dec->m_decoder.Clip_Width - dec->m_decoder.horizontal_size)),
+				-(dec->m_decoder.Clip_Bottom + (dec->m_decoder.Clip_Height - dec->m_decoder.vertical_size))
+			};
 
-			return env->Invoke("crop",AVSValue(CropArgs,5));
+			return env->Invoke("crop", AVSValue(CropArgs,5));
 		}
 
 	return dec;

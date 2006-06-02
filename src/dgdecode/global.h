@@ -351,7 +351,6 @@ protected:
   int mpeg_type;
   int Coded_Picture_Width, Coded_Picture_Height, Chroma_Width, Chroma_Height;
   int block_count, Second_Field;
-  int horizontal_size, vertical_size, mb_width, mb_height;
 
   /* ISO/IEC 13818-2 section 6.2.2.3:  sequence_extension() */
   int progressive_sequence;
@@ -419,6 +418,7 @@ public:
   DWORD		VF_FrameLimit;
   DWORD		VF_GOPLimit;
   DWORD		prev_frame;
+  int horizontal_size, vertical_size, mb_width, mb_height;
 
 
   CMPEG2Decoder();

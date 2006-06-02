@@ -1,5 +1,5 @@
 /* 
- *  Mutated into DGIndex. Modifications Copyright (C) 2004, Donald Graft
+ *  Mutated into DGIndex. Modifications Copyright (C) 2004-2006, Donald Graft
  * 
  *	Copyright (C) Chia-chen Kuo - April 2001
  *
@@ -489,6 +489,8 @@ void Next_Transport_Packet()
 					PES_PTS |= (Get_Short() & 0xfffe) << 14;
 					PES_PTS |= (Get_Short()>>1) & 0x7fff;
 					pts_stamp = (unsigned int) (PES_PTS & 0xffffffff);
+					if (LogTimestamps_Flag && D2V_Flag)
+						fprintf(Timestamps, "V PTS %9u\n", pts_stamp/90);
 					Packet_Length -= 5;
 					// DTS is not used. The code is here for analysis and debugging.
 					if ((flags & 0xc0) == 0xc0)
@@ -497,6 +499,8 @@ void Next_Transport_Packet()
 						PES_DTS |= (Get_Short() & 0xfffe) << 14;
 						PES_DTS |= (Get_Short()>>1) & 0x7fff;
 						dts_stamp = (unsigned int) (PES_DTS & 0xffffffff);
+						if (LogTimestamps_Flag && D2V_Flag)
+							fprintf(Timestamps, "V DTS %9u\n", dts_stamp/90);
 						Packet_Length -= 5;
 						SKIP_TRANSPORT_PACKET_BYTES(Packet_Header_Length - 10)
 					}
@@ -540,13 +544,30 @@ void Next_Transport_Packet()
 					Packet_Length -= 9;
 					if (code & 0x80)
 					{
+//						unsigned int dts_stamp;
 						code = Get_Byte();
 						PES_PTS = (code & 0x0e) << 29;
 						PES_PTS |= (Get_Short() & 0xfffe) << 14;
 						PES_PTS |= (Get_Short()>>1) & 0x7fff;
-						Packet_Length = Packet_Length - 5;
-						SKIP_TRANSPORT_PACKET_BYTES(Packet_Header_Length-5)
 						AudioPTS = (unsigned int) (PES_PTS & 0xffffffff);
+						if (LogTimestamps_Flag && D2V_Flag)
+							fprintf(Timestamps, " A PTS %9u\n", AudioPTS/90);
+						Packet_Length -= 5;
+#if 0
+						if ((code & 0xc0) == 0xc0)
+						{
+							PES_DTS = (Get_Byte() & 0x0e) << 29;
+							PES_DTS |= (Get_Short() & 0xfffe) << 14;
+							PES_DTS |= (Get_Short()>>1) & 0x7fff;
+							dts_stamp = (unsigned int) (PES_DTS & 0xffffffff);
+							if (LogTimestamps_Flag && D2V_Flag)
+								fprintf(Timestamps, "A DTS %9u\n", dts_stamp/90);
+							Packet_Length -= 5;
+							SKIP_TRANSPORT_PACKET_BYTES(Packet_Header_Length - 10)
+						}
+						else
+#endif
+							SKIP_TRANSPORT_PACKET_BYTES(Packet_Header_Length-5)
 					}
 				}
 				DEMUX_MPA_AAC(mpafp);
@@ -562,13 +583,30 @@ void Next_Transport_Packet()
 				Packet_Length -= 9;
 				if (code & 0x80)
 				{
+//					unsigned int dts_stamp;
 					code = Get_Byte();
 					PES_PTS = (code & 0x0e) << 29;
 					PES_PTS |= (Get_Short() & 0xfffe) << 14;
 					PES_PTS |= (Get_Short()>>1) & 0x7fff;
-					Packet_Length = Packet_Length - 5;
-					SKIP_TRANSPORT_PACKET_BYTES(Packet_Header_Length-5)
 					AudioPTS = (unsigned int) (PES_PTS & 0xffffffff);
+					if (LogTimestamps_Flag && D2V_Flag)
+						fprintf(Timestamps, " A PTS %9u\n", AudioPTS/90);
+					Packet_Length = Packet_Length - 5;
+#if 0
+					if ((code & 0xc0) == 0xc0)
+					{
+						PES_DTS = (Get_Byte() & 0x0e) << 29;
+						PES_DTS |= (Get_Short() & 0xfffe) << 14;
+						PES_DTS |= (Get_Short()>>1) & 0x7fff;
+						dts_stamp = (unsigned int) (PES_DTS & 0xffffffff);
+						if (LogTimestamps_Flag && D2V_Flag)
+							fprintf(Timestamps, "A DTS %9u\n", dts_stamp/90);
+						Packet_Length -= 5;
+						SKIP_TRANSPORT_PACKET_BYTES(Packet_Header_Length - 10)
+					}
+					else
+#endif
+						SKIP_TRANSPORT_PACKET_BYTES(Packet_Header_Length-5)
 
 					// Now we're at the start of the audio.
 					// Find the audio header.
@@ -679,13 +717,30 @@ void Next_Transport_Packet()
 					// get PTS, and skip rest of PES-header
 					if (code >= 0x80 && Packet_Header_Length > 4 )
 					{
+//						unsigned int dts_stamp;
 						code = Get_Byte();
 						PES_PTS = (code & 0x0e) << 29;
 						PES_PTS |= (Get_Short() & 0xfffe) << 14;
 						PES_PTS |= (Get_Short()>>1) & 0x7fff;
-						Packet_Length = Packet_Length - 5;
 						AudioPTS = (unsigned int) (PES_PTS & 0xffffffff);	
-						SKIP_TRANSPORT_PACKET_BYTES( Packet_Header_Length-5 )
+						if (LogTimestamps_Flag && D2V_Flag)
+							fprintf(Timestamps, " A PTS %9u\n", AudioPTS/90);
+						Packet_Length = Packet_Length - 5;
+#if 0
+						if ((code & 0xc0) == 0xc0)
+						{
+							PES_DTS = (Get_Byte() & 0x0e) << 29;
+							PES_DTS |= (Get_Short() & 0xfffe) << 14;
+							PES_DTS |= (Get_Short()>>1) & 0x7fff;
+							dts_stamp = (unsigned int) (PES_DTS & 0xffffffff);
+							if (LogTimestamps_Flag && D2V_Flag)
+								fprintf(Timestamps, "A DTS %9u\n", dts_stamp/90);
+							Packet_Length -= 5;
+							SKIP_TRANSPORT_PACKET_BYTES(Packet_Header_Length - 10)
+						}
+						else
+#endif
+							SKIP_TRANSPORT_PACKET_BYTES(Packet_Header_Length - 5)
 					}
 					else
 						SKIP_TRANSPORT_PACKET_BYTES( Packet_Header_Length )
@@ -721,7 +776,7 @@ void Next_Transport_Packet()
 					++i;
 				}
 
-				if ( code !=0xb77 )  // did we find the sync-header?
+				if ( code != 0xb77 )  // did we find the sync-header?
 				{
 					// no, we searched the *ENTIRE* transport-packet and came up empty!
 					SKIP_TRANSPORT_PACKET_BYTES( Packet_Length )
@@ -884,6 +939,92 @@ void Next_Transport_Packet()
 					DEMUX_AC3
 			}
 		}
+		else if ((Method_Flag == AUDIO_DEMUXALL || Method_Flag == AUDIO_DEMUX) &&
+				 (Start_Flag || MPEG2_Transport_VideoPID == 0) &&    // User sets video pid 0 for audio only.
+				 tp.pid && (tp.pid == MPEG2_Transport_AudioPID) &&
+				 (MPEG2_Transport_AudioType == 0xfe || MPEG2_Transport_AudioType == 0xffffffff)) 
+		{
+			// We are demuxing DTS audio.
+			This_Track = 0;
+			if (dts[This_Track].file)
+			{
+				if (tp.payload_unit_start_indicator)
+				{
+					Get_Short(); // start code and stream id
+					Get_Short();
+					Get_Short(); // packet length
+					Get_Byte(); // flags
+					code = Get_Byte(); // more flags
+					Packet_Header_Length = Get_Byte();
+					Packet_Length -= 9;
+					if (code & 0x80)
+					{
+						code = Get_Byte();
+						PES_PTS = (code & 0x0e) << 29;
+						PES_PTS |= (Get_Short() & 0xfffe) << 14;
+						PES_PTS |= (Get_Short()>>1) & 0x7fff;
+						AudioPTS = (unsigned int) (PES_PTS & 0xffffffff);
+						if (LogTimestamps_Flag && D2V_Flag)
+							fprintf(Timestamps, " A PTS %9u\n", AudioPTS/90);
+						Packet_Length -= 5;
+						SKIP_TRANSPORT_PACKET_BYTES(Packet_Header_Length-5)
+					}
+				}
+				DEMUX_DTS;
+			}
+			else if (tp.payload_unit_start_indicator)
+			{
+				Get_Short(); // start code
+				Get_Short(); // rest of start code and stream id
+				Get_Short(); // packet length
+				Get_Byte(); // flags
+				code = Get_Byte(); // more flags
+				Packet_Header_Length = Get_Byte();
+				Packet_Length -= 9;
+				if (code & 0x80)
+				{
+					code = Get_Byte();
+					PES_PTS = (code & 0x0e) << 29;
+					PES_PTS |= (Get_Short() & 0xfffe) << 14;
+					PES_PTS |= (Get_Short()>>1) & 0x7fff;
+					AudioPTS = (unsigned int) (PES_PTS & 0xffffffff);
+					if (LogTimestamps_Flag && D2V_Flag)
+						fprintf(Timestamps, " A PTS %9u\n", AudioPTS/90);
+					Packet_Length = Packet_Length - 5;
+					SKIP_TRANSPORT_PACKET_BYTES(Packet_Header_Length-5)
+
+					// Now we're at the start of the audio.
+					Channel[0] = FORMAT_DTS;
+
+					// Adjust the VideoPTS to account for frame reordering.
+					if (!PTSAdjustDone && StartTemporalReference != -1 && StartTemporalReference < 18)
+					{
+						PTSAdjustDone = 1;
+						picture_period = 1.0 / frame_rate;
+						if (picture_structure != FRAME_PICTURE)
+							picture_period /= 2;
+						VideoPTS -= (int) (StartTemporalReference * picture_period * 90000);
+					}
+
+					if (MPEG2_Transport_VideoPID == 0 || PTSDifference(AudioPTS, VideoPTS, &PTSDiff))
+						sprintf(szBuffer, "%s PID %03x.dts", szOutput, MPEG2_Transport_AudioPID);
+					else
+						sprintf(szBuffer, "%s PID %03x DELAY %dms.dts", szOutput, MPEG2_Transport_AudioPID, PTSDiff);
+					if (D2V_Flag)
+					{
+						dts[This_Track].file = OpenAudio(szBuffer, "wb");
+						if (dts[This_Track].file == NULL)
+						{
+							// Cannot open the output file, Disable further audio processing.
+							MPEG2_Transport_AudioType = 0xff;
+							SKIP_TRANSPORT_PACKET_BYTES(Packet_Length);
+							continue;
+						}
+						DEMUX_DTS;
+					}
+				}
+			}
+		}
 		// fallthrough case
 		// skip remaining bytes in current packet
 		SKIP_TRANSPORT_PACKET_BYTES( Packet_Length )
@@ -977,6 +1118,8 @@ void Next_PVA_Packet()
 			if (pva.flags & 0x10)
 			{
 				PTS = (int) ((Get_Byte() << 24) | (Get_Byte() << 16) | (Get_Byte() << 8) | Get_Byte());
+				if (LogTimestamps_Flag && D2V_Flag)
+					fprintf(Timestamps, "V PTS %9u\n", PTS/90);
 				Packet_Length -= 4;
 				if (pva.flags & 0x03)
 				{
@@ -1022,9 +1165,11 @@ void Next_PVA_Packet()
 						PES_PTS = (code & 0x0e) << 29;
 						PES_PTS |= (Get_Short() & 0xfffe) << 14;
 						PES_PTS |= (Get_Short()>>1) & 0x7fff;
+						AudioPTS = (unsigned int) (PES_PTS & 0xffffffff);
+						if (LogTimestamps_Flag && D2V_Flag)
+							fprintf(Timestamps, " A PTS %9u\n", AudioPTS/90);
 						Packet_Length = Packet_Length - 5;
 						SKIP_TRANSPORT_PACKET_BYTES(Packet_Header_Length-5)
-						AudioPTS = (unsigned int) (PES_PTS & 0xffffffff);
 					}
 				}
 				DEMUX_MPA_AAC(mpafp);
@@ -1044,9 +1189,11 @@ void Next_PVA_Packet()
 					PES_PTS = (code & 0x0e) << 29;
 					PES_PTS |= (Get_Short() & 0xfffe) << 14;
 					PES_PTS |= (Get_Short()>>1) & 0x7fff;
+					AudioPTS = (unsigned int) (PES_PTS & 0xffffffff);
+					if (LogTimestamps_Flag && D2V_Flag)
+						fprintf(Timestamps, " A PTS %9u\n", AudioPTS/90);
 					Packet_Length = Packet_Length - 5;
 					SKIP_TRANSPORT_PACKET_BYTES(Packet_Header_Length-5)
-					AudioPTS = (unsigned int) (PES_PTS & 0xffffffff);
 					// Now we're at the start of the audio.
 					// Find the audio header.
 					code = Get_Byte();
@@ -1136,6 +1283,7 @@ void Next_Packet()
 	static int stream_type;
 	int PTSDiff;
 	double picture_period;
+	unsigned int dts_stamp = 0;
 
 	if (SystemStream_Flag == TRANSPORT_STREAM)
 	{
@@ -1217,20 +1365,43 @@ void Next_Packet()
 					PES_PTS |= (Get_Short() & 0xfffe) << 14;
 					PES_PTS |= (Get_Short()>>1) & 0x7fff;
 					AudioPTS = (unsigned int) (PES_PTS & 0xffffffff);
-//					dprintf("DGIndex:   Audio PTS = %d\n", AudioPTS/90);
-
-					Rdptr += Packet_Header_Length-5;
+					Rdptr += Packet_Header_Length - 5;
 				}
 				else
 					Rdptr += Packet_Header_Length;
 
-				AUDIO_ID = Get_Byte();	// +1
-//				dprintf("DGIndex: AUDIO_ID = %d\n", AUDIO_ID);
-				Packet_Length -= Packet_Header_Length+4;
+				// Private stream 1 on a DVD has an audio substream number,
+				// but straight MPEG may not, in which case the audio sync word
+				// will appear where the substream number would be. We will have
+				// to parse differently for these two structures. For now, it's
+				// controlled by a GUI option.
+				if (FusionAudio)
+				{
+					// Determine the audio type from the audio sync word.
+					if (Rdptr[0] == 0x0b && Rdptr[1] == 0x77)
+						AUDIO_ID = SUB_AC3;
+					else if (Rdptr[0] == 0x7f && Rdptr[1] == 0xfe)
+						AUDIO_ID = SUB_DTS;
+					else
+						// Nothing else if supported. Force it to fail.
+						AUDIO_ID = 0;
+					Packet_Length -= Packet_Header_Length + 3;
+				}
+				else
+				{
+					AUDIO_ID = Get_Byte();	// +1
+					Packet_Length -= Packet_Header_Length + 4;
+				}
 
 				if (AUDIO_ID>=SUB_AC3 && AUDIO_ID<SUB_AC3+CHANNEL)
 				{
-					Rdptr += 3; Packet_Length -= 3; This_Track = AUDIO_ID-SUB_AC3;
+					if (LogTimestamps_Flag && D2V_Flag && code >= 0x80)
+						fprintf(Timestamps, " A%d PTS %9u\n", AUDIO_ID - SUB_AC3, AudioPTS/90);
+					if (!FusionAudio)
+					{
+						Rdptr += 3; Packet_Length -= 3;
+						This_Track = AUDIO_ID-SUB_AC3;
+					}
 
 					LOCATE
 
@@ -1385,7 +1556,10 @@ void Next_Packet()
 				}
 				else if (AUDIO_ID>=SUB_PCM && AUDIO_ID<SUB_PCM+CHANNEL)
 				{
-					Rdptr += 6; Packet_Length -= 6; This_Track = AUDIO_ID-SUB_PCM;
+					if (LogTimestamps_Flag && D2V_Flag && code >= 0x80)
+						fprintf(Timestamps, " A%d PTS %9u\n", AUDIO_ID - SUB_PCM, AudioPTS/90);
+					Rdptr += 6; Packet_Length -= 6;
+					This_Track = AUDIO_ID-SUB_PCM;
 
 					LOCATE
 
@@ -1467,7 +1641,13 @@ void Next_Packet()
 				}
 				else if (AUDIO_ID>=SUB_DTS && AUDIO_ID<SUB_DTS+CHANNEL)
 				{
-					Rdptr += 3; Packet_Length -= 3; This_Track = AUDIO_ID-SUB_DTS;
+					if (LogTimestamps_Flag && D2V_Flag && code >= 0x80)
+						fprintf(Timestamps, " A%d PTS %9u\n", AUDIO_ID - SUB_DTS, AudioPTS/90);
+					if (!FusionAudio)
+					{
+						Rdptr += 3; Packet_Length -= 3;
+						This_Track = AUDIO_ID-SUB_DTS;
+					}
 
 					LOCATE
 
@@ -1551,20 +1731,27 @@ void Next_Packet()
 						PES_PTS |= (Get_Short() & 0xfffe) << 14;
 						PES_PTS |= (Get_Short()>>1) & 0x7fff;
 						AudioPTS = (unsigned int) (PES_PTS & 0xffffffff);
+						if (LogTimestamps_Flag && D2V_Flag)
+							fprintf(Timestamps, " A%d PTS %9u\n", MPA_Track, AudioPTS/90);
 						Packet_Header_Length += 4;
 					}
 					else if ((code & 0xf0) == 0x30)
 					{
 						// PTS bytes.
-						__int64 PES_PTS;
+						__int64 PES_PTS, PES_DTS;
 
 						PES_PTS = (code & 0x0e) << 29;
 						PES_PTS |= (Get_Short() & 0xfffe) << 14;
 						PES_PTS |= (Get_Short()>>1) & 0x7fff;
 						AudioPTS = (unsigned int) (PES_PTS & 0xffffffff);
-						Get_Short();
-						Get_Short();
-						Get_Byte();
+						if (LogTimestamps_Flag && D2V_Flag)
+							fprintf(Timestamps, " A%d PTS %9u\n", MPA_Track, AudioPTS/90);
+						PES_DTS = (Get_Byte() & 0x0e) << 29;
+						PES_DTS |= (Get_Short() & 0xfffe) << 14;
+						PES_DTS |= (Get_Short()>>1) & 0x7fff;
+						dts_stamp = (unsigned int) (PES_DTS & 0xffffffff);
+						if (LogTimestamps_Flag && D2V_Flag)
+							fprintf(Timestamps, " A%d DTS %9u\n", MPA_Track, dts_stamp/90);
 						Packet_Header_Length += 9;
 					}
 					Packet_Length -= Packet_Header_Length;
@@ -1629,14 +1816,27 @@ void Next_Packet()
 
 						if (code>=0x80)
 						{
-							__int64 PES_PTS;
+							__int64 PES_PTS, PES_DTS;
 
 							PES_PTS = (Get_Byte() & 0x0e) << 29;
 							PES_PTS |= (Get_Short() & 0xfffe) << 14;
 							PES_PTS |= (Get_Short()>>1) & 0x7fff;
+							if (LogTimestamps_Flag && D2V_Flag)
+								fprintf(Timestamps, " A%d PTS %9u\n", MPA_Track, AudioPTS/90);
 							AudioPTS = (unsigned int) (PES_PTS & 0xffffffff);
-
-							Rdptr += Packet_Header_Length-5;
+							// DTS is not used. The code is here for analysis and debugging.
+							if ((code & 0xc0) == 0xc0)
+							{
+								PES_DTS = (Get_Byte() & 0x0e) << 29;
+								PES_DTS |= (Get_Short() & 0xfffe) << 14;
+								PES_DTS |= (Get_Short()>>1) & 0x7fff;
+								dts_stamp = (unsigned int) (PES_DTS & 0xffffffff);
+								if (LogTimestamps_Flag && D2V_Flag)
+									fprintf(Timestamps, "A%d DTS %9u\n", MPA_Track, dts_stamp/90);
+								Rdptr += Packet_Header_Length - 10;
+							}
+							else
+								Rdptr += Packet_Header_Length - 5;
 						}
 						else
 							Rdptr += Packet_Header_Length;
@@ -1704,7 +1904,7 @@ void Next_Packet()
 
 					if (stream_type == MPEG1_PROGRAM_STREAM)
 					{
-						__int64 PES_PTS;
+						__int64 PES_PTS, PES_DTS;
 						unsigned int pts_stamp;
 
 						// MPEG1 program stream.
@@ -1729,6 +1929,8 @@ void Next_Packet()
 							PES_PTS |= (Get_Short() & 0xfffe) << 14;
 							PES_PTS |= (Get_Short()>>1) & 0x7fff;
 							pts_stamp = (unsigned int) (PES_PTS & 0xffffffff);
+							if (LogTimestamps_Flag && D2V_Flag)
+								fprintf(Timestamps, "V PTS %9u\n", pts_stamp/90);
 							Packet_Header_Length += 4;
 						}
 						else if ((code & 0xf0) == 0x30)
@@ -1738,9 +1940,14 @@ void Next_Packet()
 							PES_PTS |= (Get_Short() & 0xfffe) << 14;
 							PES_PTS |= (Get_Short()>>1) & 0x7fff;
 							pts_stamp = (unsigned int) (PES_PTS & 0xffffffff);
-							Get_Short();
-							Get_Short();
-							Get_Byte();
+							if (LogTimestamps_Flag && D2V_Flag)
+								fprintf(Timestamps, "V PTS %9u\n", pts_stamp/90);
+							PES_DTS = (Get_Byte() & 0x0e) << 29;
+							PES_DTS |= (Get_Short() & 0xfffe) << 14;
+							PES_DTS |= (Get_Short()>>1) & 0x7fff;
+							dts_stamp = (unsigned int) (PES_DTS & 0xffffffff);
+							if (LogTimestamps_Flag && D2V_Flag)
+								fprintf(Timestamps, "V DTS %9u\n", dts_stamp/90);
 							Packet_Header_Length += 9;
 						}
 						else
@@ -1776,6 +1983,8 @@ void Next_Packet()
 								PES_PTS |= (Get_Short() & 0xfffe) << 14;
 								PES_PTS |= (Get_Short()>>1) & 0x7fff;
 								pts_stamp = (unsigned int) (PES_PTS & 0xffffffff);
+								if (LogTimestamps_Flag && D2V_Flag)
+									fprintf(Timestamps, "V PTS %9u\n", pts_stamp/90);
 								// DTS is not used. The code is here for analysis and debugging.
 								if ((code & 0xc0) == 0xc0)
 								{
@@ -1783,8 +1992,8 @@ void Next_Packet()
 									PES_DTS |= (Get_Short() & 0xfffe) << 14;
 									PES_DTS |= (Get_Short()>>1) & 0x7fff;
 									dts_stamp = (unsigned int) (PES_DTS & 0xffffffff);
-//									dprintf("DGIndex: Video PTS = %d, Video DTS = %d, [diff=%d]\n",
-//											pts_stamp/90, dts_stamp/90, (pts_stamp-dts_stamp)/90);
+									if (LogTimestamps_Flag && D2V_Flag)
+										fprintf(Timestamps, "V DTS %9u\n", dts_stamp/90);
 									Rdptr += Packet_Header_Length - 10;
 								}
 								else
@@ -1967,7 +2176,7 @@ void UpdateInfo()
 		switch (Channel[i])
 		{
 			case FORMAT_AC3:
-				sprintf(szBuffer, "DD %s %d", AC3Mode[ac3[i].mode], AC3Rate[ac3[i].rate]);
+				sprintf(szBuffer, "AC3 %s %d", AC3Mode[ac3[i].mode], AC3Rate[ac3[i].rate]);
 				SetDlgItemText(hDlg, IDC_AUDIO_TYPE + i, szBuffer);
 				break;
 
@@ -2062,8 +2271,6 @@ void UpdateInfo()
 		SetDlgItemText(hDlg, IDC_PLAYBACK_NUMBER, "");
 		SetDlgItemText(hDlg, IDC_BITRATE,"");
 		SetDlgItemText(hDlg, IDC_BITRATE_AVG,"");
-		SetDlgItemText(hDlg, IDC_FILE, "");
-		SetDlgItemText(hDlg, IDC_FILE_SIZE, "");
 		SetDlgItemText(hDlg, IDC_ELAPSED, "");
 		SetDlgItemText(hDlg, IDC_REMAIN, "");
 		SetDlgItemText(hDlg, IDC_FPS, "");

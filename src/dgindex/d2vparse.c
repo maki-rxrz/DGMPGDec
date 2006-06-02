@@ -13,7 +13,7 @@ int parse_d2v(HWND hWnd, char *szInput)
 	int i, fill, val, prev_val = -1, ndx = 0, count = 0, fdom = -1;
 	int D2Vformat = 0;
 	int vob, cell;
-	unsigned int gop_field, field_operation;
+	unsigned int gop_field, field_operation, frame_rate, hour, min, sec;
 	char render[128], temp[20];
 	int type;
 	
@@ -69,6 +69,9 @@ int parse_d2v(HWND hWnd, char *szInput)
 		fprintf(wfp, "[Raw Frames, ignoring flags]\n");
 	else
 		fprintf(wfp, "[Field Operation None, using flags]\n");
+	// Get framerate.
+	fgets(line, 2048, fp);
+	sscanf(line, "Frame_Rate=%d", &frame_rate);
 	// Skip past the rest of the D2V header info to the data lines.
 	while (fgets(line, 2048, fp) != 0)
 	{
@@ -190,6 +193,12 @@ int parse_d2v(HWND hWnd, char *szInput)
 		}
 	} while ((fgets(line, 2048, fp) != 0) &&
 			 ((line[0] >= '0' && line[0] <= '9') || (line[0] >= 'a' && line[0] <= 'f')));
+	sec = (int)(((float)(ndx + count / 2)) * 1000.0 / frame_rate);
+	hour = sec / 3600;
+	sec -= hour * 3600;
+	min = sec / 60;
+	sec -= min * 60;
+	fprintf(wfp, "Running time = %d hours, %d minutes, %d seconds\n", hour, min, sec);
 
 	fclose(fp);
 	fclose(wfp);

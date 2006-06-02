@@ -282,9 +282,13 @@ __int64 PackHeaderPosition;
 int LeadingBFrames;
 int ForceOpenGops;
 int CorrectFieldOrder;
+char AVSTemplatePath[_MAX_PATH];
+int FullPathInFiles;
+int UseOverlay;
+int FusionAudio;
 
 bool Luminance_Flag;
-bool ClipResize_Flag;
+bool Cropping_Flag;
 
 int Method_Flag;
 // Track_Flag is now bit-mapped: bit 0 means track 1 enabled,
@@ -337,7 +341,7 @@ bool RightArrowHit;
 #define SPEED_MAXIMUM		5
 
 unsigned int Frame_Number;
-int Coded_Picture_Width, Coded_Picture_Height, Chroma_Width, Chroma_Height;
+int Coded_Picture_Width, Coded_Picture_Height;
 int block_count, Second_Field;
 int horizontal_size, vertical_size, mb_width, mb_height;
 
@@ -423,6 +427,8 @@ void ResizeWindow(int width, int height);
 bool gop_warned;
 int LogQuants_Flag;
 FILE *Quants;
+int LogTimestamps_Flag;
+FILE *Timestamps;
 
 /* idct */
 extern void __fastcall MMX_IDCT(short *block);

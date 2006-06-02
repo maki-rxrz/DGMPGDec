@@ -53,12 +53,12 @@ BEGIN
                     IDC_STATIC,9,74,153,44,NOT WS_GROUP
 END
 
-IDD_INFO DIALOG DISCARDABLE  0, 0, 248, 218
+IDD_INFO DIALOG DISCARDABLE  0, 0, 252, 225
 STYLE DS_MODALFRAME | DS_NOIDLEMSG | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Information"
 FONT 10, "System"
 BEGIN
-    GROUPBOX        "Video",IDC_STATIC,3,5,119,153,BS_LEFT
+    GROUPBOX        "Video",IDC_STATIC,3,5,119,155,BS_LEFT
     RTEXT           "Frame Type",IDC_STATIC,13,65,40,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
     RTEXT           "Aspect Ratio",IDC_STATIC,9,15,44,9,SS_CENTERIMAGE | NOT 
@@ -73,10 +73,10 @@ BEGIN
                     WS_GROUP
     CTEXT           "",IDC_CODED_NUMBER,56,105,59,9,SS_CENTERIMAGE | 
                     SS_SUNKEN | NOT WS_GROUP
-    GROUPBOX        "Audio",IDC_STATIC,125,5,119,141
-    LTEXT           "Elapsed",IDC_STATIC,16,172,27,9,SS_CENTERIMAGE | NOT 
+    GROUPBOX        "Audio",IDC_STATIC,127,5,119,105
+    LTEXT           "Elapsed",IDC_STATIC,16,175,27,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    LTEXT           "Remain",IDC_STATIC,18,182,27,9,SS_CENTERIMAGE | NOT 
+    LTEXT           "Remain",IDC_STATIC,18,185,27,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
     CTEXT           "",IDC_PLAYBACK_NUMBER,56,115,59,9,SS_CENTERIMAGE | 
                     SS_SUNKEN | NOT WS_GROUP
@@ -88,25 +88,25 @@ BEGIN
                     NOT WS_GROUP
     CTEXT           "",IDC_ASPECT_RATIO,56,15,59,9,SS_CENTERIMAGE | 
                     SS_SUNKEN | NOT WS_GROUP
-    CTEXT           "",IDC_REMAIN,46,182,69,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_REMAIN,46,185,69,9,SS_CENTERIMAGE | SS_SUNKEN | 
                     NOT WS_GROUP
-    CTEXT           "",IDC_ELAPSED,46,172,69,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_ELAPSED,46,175,69,9,SS_CENTERIMAGE | SS_SUNKEN | 
                     NOT WS_GROUP
-    CTEXT           "",IDC_FPS,46,192,69,9,SS_CENTERIMAGE | SS_SUNKEN | NOT 
+    CTEXT           "",IDC_FPS,46,195,69,9,SS_CENTERIMAGE | SS_SUNKEN | NOT 
                     WS_GROUP
-    RTEXT           "FPS",IDC_STATIC,27,192,16,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "FPS",IDC_STATIC,27,195,16,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    CTEXT           "",IDC_INFO,46,202,69,9,SS_SUNKEN | NOT WS_GROUP
-    LTEXT           "Track 1",IDC_STATIC,131,15,23,9,SS_CENTERIMAGE | NOT 
+    CTEXT           "",IDC_INFO,46,205,69,9,SS_SUNKEN | NOT WS_GROUP
+    LTEXT           "Track 1",IDC_STATIC,133,15,23,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    CTEXT           "",IDC_AUDIO_TYPE,157,15,80,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_AUDIO_TYPE,159,15,80,9,SS_CENTERIMAGE | SS_SUNKEN | 
                     NOT WS_GROUP
-    RTEXT           "Info",IDC_STATIC,27,202,16,8,NOT WS_GROUP
-    RTEXT           "Timestamp",IDC_STATIC,128,95,39,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Info",IDC_STATIC,27,205,16,8,NOT WS_GROUP
+    RTEXT           "Timestamp",IDC_STATIC,130,95,39,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    CTEXT           "",IDC_TIMESTAMP,169,95,68,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_TIMESTAMP,171,95,68,9,SS_CENTERIMAGE | SS_SUNKEN | 
                     NOT WS_GROUP
-    GROUPBOX        "Status",IDC_STATIC,3,162,119,51,BS_LEFT
+    GROUPBOX        "Status",IDC_STATIC,3,165,119,55,BS_LEFT
     RTEXT           "Vob Cell ID",IDC_STATIC,10,125,43,9,SS_CENTERIMAGE | 
                     NOT WS_GROUP
     CTEXT           "",IDC_VOB_ID,56,125,29,9,SS_CENTERIMAGE | SS_SUNKEN | 
@@ -133,33 +133,33 @@ BEGIN
                     WS_GROUP
     CTEXT           "",IDC_FIELD_ORDER,56,95,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
                     NOT WS_GROUP
-    LTEXT           "Track 2",IDC_STATIC,131,25,23,9,SS_CENTERIMAGE | NOT 
+    LTEXT           "Track 2",IDC_STATIC,133,25,23,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    CTEXT           "",IDC_AUDIO_TYPE2,157,25,80,9,SS_CENTERIMAGE | 
+    CTEXT           "",IDC_AUDIO_TYPE2,159,25,80,9,SS_CENTERIMAGE | 
                     SS_SUNKEN | NOT WS_GROUP
-    LTEXT           "Track 3",IDC_STATIC,131,35,23,9,SS_CENTERIMAGE | NOT 
+    LTEXT           "Track 3",IDC_STATIC,133,35,23,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    CTEXT           "",IDC_AUDIO_TYPE3,157,35,80,9,SS_CENTERIMAGE | 
+    CTEXT           "",IDC_AUDIO_TYPE3,159,35,80,9,SS_CENTERIMAGE | 
                     SS_SUNKEN | NOT WS_GROUP
-    LTEXT           "Track 4",IDC_STATIC,131,45,23,9,SS_CENTERIMAGE | NOT 
+    LTEXT           "Track 4",IDC_STATIC,133,45,23,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    CTEXT           "",IDC_AUDIO_TYPE4,157,45,80,9,SS_CENTERIMAGE | 
+    CTEXT           "",IDC_AUDIO_TYPE4,159,45,80,9,SS_CENTERIMAGE | 
                     SS_SUNKEN | NOT WS_GROUP
-    LTEXT           "Track 5",IDC_STATIC,131,55,23,9,SS_CENTERIMAGE | NOT 
+    LTEXT           "Track 5",IDC_STATIC,133,55,23,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    CTEXT           "",IDC_AUDIO_TYPE5,157,55,80,9,SS_CENTERIMAGE | 
+    CTEXT           "",IDC_AUDIO_TYPE5,159,55,80,9,SS_CENTERIMAGE | 
                     SS_SUNKEN | NOT WS_GROUP
-    LTEXT           "Track 6",IDC_STATIC,131,65,23,9,SS_CENTERIMAGE | NOT 
+    LTEXT           "Track 6",IDC_STATIC,133,65,23,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    CTEXT           "",IDC_AUDIO_TYPE6,157,65,80,9,SS_CENTERIMAGE | 
+    CTEXT           "",IDC_AUDIO_TYPE6,159,65,80,9,SS_CENTERIMAGE | 
                     SS_SUNKEN | NOT WS_GROUP
-    LTEXT           "Track 7",IDC_STATIC,131,75,23,9,SS_CENTERIMAGE | NOT 
+    LTEXT           "Track 7",IDC_STATIC,133,75,23,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    CTEXT           "",IDC_AUDIO_TYPE7,157,75,80,9,SS_CENTERIMAGE | 
+    CTEXT           "",IDC_AUDIO_TYPE7,159,75,80,9,SS_CENTERIMAGE | 
                     SS_SUNKEN | NOT WS_GROUP
-    LTEXT           "Track 8",IDC_STATIC,131,85,23,9,SS_CENTERIMAGE | NOT 
+    LTEXT           "Track 8",IDC_STATIC,133,85,23,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
-    CTEXT           "",IDC_AUDIO_TYPE8,157,85,80,9,SS_CENTERIMAGE | 
+    CTEXT           "",IDC_AUDIO_TYPE8,159,85,80,9,SS_CENTERIMAGE | 
                     SS_SUNKEN | NOT WS_GROUP
     RTEXT           "Colorimetry",IDC_STATIC,13,75,40,9,SS_CENTERIMAGE | NOT 
                     WS_GROUP
@@ -187,21 +187,19 @@ BEGIN
     PUSHBUTTON      "DOWN",ID_DOWN,223,45,39,14,NOT WS_TABSTOP
 END
 
-IDD_LUMINANCE DIALOG DISCARDABLE  0, 0, 125, 43
+IDD_LUMINANCE DIALOG DISCARDABLE  0, 0, 113, 67
 STYLE DS_MODALFRAME | DS_NOIDLEMSG | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Luminance Filter"
 FONT 10, "System"
 BEGIN
-    CONTROL         "Slider1",IDC_OFFSET_SLIDER,"msctls_trackbar32",
-                    TBS_AUTOTICKS,34,25,72,10
-    CONTROL         "",IDC_LUM_CHECK,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
-                    117,0,8,8
-    LTEXT           "Offset",IDC_STATIC,7,23,20,8,NOT WS_GROUP
-    LTEXT           "Gamma",IDC_STATIC,7,10,26,8,NOT WS_GROUP
-    CONTROL         "Slider1",IDC_GAMMA_SLIDER,"msctls_trackbar32",
-                    TBS_AUTOTICKS,34,10,72,10
-    CTEXT           "0",IDC_OFFSET,107,24,16,8,NOT WS_GROUP
-    CTEXT           "0",IDC_GAIN,107,10,16,8,NOT WS_GROUP
+    RTEXT           "0",IDC_GAMMA_BOX,64,22,18,15,SS_CENTERIMAGE
+    CONTROL         "Spin1",IDC_GAMMA_SPIN,"msctls_updown32",0x0,86,23,8,14
+    CONTROL         "Enable Luminance Filter",IDC_LUM_CHECK,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,5,5,108,11
+    RTEXT           "Offset:",IDC_STATIC,30,47,29,11,NOT WS_GROUP
+    RTEXT           "Gamma:",IDC_STATIC,28,25,30,8,NOT WS_GROUP
+    CONTROL         "Spin1",IDC_OFFSET_SPIN,"msctls_updown32",0x0,86,45,8,14
+    RTEXT           "0",IDC_OFFSET_BOX,63,44,19,15,SS_CENTERIMAGE
 END
 
 IDD_SPEED DIALOG DISCARDABLE  0, 0, 166, 37
@@ -215,17 +213,17 @@ BEGIN
     RTEXT           "Fast",IDC_STATIC,123,20,35,10
 END
 
-IDD_NORM DIALOG DISCARDABLE  0, 0, 124, 29
+IDD_NORM DIALOG DISCARDABLE  0, 0, 124, 40
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Normalization"
 FONT 10, "System"
 BEGIN
     CONTROL         "Slider1",IDC_NORM_SLIDER,"msctls_trackbar32",
-                    TBS_AUTOTICKS,33,10,72,10
-    LTEXT           "Volume",IDC_STATIC,7,10,25,8,NOT WS_GROUP
-    CONTROL         "",IDC_NORM_CHECK,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,
-                    116,0,8,8
-    CTEXT           "0",IDC_NORM,106,10,16,8,NOT WS_GROUP
+                    TBS_NOTICKS,33,22,72,10
+    LTEXT           "Volume",IDC_STATIC,7,22,25,8,NOT WS_GROUP
+    CONTROL         "Enable Normalization",IDC_NORM_CHECK,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,6,5,93,8
+    CTEXT           "0",IDC_NORM,106,22,16,8,NOT WS_GROUP
 END
 
 IDD_SET_PIDS DIALOG DISCARDABLE  0, 0, 116, 93
@@ -243,42 +241,61 @@ BEGIN
                     IDC_STATIC,11,47,92,19
 END
 
-IDD_CLIPRESIZE DIALOG DISCARDABLE  0, 0, 124, 77
+IDD_AVS_TEMPLATE DIALOGEX 0, 0, 362, 78
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Clipping"
-FONT 10, "System"
+CAPTION "AVS Template"
+FONT 10, "System", 0, 0, 0x1
 BEGIN
-    CONTROL         "Slider1",IDC_BOTTOM_SLIDER,"msctls_trackbar32",0x0,33,
-                    52,72,10
-    CONTROL         "",IDC_CLIPRESIZE_CHECK,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,116,0,8,8
-    LTEXT           "Bottom",IDC_STATIC,7,52,24,8,NOT WS_GROUP
-    LTEXT           "Top",IDC_STATIC,7,38,13,8,NOT WS_GROUP
-    CONTROL         "Slider1",IDC_TOP_SLIDER,"msctls_trackbar32",0x0,33,38,
-                    72,10
-    CTEXT           "0",IDC_BOTTOM,105,52,16,8,NOT WS_GROUP
-    CTEXT           "0",IDC_TOP,105,38,16,8,NOT WS_GROUP
-    CONTROL         "Slider1",IDC_RIGHT_SLIDER,"msctls_trackbar32",0x0,33,24,
-                    72,10
-    LTEXT           "Right",IDC_STATIC,7,24,18,8,NOT WS_GROUP
-    LTEXT           "Left",IDC_STATIC,7,10,13,8,NOT WS_GROUP
-    CONTROL         "Slider1",IDC_LEFT_SLIDER,"msctls_trackbar32",0x0,33,10,
-                    72,10
-    CTEXT           "0",IDC_RIGHT,105,24,16,8,NOT WS_GROUP
-    CTEXT           "0",IDC_LEFT,105,10,16,8,NOT WS_GROUP
+    EDITTEXT        IDC_AVS_TEMPLATE,10,27,340,12,ES_AUTOHSCROLL | 
+                    WS_DISABLED | NOT WS_BORDER,WS_EX_TRANSPARENT
+    LTEXT           "Your current AVS template file is:",IDC_STATIC,10,9,129,
+                    11
+    PUSHBUTTON      "Don't Use Template",IDC_NO_TEMPLATE,7,51,114,14
+    PUSHBUTTON      "Change Template File",IDC_CHANGE_TEMPLATE,124,51,114,14
+    PUSHBUTTON      "Keep Current Template File",IDC_KEEP_TEMPLATE,241,51,
+                    114,14
 END
 
-IDD_DETECT_PIDS DIALOG DISCARDABLE  0, 0, 143, 219
+IDD_CROPPING DIALOG DISCARDABLE  0, 0, 241, 97
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Cropping"
+FONT 10, "System"
+BEGIN
+    CONTROL         "Slider1",IDC_BOTTOM_SLIDER,"msctls_trackbar32",
+                    TBS_NOTICKS,33,80,188,10
+    CONTROL         "Enable Cropping Filter",IDC_CROPPING_CHECK,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,8,8,106,8
+    LTEXT           "Bottom",IDC_STATIC,7,80,24,8,NOT WS_GROUP
+    LTEXT           "Top",IDC_STATIC,7,66,13,8,NOT WS_GROUP
+    CONTROL         "Slider1",IDC_TOP_SLIDER,"msctls_trackbar32",TBS_NOTICKS,
+                    33,66,188,10
+    CTEXT           "0",IDC_BOTTOM,223,80,16,8,NOT WS_GROUP
+    CTEXT           "0",IDC_TOP,223,66,16,8,NOT WS_GROUP
+    CONTROL         "Slider1",IDC_RIGHT_SLIDER,"msctls_trackbar32",
+                    TBS_NOTICKS,33,52,188,10
+    LTEXT           "Right",IDC_STATIC,7,52,18,8,NOT WS_GROUP
+    LTEXT           "Left",IDC_STATIC,7,38,13,8,NOT WS_GROUP
+    CONTROL         "Slider1",IDC_LEFT_SLIDER,"msctls_trackbar32",
+                    TBS_NOTICKS,33,38,188,10
+    CTEXT           "0",IDC_RIGHT,223,52,16,8,NOT WS_GROUP
+    CTEXT           "0",IDC_LEFT,223,38,16,8,NOT WS_GROUP
+    RTEXT           "0",IDC_WIDTH,217,10,16,8,NOT WS_GROUP
+    RTEXT           "0",IDC_HEIGHT,217,22,16,8,NOT WS_GROUP
+    LTEXT           "Width",IDC_FWIDTH,183,10,24,8,NOT WS_GROUP
+    LTEXT           "Height",IDC_FHEIGHT,183,22,26,8,NOT WS_GROUP
+END
+
+IDD_DETECT_PIDS DIALOG DISCARDABLE  0, 0, 158, 220
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Detect PIDs"
 FONT 10, "System"
 BEGIN
-    LISTBOX         IDC_PID_LISTBOX,6,7,130,169,WS_VSCROLL | WS_TABSTOP
-    PUSHBUTTON      "Set Audio",IDC_SET_AUDIO,53,178,36,14
-    PUSHBUTTON      "Set Video",IDC_SET_VIDEO,10,178,36,14
+    LISTBOX         IDC_PID_LISTBOX,6,7,145,169,WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "Set Audio",IDC_SET_AUDIO,60,178,36,14
+    PUSHBUTTON      "Set Video",IDC_SET_VIDEO,17,178,36,14
     CTEXT           "Select a line and use these buttons to set that PID as the audio or video PID.",
-                    IDC_STATIC,6,194,130,17
-    PUSHBUTTON      "Done",IDC_SET_DONE,96,178,36,14
+                    IDC_STATIC,6,194,145,17
+    PUSHBUTTON      "Done",IDC_SET_DONE,103,178,36,14
 END
 
 
@@ -351,8 +368,8 @@ BEGIN
 
     IDD_INFO, DIALOG
     BEGIN
-        RIGHTMARGIN, 247
-        BOTTOMMARGIN, 213
+        RIGHTMARGIN, 251
+        BOTTOMMARGIN, 220
     END
 
     IDD_FILELIST, DIALOG
@@ -363,15 +380,14 @@ BEGIN
     IDD_LUMINANCE, DIALOG
     BEGIN
         LEFTMARGIN, 2
-        RIGHTMARGIN, 123
-        BOTTOMMARGIN, 35
+        BOTTOMMARGIN, 59
     END
 
     IDD_NORM, DIALOG
     BEGIN
         LEFTMARGIN, 4
         RIGHTMARGIN, 118
-        BOTTOMMARGIN, 21
+        BOTTOMMARGIN, 32
     END
 
     IDD_SET_PIDS, DIALOG
@@ -381,19 +397,19 @@ BEGIN
         BOTTOMMARGIN, 85
     END
 
-    IDD_CLIPRESIZE, DIALOG
+    IDD_CROPPING, DIALOG
     BEGIN
         LEFTMARGIN, 1
-        RIGHTMARGIN, 123
-        BOTTOMMARGIN, 70
+        RIGHTMARGIN, 240
+        BOTTOMMARGIN, 90
     END
 
     IDD_DETECT_PIDS, DIALOG
     BEGIN
         LEFTMARGIN, 6
-        RIGHTMARGIN, 136
+        RIGHTMARGIN, 151
         TOPMARGIN, 7
-        BOTTOMMARGIN, 212
+        BOTTOMMARGIN, 213
     END
 END
 #endif    // APSTUDIO_INVOKED
@@ -452,7 +468,7 @@ BEGIN
         END
         MENUITEM SEPARATOR
         MENUITEM "Luminance Filter",            IDM_LUMINANCE
-        MENUITEM "Clipping",                    IDM_CLIPRESIZE
+        MENUITEM "Cropping Filter",             IDM_CROPPING
     END
     POPUP "&Audio"
     BEGIN
@@ -501,12 +517,6 @@ BEGIN
     END
     POPUP "&Options"
     BEGIN
-        POPUP "Process Priority"
-        BEGIN
-            MENUITEM "High",                        IDM_PP_HIGH
-            MENUITEM "Normal",                      IDM_PP_NORMAL
-            MENUITEM "Low",                         IDM_PP_LOW
-        END
         POPUP "Playback Speed"
         BEGIN
             MENUITEM "Single Step",                 IDM_SPEED_SINGLE_STEP
@@ -516,9 +526,20 @@ BEGIN
             MENUITEM "Fast",                        IDM_SPEED_FAST
             MENUITEM "Maximum",                     IDM_SPEED_MAXIMUM
         END
+        POPUP "Process Priority"
+        BEGIN
+            MENUITEM "High",                        IDM_PP_HIGH
+            MENUITEM "Normal",                      IDM_PP_NORMAL
+            MENUITEM "Low",                         IDM_PP_LOW
+        END
         MENUITEM "Correct Field Order",         IDM_CORRECT_FIELD_ORDER
+        MENUITEM "Use Full Paths",              IDM_FULL_PATH
+        MENUITEM "Use DirectDraw Overlay",      IDM_USE_OVERLAY
+        MENUITEM "Force Fusion-Style Audio",    IDM_FUSION_AUDIO
         MENUITEM "Force open GOPs in D2V File", IDM_FORCE_OPEN
         MENUITEM "Log Quant Matrices",          IDM_LOG_QUANTS
+        MENUITEM "Log Timestamps",              IDM_LOG_TIMESTAMPS
+        MENUITEM "AVS Template",                IDM_AVS_TEMPLATE
     END
     POPUP "&Tools"
     BEGIN
@@ -555,8 +576,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,4,6,0
- PRODUCTVERSION 1,4,6,0
+ FILEVERSION 1,4,7,0
+ PRODUCTVERSION 1,4,7,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x29L
@@ -574,14 +595,14 @@ BEGIN
             VALUE "Comments", "DGIndex is the indexing component of DGMPGDec, an MPEG decoding and frame serving utility.\0"
             VALUE "CompanyName", "Freeware licensed under GPL\0"
             VALUE "FileDescription", "\0"
-            VALUE "FileVersion", "1, 4, 6, 0\0"
+            VALUE "FileVersion", "1, 4, 7, 0\0"
             VALUE "InternalName", "DGIndex\0"
-            VALUE "LegalCopyright", "Copyright (C) 2001-2005 Donald A. Graft\0"
+            VALUE "LegalCopyright", "Copyright (C) 2001-2006 Donald A. Graft\0"
             VALUE "LegalTrademarks", "\0"
             VALUE "OriginalFilename", "DGIndex.exe\0"
             VALUE "PrivateBuild", "Final\0"
             VALUE "ProductName", "DGIndex\0"
-            VALUE "ProductVersion", "1, 4, 6, 0\0"
+            VALUE "ProductVersion", "1, 4, 7, 0\0"
             VALUE "SpecialBuild", "Final\0"
         END
     END

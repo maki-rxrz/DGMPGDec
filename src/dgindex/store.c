@@ -24,8 +24,8 @@
 #include "global.h"
 #include "filter.h"
 
-#define MAX_WINDOW_WIDTH 1024
-#define MAX_WINDOW_HEIGHT 768
+#define MAX_WINDOW_WIDTH 800
+#define MAX_WINDOW_HEIGHT 600
 
 __forceinline static void Store_RGB24(unsigned char *src[]);
 
@@ -74,14 +74,14 @@ void Write_Frame(unsigned char *src[], D2VData d2v, DWORD frame)
 		playback = Old_Playback = 0;
 		frame_size = 0;
 
-		Clip_Width = Coded_Picture_Width;
-		Clip_Height = Coded_Picture_Height;
+		Clip_Width = horizontal_size;
+		Clip_Height = vertical_size;
 		CLIP_AREA = HALF_CLIP_AREA = CLIP_STEP = CLIP_HALF_STEP = 0;
 
 		if (Luminance_Flag)
 			InitializeFilter();
 
-		if (ClipResize_Flag)
+		if (Cropping_Flag)
 		{
 			if (Clip_Top || Clip_Bottom || Clip_Left || Clip_Right)
 			{

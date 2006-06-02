@@ -1,5 +1,7 @@
 //Microsoft Developer Studio generated resource script.
 //
+#include "resource.h"
+
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -8,9 +10,19 @@
 #define APSTUDIO_HIDDEN_SYMBOLS
 #include "windows.h"
 #undef APSTUDIO_HIDDEN_SYMBOLS
+#include "resource.h"
 
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (U.S.) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+#endif //_WIN32
 
 #ifndef _MAC
 /////////////////////////////////////////////////////////////////////////////
@@ -19,8 +31,8 @@
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,4,6,0
- PRODUCTVERSION 1,4,6,0
+ FILEVERSION 1,4,7,0
+ PRODUCTVERSION 1,4,7,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x29L
@@ -38,14 +50,14 @@ BEGIN
             VALUE "Comments", "DGVfapi is the VFAPI component of DGMPGDec, an MPEG decoding and frame serving utility.\0"
             VALUE "CompanyName", "Freeware licensed under GPL\0"
             VALUE "FileDescription", "\0"
-            VALUE "FileVersion", "1, 4, 6, 0\0"
+            VALUE "FileVersion", "1, 4, 7, 0\0"
             VALUE "InternalName", "DGVfapi\0"
-            VALUE "LegalCopyright", "Copyright (C) 2001-2005 Donald A. Graft\0"
+            VALUE "LegalCopyright", "Copyright (C) 2001-2006 Donald A. Graft\0"
             VALUE "LegalTrademarks", "\0"
             VALUE "OriginalFilename", "DGVfapi.vfp\0"
             VALUE "PrivateBuild", "Final\0"
             VALUE "ProductName", "DGVfapi\0"
-            VALUE "ProductVersion", "1, 4, 6, 0\0"
+            VALUE "ProductVersion", "1, 4, 7, 0\0"
             VALUE "SpecialBuild", "Final\0"
         END
     END
@@ -55,7 +67,14 @@ BEGIN
     END
 END
 
+
 #endif    // !_MAC
+
+
+#endif    // English (U.S.) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
 
 #ifndef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////

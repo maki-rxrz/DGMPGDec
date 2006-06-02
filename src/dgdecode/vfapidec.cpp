@@ -94,6 +94,8 @@ int CMPEG2Decoder::Open(const char *path)
 	out->VF_File = fopen(path, "r");
 	if (fgets(ID, 79, out->VF_File)==NULL)
 		return 1;
+	if (strstr(ID, "DGIndexProjectFile") == NULL)
+		return 5;
 	if (strncmp(ID, PASS, 20))
 		return 2;
 

@@ -41,7 +41,7 @@ int PATParser::AnalyzeRaw(HWND hDialog, char *filename, unsigned int audio_pid, 
 	unsigned char stream_id;
 	int afc, pkt_count;
 	unsigned char buffer[188];
-	int read, pes_offset;
+	int read, pes_offset, pes_header_data_length, data_offset;
 	char listbox_line[255], description[80];
 #define MAX_PIDS 500
 #define MAX_PACKETS 100000
@@ -122,8 +122,24 @@ int PATParser::AnalyzeRaw(HWND hDialog, char *filename, unsigned int audio_pid, 
 					pes_offset = 5 + buffer[4];
 				}
 				// Get the stream ID if there is a packet start code.
-				if (buffer[pes_offset] == 0 && buffer[pes_offset+1] == 0 &&buffer[pes_offset+2] == 1)
+				if (buffer[pes_offset] == 0 && buffer[pes_offset+1] == 0 && buffer[pes_offset+2] == 1)
 					stream_id = buffer[pes_offset+3];
+				if (stream_id == 0xbd)
+				{
+					// This is private stream 1, which may carry AC3 or DTS audio.
+					// Since all DTS frammes fit in one PES packet, we can just
+					// look for the DTS audio frame header to distinguish the two.
+					pes_header_data_length = buffer[pes_offset+8];
+					data_offset = pes_offset + 9 + pes_header_data_length;
+					if (buffer[data_offset] == 0x7f &&
+						buffer[data_offset+1] == 0xfe &&
+						buffer[data_offset+2] == 0x80 &&
+						buffer[data_offset+3] == 0x01)
+					{
+						// Borrow this reserved value to label DTS.
+						stream_id = 0xfe;
+					}
+				}
 			}
 			// Find an empty table entry and enter this PID if we haven't already.
 			for (i = 0; Pids[i].pid != 0xffffffff && i < MAX_PIDS; i++)
@@ -159,7 +175,7 @@ int PATParser::AnalyzeRaw(HWND hDialog, char *filename, unsigned int audio_pid, 
 				fclose(fin);
 				return 0;
 			}
-			strcpy(description, "Private Stream 1 (AC3 Audio)");
+			strcpy(description, "Private Stream 1 (AC3/DTS Audio)");
 		}
 		else if (Pids[i].stream_id == 0xbe)
 			strcpy(description, "Padding Stream");
@@ -188,6 +204,16 @@ int PATParser::AnalyzeRaw(HWND hDialog, char *filename, unsigned int audio_pid, 
 			strcpy(description, "EMM Stream");
 		else if (Pids[i].stream_id == 0xf9)
 			strcpy(description, "Ancillary Stream");
+		else if (Pids[i].stream_id == 0xfe)
+		{
+			if (audio_type != NULL && Pids[i].pid == audio_pid)
+			{
+				*audio_type = 0xfe;
+				fclose(fin);
+				return 0;
+			}
+			strcpy(description, "Private Stream 1 (DTS Audio)");
+		}
 		else if (Pids[i].stream_id == 0xff)
 			strcpy(description, "Program Stream Directory");
 		else
@@ -387,7 +413,8 @@ int PATParser::AnalyzePAT(HWND hDialog, char *filename, unsigned int audio_pid, 
 		}
 
 		// Process the transport packets.
-		while ((read = fread(buffer, 1, 188, fin)) == 188)
+		pkt_count = 0;
+		while ((pkt_count++ < MAX_PACKETS) && (read = fread(buffer, 1, 188, fin)) == 188)
 		{
 			pid = ((buffer[1] & 0x1f) << 8) | buffer[2];
 			if (pid != pat_entries[entry].pmtpid) continue;
@@ -478,6 +505,8 @@ int PATParser::AnalyzePAT(HWND hDialog, char *filename, unsigned int audio_pid, 
 					stream_type = "Private Sections";
 					break;
 				case 0x06:
+					// Have to parse the ES descriptors to figure this out.
+					break;
 				case 0x07:
 					stream_type = "Teletext/Subtitling";
 					break;
@@ -491,7 +520,8 @@ int PATParser::AnalyzePAT(HWND hDialog, char *filename, unsigned int audio_pid, 
 					stream_type = "AAC Audio";
 					break;
 				case 0x81:
-					stream_type = "AC3 Audio";
+					// This could be AC3 or DTS audio.
+					stream_type = "AC3/DTS Audio";
 					break;
 				default:
 					stream_type = "Other";
@@ -499,6 +529,47 @@ int PATParser::AnalyzePAT(HWND hDialog, char *filename, unsigned int audio_pid, 
 				}
 				pid = (buffer[ndx++] & 0x1f) << 8;
 				pid |= buffer[ndx++];
+
+				// Parse the ES descriptors if necessary.
+				es_descriptors_length = (buffer[ndx++] & 0x0f) << 8;
+				es_descriptors_length |= buffer[ndx++];
+				if (es_descriptors_length)
+				{
+					if (type == 0x06)
+					{
+						// Parse the descriptors for a DTS audio descriptor.
+						unsigned int end = ndx + es_descriptors_length;
+						int tag, length, hadDTS = 0;
+						do
+						{
+							tag = buffer[ndx++];
+							if (tag == 0x73)
+								hadDTS = 1;
+							else if (tag == 0x05)
+							{
+								if (buffer[ndx+1] == 0x44 && buffer[ndx+2] == 0x54 && buffer[ndx+3] == 0x53)
+									hadDTS = 1;
+							}
+							length = buffer[ndx++];
+							ndx += length;
+						} while (ndx < end);
+						ndx = end;
+						if (hadDTS == 1)
+						{
+							stream_type = "DTS Audio";
+							type = 0xfe;
+						}
+						else
+						{
+							stream_type = "AC3 Audio";
+							type = 0x81;
+						}
+					}
+					else
+					{
+						ndx += es_descriptors_length;				
+					}
+				}
 				if (hDialog != NULL)
 				{
 					sprintf(listbox_line, "    %s on PID 0x%x", stream_type, pid);
@@ -506,26 +577,19 @@ int PATParser::AnalyzePAT(HWND hDialog, char *filename, unsigned int audio_pid, 
 				}
 				if (audio_type != NULL && pid == audio_pid)
 				{
-					*audio_type = type;
+					// If it's private stream 1, it could be AC3 or DTS.
+					// Force raw detection to find out which.
+					if (type != 0x81)
+						*audio_type = type;
 					fclose(fin);
 					return 0;
 				}
-
-				// Skip the ES descriptors.
-				es_descriptors_length = (buffer[ndx++] & 0x0f) << 8;
-				es_descriptors_length |= buffer[ndx++];
-				ndx += es_descriptors_length;				
 			}
 
 			first_pmt = false;
 
 			// If this is the last section number, we're done.
 			if (number == last) break;
-		}
-		if (read != 188)
-		{
-			fclose(fin);
-			return 1;
 		}
 	}
 

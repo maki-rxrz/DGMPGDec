@@ -28,6 +28,8 @@
 static BOOL GOPBack(void);
 static void InitialDecoder(void);
 
+#define DISABLE_EXCEPTION_HANDLING
+
 DWORD WINAPI MPEG2Dec(LPVOID n)
 {
 	int i = (int) n; // Prevent compiler warning.
@@ -36,8 +38,6 @@ DWORD WINAPI MPEG2Dec(LPVOID n)
 	__int64 saveloc;
     int field;
 
-__try
-{
 	Pause_Flag = Stop_Flag = Start_Flag = false;
 	Fault_Flag = 0;
 	Frame_Number = Second_Field = 0;
@@ -190,10 +190,17 @@ do_rip_play:
 			_read(Infile[0], buf, 1);
 			if (buf[0] == 0x47)
 			{
+				// We should see this sync byte within 188 bytes of the
+				// first non-null byte. If not, it's a spoof.
+				if (count == 0 && i > 187)
+					break;
 				if (count++ >= 4)
 				{
 					SystemStream_Flag = TRANSPORT_STREAM;
-					mpeg_type = IS_MPEG2;
+					// initial_parse is not called for transport streams, so
+					// assume MPEG1 for now. It will be overridden to MPEG2 if
+					// a sequence extension arrives.
+					mpeg_type = IS_MPEG1;
 					is_program_stream = 0;
 					break;
 				}
@@ -309,7 +316,13 @@ do_rip_play:
 		fprintf(D2VFile, "DGIndexProjectFile%d\n%d\n", D2V_FILE_VERSION, i);
 		while (i)
 		{
-			fprintf(D2VFile, "%s\n", Infilename[NumLoadedFiles-i]);
+            const char* pFile = strrchr(Infilename[NumLoadedFiles-i],'\\');
+
+            if (FullPathInFiles || pFile==0)
+			    fprintf(D2VFile, "%s\n", Infilename[NumLoadedFiles-i]);
+            else
+                fprintf(D2VFile, "%s\n", ++pFile);
+
 			i--;
 		}
 
@@ -329,7 +342,7 @@ do_rip_play:
 			fprintf(D2VFile, "Luminance_Filter=0,0\n");
 		}
 
-		if (ClipResize_Flag)
+		if (Cropping_Flag)
 		{
 			fprintf(D2VFile, "Clipping=%d,%d,%d,%d\n", Clip_Left, Clip_Right, Clip_Top, Clip_Bottom);
 		}
@@ -342,7 +355,7 @@ do_rip_play:
 			fprintf(D2VFile, "Aspect_Ratio=%s\n", AspectRatio[aspect_ratio_information]);
 		else
 			fprintf(D2VFile, "Aspect_Ratio=%s\n", AspectRatioMPEG1[aspect_ratio_information]);
-		fprintf(D2VFile, "Picture_Size=%dx%d\n", Coded_Picture_Width, Coded_Picture_Height);
+		fprintf(D2VFile, "Picture_Size=%dx%d\n", horizontal_size, vertical_size);
 		fprintf(D2VFile, "Field_Operation=%d\n", FO_Flag);
 		if (FO_Flag == FO_FILM)
 		{
@@ -405,12 +418,6 @@ do_rip_play:
 			ThreadKill();
 		}
 	}
-}
-__except (EXCEPTION_EXECUTE_HANDLER)
-{
-	MessageBox(hWnd, "Caught an exception during decoding! See help file.", NULL, MB_OK | MB_ICONERROR);
-	ThreadKill();
-}
 	return 0;
 }
 
@@ -503,9 +510,6 @@ static void InitialDecoder()
 	Coded_Picture_Width = 16 * mb_width;
 	Coded_Picture_Height = 16 * mb_height;
 
-	Chroma_Width = (chroma_format==CHROMA444) ? Coded_Picture_Width : Coded_Picture_Width>>1;
-	Chroma_Height = (chroma_format!=CHROMA420) ? Coded_Picture_Height : Coded_Picture_Height>>1;
-
 	block_count = ChromaFormat[chroma_format];
 
 	for (i=0; i<3; i++)
@@ -513,7 +517,8 @@ static void InitialDecoder()
 		if (i==0)
 			size = Coded_Picture_Width * Coded_Picture_Height;
 		else
-			size = Chroma_Width * Chroma_Height;
+			size = ((chroma_format==CHROMA444) ? Coded_Picture_Width : Coded_Picture_Width>>1) *
+				   ((chroma_format!=CHROMA420) ? Coded_Picture_Height : Coded_Picture_Height>>1);
 
 		backward_reference_frame[i] = (unsigned char*)_aligned_malloc(size, 64);
 		forward_reference_frame[i] = (unsigned char*)_aligned_malloc(size, 64);
@@ -528,10 +533,10 @@ static void InitialDecoder()
 	rgb24small = (unsigned char*)_aligned_malloc(Coded_Picture_Width*Coded_Picture_Height*3, 64);
 	yuy2 = (unsigned char*)_aligned_malloc(Coded_Picture_Width*Coded_Picture_Height*2, 64);
 	lum = (unsigned char*)_aligned_malloc(Coded_Picture_Width*Coded_Picture_Height, 64);
-	Clip_Width = Coded_Picture_Width;
-	Clip_Height = Coded_Picture_Height;
+	Clip_Width = horizontal_size;
+	Clip_Height = vertical_size;
 
-	if (WindowMode == SW_SHOW)
+	if (UseOverlay && WindowMode == SW_SHOW)
 		CheckDirectDraw();
 }
 
