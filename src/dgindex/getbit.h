@@ -20,6 +20,11 @@
  *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
  *
  */
+#ifdef GETBIT_GLOBAL
+#define GXTN
+#else
+#define GXTN extern
+#endif
 
 void Initialize_Buffer(void);
 void Fill_Buffer(void);
@@ -28,9 +33,9 @@ void Flush_Buffer_All(unsigned int N);
 unsigned int Get_Bits_All(unsigned int N);
 void Next_File(void);
 
-unsigned char Rdbfr[BUFFER_SIZE], *Rdptr, *Rdmax;
-unsigned int BitsLeft, CurrentBfr, NextBfr, Val, Read;
-__int64 CurrentPackHeaderPosition;
+GXTN unsigned char Rdbfr[BUFFER_SIZE], *Rdptr, *Rdmax;
+GXTN unsigned int BitsLeft, CurrentBfr, NextBfr, Val, Read;
+GXTN __int64 CurrentPackHeaderPosition;
 
 __forceinline static unsigned int Show_Bits(unsigned int N)
 {
@@ -104,7 +109,7 @@ __forceinline static void Fill_Next()
 	}
 
 	CurrentPackHeaderPosition = PackHeaderPosition;
-	if (SystemStream_Flag != ELEMENTARY_STREAM && Rdptr > Rdmax - 4)
+	if (SystemStream_Flag != ELEMENTARY_STREAM && Rdptr > Rdmax - 4 && !AudioOnly_Flag)
 	{
 		if (Rdptr >= Rdmax)
 			Next_Packet();

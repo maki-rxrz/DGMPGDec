@@ -31,8 +31,8 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,4,7,0
- PRODUCTVERSION 1,4,7,0
+ FILEVERSION 1,4,8,0
+ PRODUCTVERSION 1,4,8,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x29L
@@ -50,14 +50,14 @@ BEGIN
             VALUE "Comments", "DGDecode is the decoding component of DGMPGDec, an MPEG decoding and frame serving utility.\0"
             VALUE "CompanyName", "Freeware licensed under GPL\0"
             VALUE "FileDescription", "\0"
-            VALUE "FileVersion", "1, 4, 7, 0\0"
+            VALUE "FileVersion", "1, 4, 8, 0\0"
             VALUE "InternalName", "DGDecode\0"
             VALUE "LegalCopyright", "Copyright (C) 2001-2006 Donald A. Graft\0"
             VALUE "LegalTrademarks", "\0"
             VALUE "OriginalFilename", "DGDecode.dll\0"
             VALUE "PrivateBuild", "Final\0"
             VALUE "ProductName", "DGDecode\0"
-            VALUE "ProductVersion", "1, 4, 7, 0\0"
+            VALUE "ProductVersion", "1, 4, 8, 0\0"
             VALUE "SpecialBuild", "Final\0"
         END
     END

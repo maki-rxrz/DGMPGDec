@@ -320,6 +320,25 @@ void sequence_header()
 	chroma_format = CHROMA420;
 
 	extension_and_user_data();
+
+	// Special case for 1080i video.
+	if (vertical_size == 1088)
+	{
+		if (crop1088_warned == false)
+		{
+			char buf[255];
+			sprintf(buf, "Your stream specifies a display height of 1088.\n"
+				"This is sometimes an encoding mistake and the last 8 lines are garbage.\n"
+				"Do you want to treat it as if it specified a height of 1080?");
+			if (MessageBox(hWnd, buf, "Display Height 1088 Warning", MB_YESNO | MB_ICONWARNING) == IDYES)
+				crop1088 = true;
+			else
+				crop1088 = false;
+			crop1088_warned = true;
+		}
+		if (crop1088 == true)
+			vertical_size = 1080;
+	}
 }
 
 /* decode group of pictures header */

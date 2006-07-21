@@ -260,7 +260,6 @@ static void FlushRGB24()
 {
 	static double DisplayTime = 0;
 	static unsigned int timeOffset = 0;
-	static old_speed;
 	double rate;
 	int sleep_time;
 	int elapsed;
@@ -271,12 +270,12 @@ static void FlushRGB24()
 		{
 			// maximum
 			ShowFrame(false);
-			old_speed = PlaybackSpeed;
+			OldPlaybackSpeed = PlaybackSpeed;
 		}
 		else if (PlaybackSpeed == SPEED_SINGLE_STEP)
 		{
 			ShowFrame(false);
-			old_speed = PlaybackSpeed;
+			OldPlaybackSpeed = PlaybackSpeed;
 			if (process.locate == LOCATE_RIP)
 			{
 				for (;;)
@@ -292,12 +291,12 @@ static void FlushRGB24()
 		}
 		else
 		{
-			if (playback == 0 || PlaybackSpeed != old_speed)
+			if (playback == 0 || PlaybackSpeed != OldPlaybackSpeed)
 			{
 				DisplayTime = 0;
 				timeOffset = timeGetTime();
 			}
-			old_speed = PlaybackSpeed;
+			OldPlaybackSpeed = PlaybackSpeed;
 			elapsed = timeGetTime() - timeOffset;
 			sleep_time = (int) (DisplayTime - elapsed);
 			if (sleep_time >= 0)

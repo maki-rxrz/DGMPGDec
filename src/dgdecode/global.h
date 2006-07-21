@@ -336,6 +336,7 @@ protected:
 
 public:
   int Clip_Width, Clip_Height;
+  int D2V_Width, D2V_Height;
   int Clip_Top, Clip_Bottom, Clip_Left, Clip_Right;
   char Aspect_Ratio[20];
 

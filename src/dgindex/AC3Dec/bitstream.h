@@ -19,10 +19,6 @@
  *
  */
 
-uint_32 bits_left;
-uint_32 current_word;
-uint_8 *buffer_start;
-
 void bitstream_init(uint_8 *start);
 uint_32 bitstream_get_bh(uint_32 num_bits);
 

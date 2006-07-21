@@ -21,6 +21,12 @@
 
 #include <windows.h>
 
+#ifdef AC3_GLOBAL
+#define AXTN
+#else
+#define AXTN extern
+#endif
+
 typedef unsigned int	uint_32;
 typedef unsigned short	uint_16;
 typedef unsigned char	uint_8;
@@ -341,6 +347,11 @@ void rematrix(audblk_t *audblk, stream_samples_t samples);
 void sanity_check(bsi_t *bsi, audblk_t *audblk);
 
 void InitialAC3(void);
-unsigned char AC3Dec_Buffer[49152];		// 48KB/frame for 64~448 Kbps
+AXTN unsigned char AC3Dec_Buffer[49152];		// 48KB/frame for 64~448 Kbps
 
-uint_32 error_flag;
+AXTN uint_32 error_flag;
+
+AXTN uint_8 *buffer_start;
+AXTN uint_32 bits_left;
+AXTN uint_32 current_word;
+

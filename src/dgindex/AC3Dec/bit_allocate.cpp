@@ -19,6 +19,7 @@
  *
  */
 
+#define AC3_GLOBAL
 #include "ac3.h"
 
 #define maxvalue(a, b) (a > b ? a : b)
@@ -202,14 +203,14 @@ void bit_allocate(uint_16 fscod, bsi_t *bsi, audblk_t *audblk)
 		fastleak = 0;
 		slowleak = 0;
 
-		ba_compute_psd(start, end, audblk->fbw_exp[i], psd, bndpsd);
+		ba_compute_psd(start, end, (short *) audblk->fbw_exp[i], psd, bndpsd);
 
 		ba_compute_excitation(start, end, fgain, fastleak, slowleak, bndpsd, excite);
 
 		ba_compute_mask(start, end, fscod, audblk->deltbae[i], audblk->deltnseg[i], 
 				audblk->deltoffst[i], audblk->deltba[i], audblk->deltlen[i], excite, mask);
 
-		ba_compute_bap(start, end, snroffset, psd, mask, audblk->fbw_bap[i]);
+		ba_compute_bap(start, end, snroffset, psd, mask, (short *) audblk->fbw_bap[i]);
 	}
 
 	if(audblk->cplinu)
@@ -221,14 +222,14 @@ void bit_allocate(uint_16 fscod, bsi_t *bsi, audblk_t *audblk)
 		fastleak = (audblk->cplfleak << 8) + 768; 
 		slowleak = (audblk->cplsleak << 8) + 768;
 
-		ba_compute_psd(start, end, audblk->cpl_exp, psd, bndpsd);
+		ba_compute_psd(start, end, (short *)audblk->cpl_exp, psd, bndpsd);
 
 		ba_compute_excitation(start, end , fgain, fastleak, slowleak, bndpsd, excite);
 
 		ba_compute_mask(start, end, fscod, audblk->cpldeltbae, audblk->cpldeltnseg, 
 				audblk->cpldeltoffst, audblk->cpldeltba, audblk->cpldeltlen, excite, mask);
 
-		ba_compute_bap(start, end, snroffset, psd, mask, audblk->cpl_bap);
+		ba_compute_bap(start, end, snroffset, psd, mask, (short *)audblk->cpl_bap);
 	}
 
 	if(bsi->lfeon)
@@ -240,14 +241,14 @@ void bit_allocate(uint_16 fscod, bsi_t *bsi, audblk_t *audblk)
 		fastleak = 0;
 		slowleak = 0;
 
-		ba_compute_psd(start, end, audblk->lfe_exp, psd, bndpsd);
+		ba_compute_psd(start, end, (short *)audblk->lfe_exp, psd, bndpsd);
 
 		ba_compute_excitation(start, end , fgain, fastleak, slowleak, bndpsd, excite);
 
 		/* Perform no delta bit allocation for lfe */
 		ba_compute_mask(start, end, fscod, 2, 0, 0, 0, 0, excite, mask);
 
-		ba_compute_bap(start, end, snroffset, psd, mask, audblk->lfe_bap);
+		ba_compute_bap(start, end, snroffset, psd, mask, (short *)audblk->lfe_bap);
 	}
 }
 

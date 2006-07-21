@@ -94,19 +94,19 @@ LINK32=link.exe
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 # Begin Source File
 
-SOURCE=.\d2vparse.c
+SOURCE=.\d2vparse.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\getbit.c
+SOURCE=.\getbit.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\gethdr.c
+SOURCE=.\gethdr.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\getpic.c
+SOURCE=.\getpic.cpp
 # End Source File
 # Begin Source File
 
@@ -123,31 +123,31 @@ SOURCE=.\gui.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\idctfpu.c
+SOURCE=.\idctfpu.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\idctref.c
+SOURCE=.\idctref.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\initial_parse.c
+SOURCE=.\initial_parse.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\misc.c
+SOURCE=.\misc.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\motion.c
+SOURCE=.\motion.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\mpeg2dec.c
+SOURCE=.\mpeg2dec.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\norm.c
+SOURCE=.\norm.cpp
 # End Source File
 # Begin Source File
 
@@ -155,15 +155,15 @@ SOURCE=.\pat.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\store.c
+SOURCE=.\store.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\strverscmp.c
+SOURCE=.\strverscmp.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\wavefs44.c
+SOURCE=.\wavefs44.cpp
 # End Source File
 # End Group
 # Begin Group "Header Files"
@@ -223,11 +223,11 @@ SOURCE=.\AC3Dec\ac3.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\AC3Dec\bit_allocate.c
+SOURCE=.\AC3Dec\bit_allocate.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\AC3Dec\bitstream.c
+SOURCE=.\AC3Dec\bitstream.cpp
 # End Source File
 # Begin Source File
 
@@ -235,39 +235,39 @@ SOURCE=.\AC3Dec\bitstream.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\AC3Dec\coeff.c
+SOURCE=.\AC3Dec\coeff.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\AC3Dec\crc.c
+SOURCE=.\AC3Dec\crc.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\AC3Dec\decode.c
+SOURCE=.\AC3Dec\decode.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\AC3Dec\downmix.c
+SOURCE=.\AC3Dec\downmix.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\AC3Dec\exponent.c
+SOURCE=.\AC3Dec\exponent.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\AC3Dec\imdct.c
+SOURCE=.\AC3Dec\imdct.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\AC3Dec\parse.c
+SOURCE=.\AC3Dec\parse.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\AC3Dec\rematrix.c
+SOURCE=.\AC3Dec\rematrix.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\AC3Dec\sanity_check.c
+SOURCE=.\AC3Dec\sanity_check.cpp
 # End Source File
 # End Group
 # Begin Source File

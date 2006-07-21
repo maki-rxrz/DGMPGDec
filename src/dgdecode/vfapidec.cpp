@@ -87,7 +87,6 @@ int CMPEG2Decoder::Open(const char *path)
 	int repeat_on, repeat_off, repeat_init;
 	int vob_id, cell_id;
 	__int64 position;
-	int m, n;
 
 	CMPEG2Decoder* out = this;
 
@@ -242,7 +241,7 @@ int CMPEG2Decoder::Open(const char *path)
 	fscanf(out->VF_File, "Clipping=%d,%d,%d,%d\n", 
 		   &Clip_Left, &Clip_Right, &Clip_Top, &Clip_Bottom);
 	fscanf(out->VF_File, "Aspect_Ratio=%s\n", Aspect_Ratio);
-	fscanf(out->VF_File, "Picture_Size=%dx%d\n", &m, &n);
+	fscanf(out->VF_File, "Picture_Size=%dx%d\n", &D2V_Width, &D2V_Height);
 
 	Clip_Width = Coded_Picture_Width;
 	Clip_Height = Coded_Picture_Height;

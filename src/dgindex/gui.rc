@@ -430,6 +430,7 @@ BEGIN
         MENUITEM "&Save Project\t[F4]",         IDM_SAVE_D2V
         MENUITEM "Save Project and Demux Video", IDM_SAVE_D2V_AND_DEMUX
         MENUITEM "Save BMP\t[B]",               IDM_BMP
+        MENUITEM "Demux Audio Only",            IDM_DEMUX_AUDIO
         MENUITEM SEPARATOR
         MENUITEM "Preview\t[F5]",               IDM_PREVIEW
         MENUITEM "Play\t[F6]",                  IDM_PLAY
@@ -576,8 +577,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,4,7,0
- PRODUCTVERSION 1,4,7,0
+ FILEVERSION 1,4,8,0
+ PRODUCTVERSION 1,4,8,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x29L
@@ -595,14 +596,14 @@ BEGIN
             VALUE "Comments", "DGIndex is the indexing component of DGMPGDec, an MPEG decoding and frame serving utility.\0"
             VALUE "CompanyName", "Freeware licensed under GPL\0"
             VALUE "FileDescription", "\0"
-            VALUE "FileVersion", "1, 4, 7, 0\0"
+            VALUE "FileVersion", "1, 4, 8, 0\0"
             VALUE "InternalName", "DGIndex\0"
             VALUE "LegalCopyright", "Copyright (C) 2001-2006 Donald A. Graft\0"
             VALUE "LegalTrademarks", "\0"
             VALUE "OriginalFilename", "DGIndex.exe\0"
             VALUE "PrivateBuild", "Final\0"
             VALUE "ProductName", "DGIndex\0"
-            VALUE "ProductVersion", "1, 4, 7, 0\0"
+            VALUE "ProductVersion", "1, 4, 8, 0\0"
             VALUE "SpecialBuild", "Final\0"
         END
     END

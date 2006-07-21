@@ -1,50 +1,82 @@
 /* 
- *	Copyright (C) 2004, Donald A Graft, All Rights Reserved
+ *	Copyright (C) 2004-2006, Donald A Graft, All Rights Reserved
  *
  *  PAT/PMT table parser for PID detection.
  *	
- *  TABLE is free software; you can redistribute it and/or modify
+ *  This is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
  *   
- *  TABLE is distributed in the hope that it will be useful,
+ *  This is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
  *   
  *  You should have received a copy of the GNU General Public License
- *  along with TABLE; see the file COPYING.  If not, write to
+ *  along with this code; see the file COPYING.  If not, write to
  *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
  *
  */
 
 #include "windows.h"
-#include "pat.h"
 #include "resource.h"
 #include "global.h"
 
-PATParser::PATParser()
+PATParser::PATParser(void)
 {
 }
 
-int PATParser::DumpRaw(HWND hDialog, char *filename)
+// Need to add transport re-syncing in case of errors.
+int PATParser::SyncTransport(void)
 {
-	return AnalyzeRaw(hDialog, filename, 0, NULL);
-}
-
-int PATParser::AnalyzeRaw(HWND hDialog, char *filename, unsigned int audio_pid, unsigned int *audio_type)
-{
-	FILE *fin;
+	int i;
 	unsigned char byte;
+
+	// Find a sync byte.
+	for (i = 0; i < LIMIT; i++)
+	{
+		if (fread(&byte, 1, 1, fin) == 0)
+		{
+			return 1;
+		}
+		if (byte == TS_SYNC_BYTE)
+		{
+			fseek(fin, 187, SEEK_CUR);
+			if (fread(&byte, 1, 1, fin) == 0)
+			{
+				return 1;
+			}
+			if (byte == TS_SYNC_BYTE)
+			{
+				fseek(fin, -189, SEEK_CUR);
+				break;
+			}
+			fseek(fin, -188, SEEK_CUR);
+		}
+	}
+	if (i == LIMIT)
+	{
+		return 1;
+	}
+	return 0;
+}
+
+int PATParser::DumpRaw(HWND _hDialog, char *_filename)
+{
+	hDialog = _hDialog;
+	filename = _filename;
+	return AnalyzeRaw();
+}
+
+int PATParser::AnalyzeRaw(void)
+{
 	unsigned int i, pid = 0;
 	unsigned char stream_id;
 	int afc, pkt_count;
 	unsigned char buffer[188];
 	int read, pes_offset, pes_header_data_length, data_offset;
 	char listbox_line[255], description[80];
-#define MAX_PIDS 500
-#define MAX_PACKETS 100000
 	struct
 	{
 		unsigned int pid;
@@ -62,31 +94,7 @@ int PATParser::AnalyzeRaw(HWND hDialog, char *filename, unsigned int audio_pid, 
 		return 1;
 	}
 
-	// Find a sync byte.
-	for (i = 0; i < LIMIT; i++)
-	{
-		if (fread(&byte, 1, 1, fin) == 0)
-		{
-			fclose(fin);
-			return 1;
-		}
-		if (byte == TS_SYNC_BYTE)
-		{
-			fseek(fin, 187, SEEK_CUR);
-			if (fread(&byte, 1, 1, fin) == 0)
-			{
-				fclose(fin);
-				return 1;
-			}
-			if (byte == TS_SYNC_BYTE)
-			{
-				fseek(fin, -189, SEEK_CUR);
-				break;
-			}
-			fseek(fin, -188, SEEK_CUR);
-		}
-	}
-	if (i == LIMIT)
+	if (SyncTransport() == 1)
 	{
 		fclose(fin);
 		return 1;
@@ -98,6 +106,7 @@ int PATParser::AnalyzeRaw(HWND hDialog, char *filename, unsigned int audio_pid, 
 		Pids[i].pid = 0xffffffff;
 		Pids[i].stream_id = 0;
 	}
+
 	// Process the transport packets looking for PIDs.
 	pkt_count = 0;
 	while ((pkt_count++ < MAX_PACKETS) && (read = fread(buffer, 1, 188, fin)) == 188)
@@ -169,9 +178,9 @@ int PATParser::AnalyzeRaw(HWND hDialog, char *filename, unsigned int audio_pid, 
 			strcpy(description, "Program Stream Map");
 		else if (Pids[i].stream_id == 0xbd)
 		{
-			if (audio_type != NULL && Pids[i].pid == audio_pid)
+			if (!hDialog && Pids[i].pid == audio_pid)
 			{
-				*audio_type = 0x81;
+				audio_type = 0x81;
 				fclose(fin);
 				return 0;
 			}
@@ -184,13 +193,13 @@ int PATParser::AnalyzeRaw(HWND hDialog, char *filename, unsigned int audio_pid, 
 		else if (((Pids[i].stream_id & 0xe0) == 0xc0) ||
 				 (Pids[i].stream_id == 0xfa))
 		{
-			if (audio_type != NULL && Pids[i].pid == audio_pid)
+			if (!hDialog && Pids[i].pid == audio_pid)
 			{
 				// The demuxing code is the same for MPEG and AAC.
 				// The only difference will be the filename.
 				// The demuxing code will look at the audio sync word to
 				// decide between the two.
-				*audio_type = 0x4;
+				audio_type = 0x4;
 				fclose(fin);
 				return 0;
 			}
@@ -206,9 +215,9 @@ int PATParser::AnalyzeRaw(HWND hDialog, char *filename, unsigned int audio_pid, 
 			strcpy(description, "Ancillary Stream");
 		else if (Pids[i].stream_id == 0xfe)
 		{
-			if (audio_type != NULL && Pids[i].pid == audio_pid)
+			if (!hDialog && Pids[i].pid == audio_pid)
 			{
-				*audio_type = 0xfe;
+				audio_type = 0xfe;
 				fclose(fin);
 				return 0;
 			}
@@ -229,42 +238,52 @@ int PATParser::AnalyzeRaw(HWND hDialog, char *filename, unsigned int audio_pid, 
 	return 0;
 }
 
-int PATParser::DumpPAT(HWND hDialog, char *filename)
+int PATParser::DumpPAT(HWND _hDialog, char *_filename)
 {
-	return AnalyzePAT(hDialog, filename, 0, NULL);
+	op = Dump;
+	hDialog = _hDialog;
+	filename = _filename;
+	return AnalyzePAT();
 }
 
-int PATParser::GetAudioType(char *filename, unsigned int audio_pid)
+int PATParser::GetAudioType(char *_filename, unsigned int _audio_pid)
 {
-	unsigned int audio_type = 0xffffffff;
+	op = AudioType;
+	hDialog = NULL;
+	filename = _filename;
+	audio_pid = _audio_pid;
+	audio_type = 0xffffffff;
 
-	if ((AnalyzePAT(NULL, filename, audio_pid, &audio_type) == 0) && (audio_type != 0xffffffff))
+	if ((AnalyzePAT() == 0) && (audio_type != 0xffffffff))
 		return audio_type;
-	else if ((AnalyzeRaw(NULL, filename, audio_pid, &audio_type) == 0) && (audio_type != 0xffffffff))
+	else if ((AnalyzeRaw() == 0) && (audio_type != 0xffffffff))
 		return audio_type;
 	else
 		return -1;
 }
 
-int PATParser::AnalyzePAT(HWND hDialog, char *filename, unsigned int audio_pid, unsigned int *audio_type)
+int PATParser::DoInitialPids(char *_filename)
 {
-	FILE *fin;
-	unsigned char byte;
-	unsigned int i, pid, ndx, begin, length, number, last, program, pmtpid;
-	unsigned int entry, descriptors_length, es_descriptors_length, pcrpid;
-	unsigned char buffer[188], type;
-	char *stream_type;
-	int read;
-	char listbox_line[255];
-	int pkt_count;
+	op = InitialPids;
+	hDialog = NULL;
+	filename = _filename;
+	return AnalyzePAT();
+}
 
-	num_pat_entries = 0;
+int PATParser::AnalyzePAT(void)
+{
+	unsigned int entry;
+	char listbox_line[255];
+
+	// First, we need to get from the PAT the list of PMT PIDs that we will need
+	// to examine.
+	num_pmt_pids = 0;
 	first_pat = first_pmt = true;
 
 	// Open the input file for reading.
 	if ((fin = fopen(filename, "rb")) == NULL)
 	{
-		if (hDialog != NULL)
+		if (op == Dump)
 		{
 			sprintf(listbox_line, "Cannot open the input file!");
 			SendDlgItemMessage(hDialog, IDC_PID_LISTBOX, LB_ADDSTRING, 0, (LPARAM)listbox_line);
@@ -272,108 +291,15 @@ int PATParser::AnalyzePAT(HWND hDialog, char *filename, unsigned int audio_pid, 
 		return 1;
 	}
 
-	// Find a sync byte.
-	for (i = 0; i < LIMIT; i++)
-	{
-		if (fread(&byte, 1, 1, fin) == 0)
-		{
-			fclose(fin);
-			return 1;
-		}
-		if (byte == TS_SYNC_BYTE)
-		{
-			fseek(fin, 187, SEEK_CUR);
-			if (fread(&byte, 1, 1, fin) == 0)
-			{
-				fclose(fin);
-				return 1;
-			}
-			if (byte == TS_SYNC_BYTE)
-			{
-				fseek(fin, -189, SEEK_CUR);
-				break;
-			}
-			fseek(fin, -188, SEEK_CUR);
-		}
-	}
-	if (i == LIMIT)
+	if (SyncTransport() == 1)
 	{
 		fclose(fin);
 		return 1;
 	}
 
-	// Process the transport packets.
-	pkt_count = 0;
-	while ((pkt_count++ < MAX_PACKETS) && (read = fread(buffer, 1, 188, fin)) == 188)
-	{
-		pid = ((buffer[1] & 0x1f) << 8) | buffer[2];
-		if (pid != 0) continue;
+	// Acquire and parse the PAT.
+	GetTable(PAT_PID);
 
-		// We have a PAT packet.
-		// Check error indicator.
-		if (buffer[1] & 0x80) continue;
-
-		// Check for presence of a section start.
-		if ((first_pat == true) && !(buffer[1] & 0x40)) continue;
-
-		// Skip if there is no payload.
-		byte = (unsigned char) ((buffer[3] & 0x30) >> 4);
-		if (byte == 0 || byte == 2) continue;
-
-		// Skip the adaptation field (if any).
-		ndx = 4;
-		if (byte == 3)
-		{
-			ndx += buffer[ndx];
-		}
-
-		// Skip to the start of the section.
-		ndx += buffer[ndx] + 1;
-
-		// Now pointing to the start of the section. Check the table id.
-		if (buffer[ndx++] != 0) continue;
-
-		// Check the section syntax indicator.
-		if ((buffer[ndx] & 0xc0) != 0x80) continue;
-
-		// Check and get section length.
-		if ((buffer[ndx] & 0x0c) != 0) continue;
-		length = ((buffer[ndx++] & 0x03) << 8);
-		length |= buffer[ndx++];
-		if (length > 0x3fd) continue;
-
-		// Skip the transport stream id.
-		ndx += 2;
-
-		// We want only current tables.
-		if (!(buffer[ndx++] & 0x01)) continue;
-
-		// Get the number of this section.
-		number = buffer[ndx++];
-
-		// Get the number of the last section.
-		last = buffer[ndx++];
-
-		// Now we have the program/pid tuples.
-		for (i = 0; i < length - 9;)
-		{
-			program = buffer[ndx+i++] << 8;
-			program |= buffer[ndx+i++];
-			pmtpid = (buffer[ndx+i++] & 0x1f) << 8;
-			pmtpid |= buffer[ndx+i++];
-			// Skip the Network Information Table (NIT).
-			if (program != 0)
-			{
-				pat_entries[num_pat_entries].program = program;
-				pat_entries[num_pat_entries++].pmtpid = pmtpid;
-			}
-		}
-
-		first_pat = false;
-
-		// If this is the last section number, we're done.
-		if (number == last) break;
-	}
 	// Exit if we didn't find the PAT.
 	if (first_pat == true)
 	{
@@ -382,217 +308,450 @@ int PATParser::AnalyzePAT(HWND hDialog, char *filename, unsigned int audio_pid, 
 	}
 
 	// Now we have to get the PMT tables to retrieve the actual
-	// program PIDs.
-	for (entry = 0; entry < num_pat_entries; entry++)
+	// program information. Scan on each PMT PID in turn.
+	for (entry = 0, num_programs = 0; entry < num_pmt_pids; entry++)
 	{
-		// Start at the beginning of the file.
+		// Start again at the beginning of the file.
 		fseek(fin, 0, SEEK_SET);
-		// Find a sync byte.
-		for (i = 0; i < LIMIT; i++)
+		if (SyncTransport() == 1)
 		{
-			if (fread(&byte, 1, 1, fin) == 0)
-			{
-				fclose(fin);
-				return 1;
-			}
-			if (byte == TS_SYNC_BYTE)
-			{
-				fseek(fin, 187, SEEK_CUR);
-				if (fread(&byte, 1, 1, fin) == 0)
-				{
-					fclose(fin);
-					return 1;
-				}
-				if (byte == TS_SYNC_BYTE)
-				{
-					fseek(fin, -189, SEEK_CUR);
-					break;
-				}
-				fseek(fin, -188, SEEK_CUR);
-			}
+			fclose(fin);
+			return 1;
 		}
 
-		// Process the transport packets.
-		pkt_count = 0;
-		while ((pkt_count++ < MAX_PACKETS) && (read = fread(buffer, 1, 188, fin)) == 188)
+		// Acquire and parse the PMT.
+		GetTable(pmt_pids[entry]);
+	}
+	fclose(fin);
+	return 0;
+}
+
+int PATParser::ProcessPATSection(void)
+{
+	unsigned int i, j, ndx, section_length, number, last, program, pmtpid;
+
+	// We want only current tables.
+	if (!(section[5] & 0x01))
+		return 0;
+
+	section_length = ((section[1] & 0x03) << 8);
+	section_length |= section[2];
+
+	// Get the number of this section.
+	number = section[6];
+
+	// Get the number of the last section.
+	last = section[7];
+
+	// Now we parse the program/pid tuples.
+	ndx = 8;
+	for (i = 0; i < section_length - 9;)
+	{
+		program = section[ndx+i++] << 8;
+		program |= section[ndx+i++];
+		pmtpid = (section[ndx+i++] & 0x1f) << 8;
+		pmtpid |= section[ndx+i++];
+		// Skip the Network Information Table (NIT).
+		if (program != 0)
 		{
-			pid = ((buffer[1] & 0x1f) << 8) | buffer[2];
-			if (pid != pat_entries[entry].pmtpid) continue;
+			// Store the PTM PID if we haven't already.
+			for (j = 0; j < num_pmt_pids; j++)
+				if (pmt_pids[j] == pmtpid)
+					break;
+			if (j == num_pmt_pids)
+				pmt_pids[num_pmt_pids++] = pmtpid;
+		}
+	}
+	first_pat = false;
 
-			// We have a PMT packet.
-			// Check error indicator.
-			if (buffer[1] & 0x80) continue;
+	// If this is the last section number, we're done.
+	return (number == last);
+}
 
-			// Check for presence of a section start.
-			if ((first_pmt == true) && !(buffer[1] & 0x40)) continue;
+int PATParser::ProcessPMTSection(void)
+{
+	unsigned int j, ndx, section_length, program, pid, pcrpid;
+	unsigned int descriptors_length, es_descriptors_length, type, encrypted;
+	char listbox_line[255];
+	char *stream_type;
 
-			// Skip if there is no payload.
-			byte = (unsigned char) ((buffer[3] & 0x30) >> 4);
-			if (byte == 0 || byte == 2) continue;
+	// We want only current tables.
+	if (!(section[5] & 0x01))
+		return 0;
 
-			// Skip the adaptation field (if any).
-			ndx = 4;
-			if (byte == 3)
+	section_length = ((section[1] & 0x03) << 8);
+	section_length |= section[2];
+
+	// Check the program number.
+	program = section[3] << 8;
+	program |= section[4];
+
+	// If we're setting the initial PIDs automatically, then
+	// we're intersted inonly the first program.
+	if (op == InitialPids && num_programs > 0)
+		return 0;
+	// We stop when we see a progam that we've already seen.
+	for (j = 0; j < num_programs; j++)
+		if (programs[j] == program)
+			break;
+	if (j != num_programs)
+		return 1;
+	programs[num_programs++] = program;
+	if (op == Dump)
+	{
+		sprintf(listbox_line, "Program %d", program);
+		SendDlgItemMessage(hDialog, IDC_PID_LISTBOX, LB_ADDSTRING, 0, (LPARAM)listbox_line);
+	}
+
+	// Get the PCRPID.
+	pcrpid = (section[8] & 0x1f) << 8;
+	pcrpid |= section[9];
+	if (op == Dump)
+	{
+		sprintf(listbox_line, "    PCR on PID 0x%x", pcrpid); 
+		SendDlgItemMessage(hDialog, IDC_PID_LISTBOX, LB_ADDSTRING, 0, (LPARAM)listbox_line);
+	}
+
+	// Skip the descriptors (if any).
+	ndx = 10;
+	descriptors_length = (section[ndx++] & 0x0f) << 8;
+	descriptors_length |= section[ndx++];
+	ndx += descriptors_length;
+
+	// Now we have the actual program data.
+	while (ndx < section_length - 4)
+	{
+		switch (type = section[ndx++])
+		{
+		case 0x01:
+			stream_type = "MPEG1 Video";
+			pid = (section[ndx++] & 0x1f) << 8;
+			pid |= section[ndx++];
+			if (op == InitialPids)
+				MPEG2_Transport_VideoPID = pid;
+			break;
+		case 0x02:
+			stream_type = "MPEG2 Video";
+			pid = (section[ndx++] & 0x1f) << 8;
+			pid |= section[ndx++];
+			if (op == InitialPids)
+				MPEG2_Transport_VideoPID = pid;
+			break;
+		case 0x03:
+			stream_type = "MPEG1 Audio";
+			pid = (section[ndx++] & 0x1f) << 8;
+			pid |= section[ndx++];
+			if (op == InitialPids)
+				MPEG2_Transport_AudioPID = pid;
+			break;
+		case 0x04:
+			stream_type = "MPEG2 Audio";
+			pid = (section[ndx++] & 0x1f) << 8;
+			pid |= section[ndx++];
+			if (op == InitialPids)
+				MPEG2_Transport_AudioPID = pid;
+			break;
+		case 0x05:
+			stream_type = "Private Sections";
+			pid = (section[ndx++] & 0x1f) << 8;
+			pid |= section[ndx++];
+			break;
+		case 0x06:
+			// Have to parse the ES descriptors to figure this out.
+			pid = (section[ndx++] & 0x1f) << 8;
+			pid |= section[ndx++];
+			break;
+		case 0x07:
+			stream_type = "Teletext/Subtitling";
+			pid = (section[ndx++] & 0x1f) << 8;
+			pid |= section[ndx++];
+			break;
+		case 0x0f:
+		case 0x11:
+			// The demuxing code is the same for MPEG and AAC.
+			// The only difference will be the filename.
+			// The demuxing code will look at the audio sync word to
+			// decide between the two.
+			type = 0x04;
+			stream_type = "AAC Audio";
+			pid = (section[ndx++] & 0x1f) << 8;
+			pid |= section[ndx++];
+			if (op == InitialPids)
+				MPEG2_Transport_AudioPID = pid;
+			break;
+		case 0x80:
+			// This could be private stream video.
+			stream_type = "Private Stream";
+			pid = (section[ndx++] & 0x1f) << 8;
+			pid |= section[ndx++];
+			break;
+		case 0x81:
+			// This could be AC3 or DTS audio.
+			stream_type = "AC3/DTS Audio";
+			pid = (section[ndx++] & 0x1f) << 8;
+			pid |= section[ndx++];
+			if (op == InitialPids)
+				MPEG2_Transport_AudioPID = pid;
+			break;
+		default:
+			stream_type = "Other";
+			pid = (section[ndx++] & 0x1f) << 8;
+			pid |= section[ndx++];
+			break;
+		}
+
+		// Parse the ES descriptors if necessary.
+		es_descriptors_length = (section[ndx++] & 0x0f) << 8;
+		es_descriptors_length |= section[ndx++];
+		encrypted = 0;
+		if (es_descriptors_length)
+		{
+			unsigned int start = ndx, end = ndx + es_descriptors_length;
+			int tag, length;
+
+			// See if the ES is scrambled.
+			do
 			{
-				ndx += buffer[ndx] + 1;
+				tag = section[ndx++];
+				if (tag == 0x09)
+					encrypted = 1;
+				length = section[ndx++];
+				ndx += length;
+			} while (ndx < end);
+			ndx = start;
+
+			if (type == 0x80)
+			{
+				// This might be private stream video.
+				// Parse the descriptors for a video descriptor.
+				int hadVideo = 0;
+				do
+				{
+					tag = section[ndx++];
+					if (tag == 0x02)
+						hadVideo = 1;
+					length = section[ndx++];
+					ndx += length;
+				} while (ndx < end);
+				ndx = end;
+				if (hadVideo == 1)
+				{
+					stream_type = "Private Stream Video";
+					type = 0x02;
+					if (op == InitialPids)
+						MPEG2_Transport_VideoPID = pid;
+				}
+			}
+			else if (type == 0x06)
+			{
+				// Parse the descriptors for a DTS audio descriptor.
+				unsigned int end = ndx + es_descriptors_length;
+				int hadDTS = 0, hadTeletext = 0;
+				do
+				{
+					tag = section[ndx++];
+					if (tag == 0x73)
+						hadDTS = 1;
+					else if (tag == 0x05)
+					{
+						if (section[ndx+1] == 0x44 && section[ndx+2] == 0x54 && section[ndx+3] == 0x53)
+							hadDTS = 1;
+					}
+					else if (tag == 0x56)
+						hadTeletext = 1;
+					length = section[ndx++];
+					ndx += length;
+				} while (ndx < end);
+				ndx = end;
+				if (hadTeletext == 1)
+				{
+					stream_type = "Teletext";
+				}
+				else if (hadDTS == 1)
+				{
+					stream_type = "DTS Audio";
+					type = 0xfe;
+					if (op == InitialPids)
+						MPEG2_Transport_AudioPID = pid;
+				}
+				else
+				{
+					stream_type = "AC3 Audio";
+					type = 0x81;
+					if (op == InitialPids)
+						MPEG2_Transport_AudioPID = pid;
+				}
+			}
+			else
+			{
+				ndx += es_descriptors_length;				
 			}
 
-			// Skip to the start of the section.
-			ndx += buffer[ndx] + 1;
-
-			// Now pointing to the start of the section. Check the table id.
-			if (buffer[ndx++] != 2) continue;
-
-			// Check the section syntax indicator.
-			if ((buffer[ndx] & 0xc0) != 0x80) continue;
-
-			// Check and get section length.
-			if ((buffer[ndx] & 0x0c) != 0) continue;
-			length = ((buffer[ndx++] & 0x03) << 8);
-			length |= buffer[ndx++];
-			if (length > 0x3fd) continue;
-			begin = ndx;
-
-			// Skip the program number
-			if (hDialog != NULL)
+		}
+		else if (type == 0x06)
+		{
+			// The following assignments will be used if there are no descriptors.
+			stream_type = "AC3/DTS Audio";
+			type = 0x81;
+		}
+		if (op == Dump)
+		{
+			sprintf(listbox_line, "    %s on PID 0x%x", stream_type, pid);
+			SendDlgItemMessage(hDialog, IDC_PID_LISTBOX, LB_ADDSTRING, 0, (LPARAM)listbox_line);
+			if (encrypted == 1)
 			{
-				sprintf(listbox_line, "Program %d", pat_entries[entry].program);
+				sprintf(listbox_line, "    [Scrambled]"); 
 				SendDlgItemMessage(hDialog, IDC_PID_LISTBOX, LB_ADDSTRING, 0, (LPARAM)listbox_line);
 			}
-			ndx += 2;
-
-			// We want only current tables.
-			if (!(buffer[ndx++] & 0x01)) continue;
-
-			// Get the number of this section.
-			number = buffer[ndx++];
-
-			// Get the number of the last section.
-			last = buffer[ndx++];
-
-			// Get the PCRPID.
-			pcrpid = (buffer[ndx++] & 0x1f) << 8;
-			pcrpid |= buffer[ndx++];
-			if (hDialog != NULL)
-			{
-				sprintf(listbox_line, "    PCR on PID 0x%x", pcrpid); 
-				SendDlgItemMessage(hDialog, IDC_PID_LISTBOX, LB_ADDSTRING, 0, (LPARAM)listbox_line);
-			}
-
-			// Skip the descriptors (if any).
-			descriptors_length = (buffer[ndx++] & 0x0f) << 8;
-			descriptors_length |= buffer[ndx++];
-			ndx += descriptors_length;
-
-			// Now we have the actual program data.
-			while (ndx < begin + length - 4)
-			{
-				switch (type = buffer[ndx++])
-				{
-				case 0x01:
-					stream_type = "MPEG1 Video";
-					break;
-				case 0x02:
-					stream_type = "MPEG2 Video";
-					break;
-				case 0x03:
-					stream_type = "MPEG1 Audio";
-					break;
-				case 0x04:
-					stream_type = "MPEG2 Audio";
-					break;
-				case 0x05:
-					stream_type = "Private Sections";
-					break;
-				case 0x06:
-					// Have to parse the ES descriptors to figure this out.
-					break;
-				case 0x07:
-					stream_type = "Teletext/Subtitling";
-					break;
-				case 0x0f:
-				case 0x11:
-					// The demuxing code is the same for MPEG and AAC.
-					// The only difference will be the filename.
-					// The demuxing code will look at the audio sync word to
-					// decide between the two.
-					type = 0x04;
-					stream_type = "AAC Audio";
-					break;
-				case 0x81:
-					// This could be AC3 or DTS audio.
-					stream_type = "AC3/DTS Audio";
-					break;
-				default:
-					stream_type = "Other";
-					break;
-				}
-				pid = (buffer[ndx++] & 0x1f) << 8;
-				pid |= buffer[ndx++];
-
-				// Parse the ES descriptors if necessary.
-				es_descriptors_length = (buffer[ndx++] & 0x0f) << 8;
-				es_descriptors_length |= buffer[ndx++];
-				if (es_descriptors_length)
-				{
-					if (type == 0x06)
-					{
-						// Parse the descriptors for a DTS audio descriptor.
-						unsigned int end = ndx + es_descriptors_length;
-						int tag, length, hadDTS = 0;
-						do
-						{
-							tag = buffer[ndx++];
-							if (tag == 0x73)
-								hadDTS = 1;
-							else if (tag == 0x05)
-							{
-								if (buffer[ndx+1] == 0x44 && buffer[ndx+2] == 0x54 && buffer[ndx+3] == 0x53)
-									hadDTS = 1;
-							}
-							length = buffer[ndx++];
-							ndx += length;
-						} while (ndx < end);
-						ndx = end;
-						if (hadDTS == 1)
-						{
-							stream_type = "DTS Audio";
-							type = 0xfe;
-						}
-						else
-						{
-							stream_type = "AC3 Audio";
-							type = 0x81;
-						}
-					}
-					else
-					{
-						ndx += es_descriptors_length;				
-					}
-				}
-				if (hDialog != NULL)
-				{
-					sprintf(listbox_line, "    %s on PID 0x%x", stream_type, pid);
-					SendDlgItemMessage(hDialog, IDC_PID_LISTBOX, LB_ADDSTRING, 0, (LPARAM)listbox_line);
-				}
-				if (audio_type != NULL && pid == audio_pid)
-				{
-					// If it's private stream 1, it could be AC3 or DTS.
-					// Force raw detection to find out which.
-					if (type != 0x81)
-						*audio_type = type;
-					fclose(fin);
-					return 0;
-				}
-			}
-
-			first_pmt = false;
-
-			// If this is the last section number, we're done.
-			if (number == last) break;
+		}
+		if (op == AudioType && pid == audio_pid)
+		{
+			// If it's private stream 1, it could be AC3 or DTS.
+			// Force raw detection to find out which.
+			if (type != 0x81)
+				audio_type = type;
+			return 1;
 		}
 	}
 
-	fclose(fin);
 	return 0;
+}
+
+void PATParser::GetTable(unsigned int table_pid)
+{
+	unsigned char byte;
+	unsigned int pid, ndx, section_length;
+	int read;
+	int pkt_count;
+
+	// Process the transport packets.
+	pkt_count = 0;
+	section_ptr = section;
+	while ((pkt_count++ < MAX_PACKETS) && (read = fread(buffer, 1, 188, fin)) == 188)
+	{
+		// Check that this is the desired PID.
+		pid = ((buffer[1] & 0x1f) << 8) | buffer[2];
+		if (pid != table_pid)
+			continue;
+
+		// We have a table packet.
+		// Check error indicator.
+		if (buffer[1] & 0x80)
+			continue;
+
+		// Check for presence of a section start.
+		if ((first_pat == true) && !(buffer[1] & 0x40))
+			continue;
+
+		// Skip if there is no payload.
+		byte = (unsigned char) ((buffer[3] & 0x30) >> 4);
+		if (byte == 0 || byte == 2)
+			continue;
+
+		// Skip the adaptation field (if any).
+		ndx = 4;
+		if (byte == 3)
+		{
+			ndx += buffer[ndx] + 1;
+		}
+
+		// This equality will fail when we have started gathering a section,
+		// but it overflowed into the next transport packet. So here we collect
+		// the rest of the section.
+		if (section_ptr != section)
+		{
+			// Collect the section data.
+			if (section_length <= 188 - ndx)
+			{
+				// The remainder of the section is contained entirely
+				// in this packet. Skip the pointer field if one exists.
+				unsigned char *start;
+				start = &buffer[ndx];
+				if (buffer[1] & 0x40)
+					start++;
+				memcpy(section_ptr, start, section_length);
+				section_ptr += section_length;
+				// Parse the table.
+				if (table_pid == PAT_PID ? ProcessPATSection() : ProcessPMTSection())
+					break;
+				// Get ready for collection of the next section.
+				section_ptr = section;
+				// Check the section syntax indicator to see if another
+				// section follows in this packet.
+				if (!(buffer[1] & 0x40))
+				{
+					// No more sections in this packet.
+					continue;
+				}
+				// If we reach here, there is another section following
+				// this one, so we fall through to the code below.
+			}
+			else
+			{
+				// The section is spilling over to the next packet.
+				// There can't be a pointer field, so there's no need to
+				// check for it.
+				memcpy(section_ptr, &buffer[ndx], 188 - ndx);
+				section_ptr += (188 - ndx);
+				section_length -= (188 - ndx);
+				continue;
+			}
+		}
+
+		// Read the section pointer field and use it to skip to the start of the section.
+		ndx += buffer[ndx] + 1;
+
+		// Now pointing to the start of the section. Check that the table id is correct.
+		if (buffer[ndx] != (table_pid == PAT_PID ? 0 : 2))
+			continue;
+
+another_section:
+
+		// Check the section syntax indicator.
+		if ((buffer[ndx+1] & 0xc0) != 0x80)
+			continue;
+
+		// Check and get section length.
+		if ((buffer[ndx+1] & 0x0c) != 0)
+			continue;
+		section_length = ((buffer[ndx+1] & 0x03) << 8);
+		section_length |= buffer[ndx+2];
+		if (section_length > 0x3fd)
+			continue;
+
+		if (table_pid == PAT_PID)
+			first_pat = false;
+		else
+			first_pmt = false;
+		if (ndx + section_length + 3 <= 188)
+		{
+			// The section is entirely contained in this packet.
+			// Collect the section data.
+			memcpy(section_ptr, &buffer[ndx], section_length);
+			section_ptr += section_length;
+			// Parse the section.
+			if (table_pid == PAT_PID ? ProcessPATSection() : ProcessPMTSection())
+				break;
+			// Get ready for collecting the next section.
+			section_ptr = section;
+			// Check to see if another section follows in this packet
+			// by looking for the table ID. It would be stuffing if
+			// there was no following section.
+			if (buffer[ndx+section_length+3] == 0x02)
+			{
+				ndx += section_length + 3;
+				goto another_section;
+			}
+		}
+		else
+		{
+			// This section spills over to the next transport packet.
+			// Collect the first part and get ready to collect the
+			// second part from the next packet.
+			memcpy(section_ptr, &buffer[ndx], 188 - ndx);
+			section_ptr += (188 - ndx);
+			section_length -= (188 - ndx);
+			continue;
+		}
+	}
 }

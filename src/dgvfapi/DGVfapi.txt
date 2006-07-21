@@ -1,4 +1,4 @@
-DGVfapi 1.4.7
+DGVfapi 1.4.8
 -------------
 
 VFAPI frameserving is supported. It uses the

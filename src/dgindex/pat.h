@@ -1,21 +1,20 @@
 /* 
- *	Copyright (C) 2004, Donald A Graft, All Rights Reserved
+ *	Copyright (C) 2004-2006, Donald A Graft, All Rights Reserved
  *
- *  Command line PAT/PMT table parser for PID detection.
- *  Usage: table filename
+ *  PAT/PMT table parser for PID detection.
  *	
- *  TABLE is free software; you can redistribute it and/or modify
+ *  This is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
  *   
- *  TABLE is distributed in the hope that it will be useful,
+ *  This is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
  *   
  *  You should have received a copy of the GNU General Public License
- *  along with TABLE; see the file COPYING.  If not, write to
+ *  along with this code; see the file COPYING.  If not, write to
  *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
  *
  */
@@ -25,25 +24,40 @@
 #define TS_SYNC_BYTE 0x47
 #define PAT_PID 0
 #define LIMIT 10000000
-#define MAX_PAT_ENTRIES 500
-
-struct pat_entry
-{
-	unsigned int program;
-	unsigned int pmtpid;
-};
+#define MAX_PROGRAMS 500
+#define MAX_SECTION 4096
+#define PAT_PID 0
+#define MAX_PIDS 500
+#define MAX_PACKETS 100000
 
 class PATParser
 {
-	unsigned int num_pat_entries;
+private:
+	enum operation {Dump=1, AudioType, InitialPids} op;
+	HWND hDialog;
+	char *filename;
+	unsigned int audio_pid;
+	unsigned int audio_type;
+	FILE *fin;
+	unsigned int num_pmt_pids, num_programs;
 	bool first_pat, first_pmt;
-	struct pat_entry pat_entries[MAX_PAT_ENTRIES];
-	int AnalyzePAT(HWND hDialog, char *filename, unsigned int audio_pid, unsigned int *audio_type);
-	int AnalyzeRaw(HWND hDialog, char *filename, unsigned int audio_pid, unsigned int *audio_type);
+	unsigned int pmt_pids[MAX_PIDS];
+	unsigned int programs[MAX_PROGRAMS];
+	unsigned char section[MAX_SECTION];
+	unsigned char *section_ptr;
+	unsigned char buffer[188];
+private:
+	int SyncTransport(void);
+	void PATParser::GetTable(unsigned int table_pid);
+	int AnalyzePAT(void);
+	int AnalyzeRaw(void);
+	int ProcessPATSection(void);
+	int ProcessPMTSection(void);
 public:
-	PATParser();
+	PATParser(void);
 	int DumpPAT(HWND hDialog, char *filename);
 	int DumpRaw(HWND hDialog, char *filename);
 	int GetAudioType(char *filename, unsigned int audio_pid);
+	int DoInitialPids(char *filename);
 };
 

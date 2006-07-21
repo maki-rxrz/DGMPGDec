@@ -44,6 +44,7 @@ DWORD WINAPI MPEG2Dec(LPVOID n)
 	Sound_Max = 1; Bitrate_Monitor = 0;
 	Bitrate_Average = 0.0;
 	GOPSeen = false;
+	AudioOnly_Flag = 0;
 
 	for (i=0; i<CHANNEL; i++)
 	{
@@ -88,6 +89,7 @@ DWORD WINAPI MPEG2Dec(LPVOID n)
 			break;
 
 		case LOCATE_RIP:
+		case LOCATE_DEMUX_AUDIO:
 			process.startfile = process.leftfile;
 			process.startloc = process.leftlba * BUFFER_SIZE;
 			process.endfile = process.rightfile;
@@ -133,6 +135,35 @@ do_rip_play:
 			break;
 	}
 
+	// If we are doing only audio demuxing (as for example, when we have
+	// an audio-only stream), then bypass video parsing and just
+	// do packet processing directly. We already know the stream type
+	// because the !Check_Flag code below was performed when the file
+	// was opened.
+	if (process.locate == LOCATE_DEMUX_AUDIO)
+	{
+		Start_Flag = 1;
+		AudioOnly_Flag = 1;
+		AudioPktCount = 0;
+		if (SystemStream_Flag == TRANSPORT_STREAM)
+		{
+			MPEG2_Transport_AudioType =
+						pat_parser.GetAudioType(Infilename[0], MPEG2_Transport_AudioPID);
+		}
+		// Position to start of the first file.
+		CurrentFile = 0;
+		_lseeki64(Infile[0], 0, SEEK_SET);
+		Initialize_Buffer();
+		while (1)
+		{
+			Next_Packet();
+			if (Stop_Flag)
+			{
+				ThreadKill();
+			}
+		}
+	}
+
 	// Check validity of the input file and collect some needed information.
 	if (!Check_Flag)
 	{
@@ -146,25 +177,11 @@ do_rip_play:
 		_lseeki64(Infile[0], 0, SEEK_SET);
 		Initialize_Buffer();
 
-		// If the file does not contain a sequence header start code, it can't be an MPEG file.
-		// We're already byte aligned at the start of the file.
-		while ((show = Show_Bits(32)) != 0x1b3)
-		{
-			if (Stop_Flag)
-			{
-				// We reached EOF without ever seeing a sequence header.
-				MessageBox(hWnd, "No video sequence header found!", NULL, MB_OK | MB_ICONERROR);
-				ThreadKill();
-			}
-			Flush_Buffer(8);
-		}
-
 		// First see if it is a transport stream.
 
 		// Skip any leading null characters, because some
 		// captured transport files were seen to start with a large
 		// number of nulls.
-		_lseeki64(Infile[0], 0, SEEK_SET);
 		for (;;)
 		{
 			if (_read(Infile[0], buf, 1) == 0)
@@ -202,6 +219,8 @@ do_rip_play:
 					// a sequence extension arrives.
 					mpeg_type = IS_MPEG1;
 					is_program_stream = 0;
+					if (MPEG2_Transport_VideoPID == 0x02 && MPEG2_Transport_AudioPID == 0x02)
+						pat_parser.DoInitialPids(Infilename[0]);
 					break;
 				}
 				_read(Infile[0], buf, 187);
@@ -230,6 +249,22 @@ do_rip_play:
 			}
 		}
 
+		// If the file does not contain a sequence header start code, it can't be an MPEG file.
+		// We're already byte aligned at the start of the file.
+		CurrentFile = 0;
+		_lseeki64(Infile[0], 0, SEEK_SET);
+		Initialize_Buffer();
+		while ((show = Show_Bits(32)) != 0x1b3)
+		{
+			if (Stop_Flag)
+			{
+				// We reached EOF without ever seeing a sequence header.
+				MessageBox(hWnd, "No video sequence header found!", NULL, MB_OK | MB_ICONERROR);
+				ThreadKill();
+			}
+			Flush_Buffer(8);
+		}
+
 		// Determine whether this is an MPEG2 file and whether it is a program stream.
 		if (SystemStream_Flag != TRANSPORT_STREAM && SystemStream_Flag != PVA_STREAM)
 		{
@@ -237,7 +272,7 @@ do_rip_play:
 			is_program_stream = 0;
 			if (initial_parse(Infilename[0], &mpeg_type, &is_program_stream) == -1)
 			{
-				MessageBox(hWnd, "File open problem!", NULL, MB_OK | MB_ICONERROR);
+				MessageBox(hWnd, "Cannot find video stream!", NULL, MB_OK | MB_ICONERROR);
 				return 0;
 			}
 			if (is_program_stream)

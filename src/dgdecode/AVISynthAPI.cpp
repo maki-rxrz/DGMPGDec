@@ -2,7 +2,7 @@
  *  Avisynth 2.5 API for MPEG2Dec3
  *
  *  Changes to fix frame dropping and random frame access are
- *  Copyright (C) 2003 Donald A. Graft
+ *  Copyright (C) 2003-2006 Donald A. Graft
  *
  *	Copyright (C) 2002-2003 Marc Fauconneau <marc.fd@liberysurf.fr>
  *
@@ -31,7 +31,7 @@
 #include "utilities.h"
 #include <string.h>
 
-#define VERSION "DGDecode 1.4.7"
+#define VERSION "DGDecode 1.4.8"
 
 MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int moderate_h, int moderate_v, bool showQ, bool fastMC, const char* _cpu2, int _info, int _upConv, bool _i420, int iCC, IScriptEnvironment* env)
 {
@@ -1705,17 +1705,27 @@ if (strncmp(buf, name, len) == 0) \
 			dec->m_decoder.Clip_Bottom || 
 			dec->m_decoder.Clip_Left   || 
 			dec->m_decoder.Clip_Right ||
-			// This is cheap but it works.
+			// This is cheap but it works. The intent is to allow the
+			// display size to be different from the encoded size, while
+			// not requiring massive revisions to the code. So we detect the
+			// difference and crop it off.
 			dec->m_decoder.vertical_size != dec->m_decoder.Clip_Height ||
-			dec->m_decoder.horizontal_size != dec->m_decoder.Clip_Width)
+			dec->m_decoder.horizontal_size != dec->m_decoder.Clip_Width ||
+			dec->m_decoder.vertical_size == 1088)
 		{
+			int vertical;
+			// Special case for 1088 to 1080 as directed by DGIndex.
+			if (dec->m_decoder.vertical_size == 1088 && dec->m_decoder.D2V_Height == 1080)
+				vertical = 1080;
+			else
+				vertical = dec->m_decoder.vertical_size;
 			AVSValue CropArgs[5] =
 			{
 				dec,
 				dec->m_decoder.Clip_Left, 
 				dec->m_decoder.Clip_Top, 
 				-(dec->m_decoder.Clip_Right + (dec->m_decoder.Clip_Width - dec->m_decoder.horizontal_size)),
-				-(dec->m_decoder.Clip_Bottom + (dec->m_decoder.Clip_Height - dec->m_decoder.vertical_size))
+				-(dec->m_decoder.Clip_Bottom + (dec->m_decoder.Clip_Height - vertical))
 			};
 
 			return env->Invoke("crop", AVSValue(CropArgs,5));

@@ -37,6 +37,13 @@
 #include <time.h>
 #include "misc.h"
 #include "resource.h"
+#include "pat.h"
+
+#ifdef GLOBAL
+#define XTN
+#else
+#define XTN extern
+#endif
 
 #define		bool	BOOL
 #define		true	TRUE
@@ -143,6 +150,7 @@
 #define LOCATE_SCROLL		2
 #define LOCATE_RIP			3
 #define LOCATE_PLAY			4
+#define LOCATE_DEMUX_AUDIO	5
 
 #define CHANNEL				8
 
@@ -192,9 +200,9 @@ typedef struct {
 	bool		pf;
 	bool		trf;
 }	D2VData;
-D2VData d2v_backward, d2v_forward, d2v_current;
+XTN D2VData d2v_backward, d2v_forward, d2v_current;
 
-int Channel[CHANNEL], Sound_Max;
+XTN int Channel[CHANNEL], Sound_Max;
 
 typedef struct {
 	FILE					*file;
@@ -202,13 +210,13 @@ typedef struct {
 	unsigned int			mode;
 	unsigned int			rate;
 }	AC3Stream;
-AC3Stream ac3[CHANNEL];
+XTN AC3Stream ac3[CHANNEL];
 
 typedef struct {
 	FILE					*file;
 	bool					rip;
 }	RAWStream;
-RAWStream mpa[CHANNEL], dts[CHANNEL];
+XTN RAWStream mpa[CHANNEL], dts[CHANNEL];
 
 // Currently, because the AC3 decoder uses global variables,
 // only one instance of pcm can be active. However, I allow for
@@ -221,10 +229,10 @@ typedef struct {
 	int						size;
 	int						delay;
 	unsigned char			format;
-}	PCMStream;
-PCMStream pcm[CHANNEL];
+} PCMStream;
+XTN PCMStream pcm[CHANNEL];
 
-struct PROCESS {
+typedef struct {
 	__int64					run;
 	__int64					start;
 	__int64					end;
@@ -241,98 +249,104 @@ struct PROCESS {
 	__int64					leftlba;
 	int						rightfile;
 	__int64					rightlba;
-}	process;
+} Process;
+XTN Process process;
 
-struct TIMING {
+typedef struct {
 	unsigned int			op;
 	unsigned int			mi;
 	unsigned int			ed;
-} timing;
+} Timing;
+XTN Timing timing;
 
-struct CPU {
+typedef struct{
 	bool					mmx;
 	bool					_3dnow;
 	bool					ssemmx;
 	bool					ssefpu;
 	bool					sse2;
-}	cpu;
+} Cpu;
+XTN Cpu cpu;
 
 /* decoder operation control flags */
-bool Check_Flag;
-bool D2V_Flag;
-bool DDOverlay_Flag;
-bool Display_Flag;
-int Fault_Flag;
-int CurrentFile;
-int NumLoadedFiles;
-int FO_Flag;
-int iDCT_Flag;
-bool Info_Flag;
-bool Pause_Flag;
-bool Scale_Flag;
-bool Start_Flag;
-bool Stop_Flag;
-int SystemStream_Flag;
+XTN bool Check_Flag;
+XTN bool D2V_Flag;
+XTN bool AudioOnly_Flag;
+XTN unsigned int AudioPktCount;
+XTN bool DDOverlay_Flag;
+XTN bool Display_Flag;
+XTN int Fault_Flag;
+XTN int CurrentFile;
+XTN int NumLoadedFiles;
+XTN int FO_Flag;
+XTN int iDCT_Flag;
+XTN bool Info_Flag;
+XTN bool Pause_Flag;
+XTN bool Scale_Flag;
+XTN bool Start_Flag;
+XTN bool Stop_Flag;
+XTN int SystemStream_Flag;
 #define ELEMENTARY_STREAM 0
 #define PROGRAM_STREAM 1
 #define TRANSPORT_STREAM 2
 #define PVA_STREAM 3
-__int64 PackHeaderPosition;
+XTN __int64 PackHeaderPosition;
 
-int LeadingBFrames;
-int ForceOpenGops;
-int CorrectFieldOrder;
-char AVSTemplatePath[_MAX_PATH];
-int FullPathInFiles;
-int UseOverlay;
-int FusionAudio;
+XTN int LeadingBFrames;
+XTN int ForceOpenGops;
+XTN int CorrectFieldOrder;
+XTN char AVSTemplatePath[_MAX_PATH];
+XTN int FullPathInFiles;
+XTN int UseOverlay;
+XTN int FusionAudio;
 
-bool Luminance_Flag;
-bool Cropping_Flag;
+XTN bool Luminance_Flag;
+XTN bool Cropping_Flag;
 
-int Method_Flag;
+XTN int Method_Flag;
 // Track_Flag is now bit-mapped: bit 0 means track 1 enabled,
 // bit 1 means track 2 enabled, etc.
-unsigned char Track_Flag;
-int DRC_Flag;
-bool DSDown_Flag;
-bool Decision_Flag;
-int SRC_Flag;
-bool Norm_Flag;
-int Norm_Ratio;
-double PreScale_Ratio;
+XTN unsigned char Track_Flag;
+XTN int DRC_Flag;
+XTN bool DSDown_Flag;
+XTN bool Decision_Flag;
+XTN int SRC_Flag;
+XTN bool Norm_Flag;
+XTN int Norm_Ratio;
+XTN double PreScale_Ratio;
 
 /* DirectDraw & GDI resources */
-LPDIRECTDRAW lpDD;
-LPDIRECTDRAW2 lpDD2;
-LPDIRECTDRAWSURFACE lpPrimary, lpOverlay;
-DDCAPS halcaps;
-DDSURFACEDESC ddsd;
-DDOVERLAYFX ddofx;
-HMENU hMenu; HDC hDC;
+XTN LPDIRECTDRAW lpDD;
+XTN LPDIRECTDRAW2 lpDD2;
+XTN LPDIRECTDRAWSURFACE lpPrimary, lpOverlay;
+XTN DDCAPS halcaps;
+XTN DDSURFACEDESC ddsd;
+XTN DDOVERLAYFX ddofx;
+XTN HMENU hMenu;
+XTN HDC hDC;
 
 /* Global Value */
-int CLIActive;
-char ExePath[_MAX_PATH];
-FILE *D2VFile;
-char D2VFilePath[_MAX_PATH];
-char AudioFilePath[_MAX_PATH];
-int VOB_ID, CELL_ID;
-FILE *MuxFile;
+XTN int CLIActive;
+XTN char ExePath[_MAX_PATH];
+XTN FILE *D2VFile;
+XTN char D2VFilePath[_MAX_PATH];
+XTN char AudioFilePath[_MAX_PATH];
+XTN int VOB_ID, CELL_ID;
+XTN FILE *MuxFile;
 #define D2V_FILE_VERSION 13
 
-int WindowMode;
-HWND hWnd, hDlg, hTrack;
-char szInput[MAX_FILE_NUMBER*_MAX_PATH], szOutput[_MAX_PATH], szBuffer[_MAX_PATH], szSave[_MAX_PATH];
+XTN int WindowMode;
+XTN HWND hWnd, hDlg, hTrack;
+XTN char szInput[MAX_FILE_NUMBER*_MAX_PATH], szOutput[_MAX_PATH], szBuffer[_MAX_PATH], szSave[_MAX_PATH];
 
-unsigned char *backward_reference_frame[3], *forward_reference_frame[3];
-unsigned char *auxframe[3], *current_frame[3];
-unsigned char *u422, *v422, *u444, *v444, *rgb24, *rgb24small, *yuy2, *lum;
-__int64 RGB_Scale, RGB_Offset, RGB_CRV, RGB_CBU, RGB_CGX;
-int LumGamma, LumOffset;
+XTN unsigned char *backward_reference_frame[3], *forward_reference_frame[3];
+XTN unsigned char *auxframe[3], *current_frame[3];
+XTN unsigned char *u422, *v422, *u444, *v444, *rgb24, *rgb24small, *yuy2, *lum;
+XTN __int64 RGB_Scale, RGB_Offset, RGB_CRV, RGB_CBU, RGB_CGX;
+XTN int LumGamma, LumOffset;
 
-int PlaybackSpeed;
-bool RightArrowHit;
+XTN int PlaybackSpeed, OldPlaybackSpeed;
+XTN bool RightArrowHit;
 #define SPEED_SINGLE_STEP	0
 #define SPEED_SUPER_SLOW	1
 #define SPEED_SLOW			2
@@ -340,138 +354,137 @@ bool RightArrowHit;
 #define SPEED_FAST			4
 #define SPEED_MAXIMUM		5
 
-unsigned int Frame_Number;
-int Coded_Picture_Width, Coded_Picture_Height;
-int block_count, Second_Field;
-int horizontal_size, vertical_size, mb_width, mb_height;
+XTN unsigned int Frame_Number;
+XTN int Coded_Picture_Width, Coded_Picture_Height;
+XTN int block_count, Second_Field;
+XTN int horizontal_size, vertical_size, mb_width, mb_height;
 
-double frame_rate, Frame_Rate;
-unsigned int fr_num, fr_den;
-int FILM_Purity, VIDEO_Purity, Bitrate_Monitor;
-double Bitrate_Average;
+XTN double frame_rate, Frame_Rate;
+XTN unsigned int fr_num, fr_den;
+XTN int FILM_Purity, VIDEO_Purity, Bitrate_Monitor;
+XTN double Bitrate_Average;
 
-int Clip_Left, Clip_Right, Clip_Top, Clip_Bottom;
+XTN int Clip_Left, Clip_Right, Clip_Top, Clip_Bottom;
 
-int Infile[MAX_FILE_NUMBER];
-char *Infilename[MAX_FILE_NUMBER];
-__int64 InfileLBA[MAX_FILE_NUMBER];
-__int64 Infilelength[MAX_FILE_NUMBER];
-__int64	Infiletotal;
+XTN int Infile[MAX_FILE_NUMBER];
+XTN char *Infilename[MAX_FILE_NUMBER];
+XTN __int64 Infilelength[MAX_FILE_NUMBER];
+XTN __int64	Infiletotal;
 
-int intra_quantizer_matrix[64];
-int intra_quantizer_matrix_log[64];
-int non_intra_quantizer_matrix[64];
-int non_intra_quantizer_matrix_log[64];
-int chroma_intra_quantizer_matrix[64];
-int chroma_intra_quantizer_matrix_log[64];
-int chroma_non_intra_quantizer_matrix[64];
-int chroma_non_intra_quantizer_matrix_log[64];
-int full_pel_forward_vector;
-int full_pel_backward_vector;
-int forward_f_code;
-int backward_f_code;
+XTN int intra_quantizer_matrix[64];
+XTN int intra_quantizer_matrix_log[64];
+XTN int non_intra_quantizer_matrix[64];
+XTN int non_intra_quantizer_matrix_log[64];
+XTN int chroma_intra_quantizer_matrix[64];
+XTN int chroma_intra_quantizer_matrix_log[64];
+XTN int chroma_non_intra_quantizer_matrix[64];
+XTN int chroma_non_intra_quantizer_matrix_log[64];
+XTN int full_pel_forward_vector;
+XTN int full_pel_backward_vector;
+XTN int forward_f_code;
+XTN int backward_f_code;
 
-int q_scale_type;
-int alternate_scan;
-int quantizer_scale;
+XTN int q_scale_type;
+XTN int alternate_scan;
+XTN int quantizer_scale;
 
-short *block[8];
+XTN short *block[8];
 
 /* ISO/IEC 13818-2 section 6.2.2.1:  sequence_header() */
-int aspect_ratio_information;
+XTN int aspect_ratio_information;
 
 /* ISO/IEC 13818-2 section 6.2.2.3:  sequence_extension() */
-int progressive_sequence;
-int chroma_format;
+XTN int progressive_sequence;
+XTN int chroma_format;
 
 /* ISO/IEC 13818-2 section 6.2.3: picture_header() */
-int temporal_reference;
-int picture_coding_type;
-int progressive_frame;
-int StartTemporalReference;
-int PTSAdjustDone;
+XTN int temporal_reference;
+XTN int picture_coding_type;
+XTN int progressive_frame;
+XTN int StartTemporalReference;
+XTN int PTSAdjustDone;
 // Default to ITU-709.
-int matrix_coefficients;
-int closed_gop_prev;
-int progressive_sequence_prev;
+XTN int matrix_coefficients;
+XTN int closed_gop_prev;
+XTN int progressive_sequence_prev;
 
 /* ISO/IEC 13818-2 section 6.2.3.1: picture_coding_extension() header */
-int f_code[2][2];
-int picture_structure;
-int frame_pred_frame_dct;
-int concealment_motion_vectors;
-int intra_dc_precision;
-int top_field_first;
-int repeat_first_field;
-int intra_vlc_format;
+XTN int f_code[2][2];
+XTN int picture_structure;
+XTN int frame_pred_frame_dct;
+XTN int concealment_motion_vectors;
+XTN int intra_dc_precision;
+XTN int top_field_first;
+XTN int repeat_first_field;
+XTN int intra_vlc_format;
 
-int strverscmp(const char *s1, const char *s2);
+XTN int strverscmp(const char *s1, const char *s2);
 
 /* getbit.c */
-void UpdateInfo(void);
+XTN void UpdateInfo(void);
 
 /* gethdr.c */
-int Get_Hdr(int);
-void sequence_header(void);
-int slice_header(void);
-bool GOPSeen;
+XTN int Get_Hdr(int);
+XTN void sequence_header(void);
+XTN int slice_header(void);
+XTN bool GOPSeen;
 
 /* getpic.c */
-void Decode_Picture(void);
-void WriteD2VLine(int);
+XTN void Decode_Picture(void);
+XTN void WriteD2VLine(int);
 
 /* gui.cpp */
-void ThreadKill(void);
-void CheckDirectDraw(void);
-void ResizeWindow(int width, int height);
-bool gop_warned;
-int LogQuants_Flag;
-FILE *Quants;
-int LogTimestamps_Flag;
-FILE *Timestamps;
+XTN void ThreadKill(void);
+XTN void CheckDirectDraw(void);
+XTN void ResizeWindow(int width, int height);
+XTN bool gop_warned, crop1088_warned, crop1088;
+XTN int LogQuants_Flag;
+XTN FILE *Quants;
+XTN int LogTimestamps_Flag;
+XTN FILE *Timestamps;
 
 /* idct */
-extern void __fastcall MMX_IDCT(short *block);
-extern void __fastcall SSEMMX_IDCT(short *block);
-extern void __fastcall SSE2MMX_IDCT(short *block);
-void Initialize_FPU_IDCT(void);
-void FPU_IDCT(short *block);
-void __fastcall REF_IDCT(short *block);
-void __fastcall Skl_IDct16_Sparse_SSE(short *block);
-void __fastcall simple_idct_mmx(short *block);
+extern "C" void __fastcall MMX_IDCT(short *block);
+extern "C" void __fastcall SSEMMX_IDCT(short *block);
+extern "C" void __fastcall SSE2MMX_IDCT(short *block);
+XTN void Initialize_FPU_IDCT(void);
+XTN void FPU_IDCT(short *block);
+XTN void __fastcall REF_IDCT(short *block);
+extern "C" void __fastcall Skl_IDct16_Sparse_SSE(short *block);
+extern "C" void __fastcall simple_idct_mmx(short *block);
 
 /* motion.c */
-void motion_vectors(int PMV[2][2][2], int dmvector[2], int motion_vertical_field_select[2][2], 
+XTN void motion_vectors(int PMV[2][2][2], int dmvector[2], int motion_vertical_field_select[2][2], 
 	int s, int motion_vector_count, int mv_format, int h_r_size, int v_r_size, int dmv, int mvscale);
-void Dual_Prime_Arithmetic(int DMV[][2], int *dmvector, int mvx, int mvy);
+XTN void Dual_Prime_Arithmetic(int DMV[][2], int *dmvector, int mvx, int mvy);
 
 /* mpeg2dec.c */
-DWORD WINAPI MPEG2Dec(LPVOID n);
-int initial_parse(char *input_file, int *mpeg_type_p, int *is_pgrogram_stream_p);
-void setRGBValues();
+XTN DWORD WINAPI MPEG2Dec(LPVOID n);
+XTN int initial_parse(char *input_file, int *mpeg_type_p, int *is_pgrogram_stream_p);
+XTN void setRGBValues();
 #define IS_NOT_MPEG 0
 #define IS_MPEG1 1
 #define IS_MPEG2 2
-int mpeg_type;
-int is_program_stream;
+XTN int mpeg_type;
+XTN int is_program_stream;
 
 /* norm.c */
-void Normalize(FILE *WaveIn, int WaveInPos, char *filename, FILE *WaveOut, int WaveOutPos, int size);
+XTN void Normalize(FILE *WaveIn, int WaveInPos, char *filename, FILE *WaveOut, int WaveOutPos, int size);
 
 /* store.c */
-void Write_Frame(unsigned char *src[], D2VData d2v, DWORD frame);
-int DetectVideoType(int frame, int rff);
-void ShowFrame(bool move);
+XTN void Write_Frame(unsigned char *src[], D2VData d2v, DWORD frame);
+XTN int DetectVideoType(int frame, int rff);
+XTN void ShowFrame(bool move);
 
 /* wavefs44.c */
-void InitialSRC(void);
-void Wavefs44(FILE *file, int size, unsigned char *buffer);
-void EndSRC(FILE *file);
-void Wavefs44File(int channel, int delay);
-void StartWAV(FILE *file, unsigned char format);
-void CloseWAV(FILE *file, int size);
-void DownWAV(FILE *file);
-bool CheckWAV(void);
+XTN void InitialSRC(void);
+XTN void Wavefs44(FILE *file, int size, unsigned char *buffer);
+XTN void EndSRC(FILE *file);
+XTN void Wavefs44File(int channel, int delay);
+XTN void StartWAV(FILE *file, unsigned char format);
+XTN void CloseWAV(FILE *file, int size);
+XTN void DownWAV(FILE *file);
+XTN bool CheckWAV(void);
 
 static char *AspectRatio[] = {
 	"", "1:1", "4:3", "16:9", "2.21:1"
@@ -482,15 +495,16 @@ static char *AspectRatioMPEG1[] = {
 	"1.0695", "4:3,525", "1.575", "1.2015"
 };
 
-int MPEG2_Transport_VideoPID;
-int MPEG2_Transport_AudioPID;
-int MPEG2_Transport_AudioType;
+XTN int MPEG2_Transport_VideoPID;
+XTN int MPEG2_Transport_AudioPID;
+XTN int MPEG2_Transport_AudioType;
 #define PID_DETECT_RAW 0
 #define PID_DETECT_PATPMT 1
-int Pid_Detect_Method;
+XTN int Pid_Detect_Method;
+XTN PATParser pat_parser;
 
 /* default intra quantization matrix */
-unsigned char default_intra_quantizer_matrix[64]
+XTN unsigned char default_intra_quantizer_matrix[64]
 #ifdef GLOBAL
 =
 {
@@ -507,7 +521,7 @@ unsigned char default_intra_quantizer_matrix[64]
 ;
 
 /* zig-zag and alternate scan patterns */
-unsigned char scan[2][64]
+XTN unsigned char scan[2][64]
 #ifdef GLOBAL
 =
 {
@@ -537,7 +551,7 @@ unsigned char scan[2][64]
 ;
 
 /* non-linear quantization coefficient table */
-unsigned char Non_Linear_quantizer_scale[32]
+XTN unsigned char Non_Linear_quantizer_scale[32]
 #ifdef GLOBAL
 =
 {
@@ -560,7 +574,7 @@ typedef struct {
 }	VLCtab;
 
 /* Table B-10, motion_code, codes 0001 ... 01xx */
-VLCtab MVtab0[8]
+XTN VLCtab MVtab0[8]
 #ifdef GLOBAL
 =
 {
@@ -570,7 +584,7 @@ VLCtab MVtab0[8]
 ;
 
 /* Table B-10, motion_code, codes 0000011 ... 000011x */
-VLCtab MVtab1[8]
+XTN VLCtab MVtab1[8]
 #ifdef GLOBAL
 =
 {
@@ -580,7 +594,7 @@ VLCtab MVtab1[8]
 ;
 
 /* Table B-10, motion_code, codes 0000001100 ... 000001011x */
-VLCtab MVtab2[12]
+XTN VLCtab MVtab2[12]
 #ifdef GLOBAL
 =
 {
@@ -592,7 +606,7 @@ VLCtab MVtab2[12]
 ;
 
 /* Table B-9, coded_block_pattern, codes 01000 ... 111xx */
-VLCtab CBPtab0[32]
+XTN VLCtab CBPtab0[32]
 #ifdef GLOBAL
 =
 {
@@ -606,7 +620,7 @@ VLCtab CBPtab0[32]
 ;
 
 /* Table B-9, coded_block_pattern, codes 00000100 ... 001111xx */
-VLCtab CBPtab1[64]
+XTN VLCtab CBPtab1[64]
 #ifdef GLOBAL
 =
 {
@@ -624,7 +638,7 @@ VLCtab CBPtab1[64]
 ;
 
 /* Table B-9, coded_block_pattern, codes 000000001 ... 000000111 */
-VLCtab CBPtab2[8]
+XTN VLCtab CBPtab2[8]
 #ifdef GLOBAL
 =
 {
@@ -634,7 +648,7 @@ VLCtab CBPtab2[8]
 ;
 
 /* Table B-1, macroblock_address_increment, codes 00010 ... 011xx */
-VLCtab MBAtab1[16]
+XTN VLCtab MBAtab1[16]
 #ifdef GLOBAL
 =
 {
@@ -645,7 +659,7 @@ VLCtab MBAtab1[16]
 ;
 
 /* Table B-1, macroblock_address_increment, codes 00000011000 ... 0000111xxxx */
-VLCtab MBAtab2[104]
+XTN VLCtab MBAtab2[104]
 #ifdef GLOBAL
 =
 {
@@ -667,7 +681,7 @@ VLCtab MBAtab2[104]
 ;
 
 /* Table B-12, dct_dc_size_luminance, codes 00xxx ... 11110 */
-VLCtab DClumtab0[32]
+XTN VLCtab DClumtab0[32]
 #ifdef GLOBAL
 =
 {
@@ -680,7 +694,7 @@ VLCtab DClumtab0[32]
 ;
 
 /* Table B-12, dct_dc_size_luminance, codes 111110xxx ... 111111111 */
-VLCtab DClumtab1[16]
+XTN VLCtab DClumtab1[16]
 #ifdef GLOBAL
 =
 {
@@ -691,7 +705,7 @@ VLCtab DClumtab1[16]
 ;
 
 /* Table B-13, dct_dc_size_chrominance, codes 00xxx ... 11110 */
-VLCtab DCchromtab0[32]
+XTN VLCtab DCchromtab0[32]
 #ifdef GLOBAL
 =
 {
@@ -704,7 +718,7 @@ VLCtab DCchromtab0[32]
 ;
 
 /* Table B-13, dct_dc_size_chrominance, codes 111110xxxx ... 1111111111 */
-VLCtab DCchromtab1[32]
+XTN VLCtab DCchromtab1[32]
 #ifdef GLOBAL
 =
 {
@@ -719,7 +733,7 @@ VLCtab DCchromtab1[32]
 /* Table B-14, DCT coefficients table zero,
  * codes 0100 ... 1xxx (used for first (DC) coefficient)
  */
-DCTtab DCTtabfirst[12]
+XTN DCTtab DCTtabfirst[12]
 #ifdef GLOBAL
 =
 {
@@ -733,7 +747,7 @@ DCTtab DCTtabfirst[12]
 /* Table B-14, DCT coefficients table zero,
  * codes 0100 ... 1xxx (used for all other coefficients)
  */
-DCTtab DCTtabnext[12]
+XTN DCTtab DCTtabnext[12]
 #ifdef GLOBAL
 =
 {
@@ -747,7 +761,7 @@ DCTtab DCTtabnext[12]
 /* Table B-14, DCT coefficients table zero,
  * codes 000001xx ... 00111xxx
  */
-DCTtab DCTtab0[60]
+XTN DCTtab DCTtab0[60]
 #ifdef GLOBAL
 =
 {
@@ -773,7 +787,7 @@ DCTtab DCTtab0[60]
 /* Table B-15, DCT coefficients table one,
  * codes 000001xx ... 11111111
 */
-DCTtab DCTtab0a[252]
+XTN DCTtab DCTtab0a[252]
 #ifdef GLOBAL
 =
 {
@@ -847,7 +861,7 @@ DCTtab DCTtab0a[252]
 /* Table B-14, DCT coefficients table zero,
  * codes 0000001000 ... 0000001111
  */
-DCTtab DCTtab1[8]
+XTN DCTtab DCTtab1[8]
 #ifdef GLOBAL
 =
 {
@@ -860,7 +874,7 @@ DCTtab DCTtab1[8]
 /* Table B-15, DCT coefficients table one,
  * codes 000000100x ... 000000111x
  */
-DCTtab DCTtab1a[8]
+XTN DCTtab DCTtab1a[8]
 #ifdef GLOBAL
 =
 {
@@ -873,7 +887,7 @@ DCTtab DCTtab1a[8]
 /* Table B-14/15, DCT coefficients table zero / one,
  * codes 000000010000 ... 000000011111
  */
-DCTtab DCTtab2[16]
+XTN DCTtab DCTtab2[16]
 #ifdef GLOBAL
 =
 {
@@ -888,7 +902,7 @@ DCTtab DCTtab2[16]
 /* Table B-14/15, DCT coefficients table zero / one,
  * codes 0000000010000 ... 0000000011111
  */
-DCTtab DCTtab3[16]
+XTN DCTtab DCTtab3[16]
 #ifdef GLOBAL
 =
 {
@@ -903,7 +917,7 @@ DCTtab DCTtab3[16]
 /* Table B-14/15, DCT coefficients table zero / one,
  * codes 00000000010000 ... 00000000011111
  */
-DCTtab DCTtab4[16]
+XTN DCTtab DCTtab4[16]
 #ifdef GLOBAL
 =
 {
@@ -918,7 +932,7 @@ DCTtab DCTtab4[16]
 /* Table B-14/15, DCT coefficients table zero / one,
  * codes 000000000010000 ... 000000000011111
  */
-DCTtab DCTtab5[16]
+XTN DCTtab DCTtab5[16]
 #ifdef GLOBAL
 =
 {
@@ -933,7 +947,7 @@ DCTtab DCTtab5[16]
 /* Table B-14/15, DCT coefficients table zero / one,
  * codes 0000000000010000 ... 0000000000011111
  */
-DCTtab DCTtab6[16]
+XTN DCTtab DCTtab6[16]
 #ifdef GLOBAL
 =
 {
@@ -946,7 +960,7 @@ DCTtab DCTtab6[16]
 ;
 
 /* Table B-3, macroblock_type in P-pictures, codes 001..1xx */
-VLCtab PMBtab0[8]
+XTN VLCtab PMBtab0[8]
 #ifdef GLOBAL
 =
 {
@@ -962,7 +976,7 @@ VLCtab PMBtab0[8]
 ;
 
 /* Table B-3, macroblock_type in P-pictures, codes 000001..00011x */
-VLCtab PMBtab1[8]
+XTN VLCtab PMBtab1[8]
 #ifdef GLOBAL
 =
 {
@@ -976,7 +990,7 @@ VLCtab PMBtab1[8]
 ;
 
 /* Table B-4, macroblock_type in B-pictures, codes 0010..11xx */
-VLCtab BMBtab0[16]
+XTN VLCtab BMBtab0[16]
 #ifdef GLOBAL
 =
 {
@@ -1001,7 +1015,7 @@ VLCtab BMBtab0[16]
 ;
 
 /* Table B-4, macroblock_type in B-pictures, codes 000001..00011x */
-VLCtab BMBtab1[8]
+XTN VLCtab BMBtab1[8]
 #ifdef GLOBAL
 =
 {

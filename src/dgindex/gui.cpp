@@ -1,5 +1,5 @@
 /* 
- *  Mutated into DGIndex. Modifications Copyright (C) 2004, Donald Graft
+ *  Mutated into DGIndex. Modifications Copyright (C) 2004-2006, Donald Graft
  * 
  *	Copyright (C) Chia-chen Kuo - April 2001
  *
@@ -24,14 +24,9 @@
 #include "resource.h"
 
 #define GLOBAL
-extern "C"
-{
 #include "global.h"
-#include "AC3Dec\ac3.h"
-#include "pat.h"
-}
 
-static char Version[] = "DGIndex 1.4.7";
+static char Version[] = "DGIndex 1.4.8";
 
 #define TRACK_HEIGHT	30
 #define INIT_WIDTH		480
@@ -97,9 +92,8 @@ static char Outfilename[MAX_FILE_NUMBER][_MAX_PATH];
 
 char *ExitOnEnd;
 
-PATParser pat_parser;
-extern "C" int fix_d2v(HWND hWnd, char *path, int silent);
-extern "C" int parse_d2v(HWND hWnd, char *path);
+extern int fix_d2v(HWND hWnd, char *path, int silent);
+extern int parse_d2v(HWND hWnd, char *path);
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
@@ -107,7 +101,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	HACCEL hAccel;
 
 	int i=0;
-	char *ptr,*fptr,*ende;
+	char *ptr, *fptr, *ende;
 	char aFName[_MAX_PATH];
 	char suffix[_MAX_PATH];
 	char *p, *q;
@@ -115,11 +109,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	char ucCmdLine[4096];
 	char delimiter1[2], delimiter2[2], save;
 	char prog[1024];
+	char cwd[1024];
+	int d1, d2;
 
 	// Get the path to the DGIndex executable.
 	GetModuleFileName(NULL, ExePath, 255);
 
-	
 	// Find first char after last backslash.
     if ((ptr = strrchr(ExePath,'\\')) != 0) ptr++;
     else ptr = ExePath;
@@ -144,8 +139,6 @@ NEW_VERSION:
 		SRC_Flag = SRC_NONE;
 		Norm_Ratio = 100;
 		Priority_Flag = PRIORITY_NORMAL;
-		MPEG2_Transport_VideoPID = 0x02;
-		MPEG2_Transport_AudioPID = 0x02;
 		PlaybackSpeed = SPEED_NORMAL;
 		ForceOpenGops = 0;
 		CorrectFieldOrder = 1;
@@ -184,7 +177,7 @@ NEW_VERSION:
 		fscanf(INIFile, "SRC_Precision=%d\n", &SRC_Flag);
 		fscanf(INIFile, "Norm_Ratio=%d\n", &Norm_Ratio);
 		fscanf(INIFile, "Process_Priority=%d\n", &Priority_Flag);
-		fscanf(INIFile, "Transport_PIDs=%x,%x\n", &MPEG2_Transport_VideoPID, &MPEG2_Transport_AudioPID);
+		fscanf(INIFile, "Transport_PIDs=%x,%x\n", &d1, &d2);
 		fscanf(INIFile, "Playback_Speed=%d\n", &PlaybackSpeed);
 		fscanf(INIFile, "Force_Open_Gops=%d\n", &ForceOpenGops);
 		fscanf(INIFile, "Correct_Field_Order=%d\n", &CorrectFieldOrder);
@@ -299,6 +292,9 @@ TEST_END:
 	ResizeWindow(INIT_WIDTH, INIT_HEIGHT);
 	MoveWindow(hWnd, INIT_X, INIT_Y, INIT_WIDTH+Edge_Width, INIT_HEIGHT+Edge_Height+TRACK_HEIGHT, true);
 
+	MPEG2_Transport_VideoPID = 2;
+	MPEG2_Transport_AudioPID = 2;
+
 	// Command line init.
 	strcpy(ucCmdLine, lpCmdLine);
 	strupr(ucCmdLine);
@@ -321,11 +317,150 @@ TEST_END:
 	CheckFlag();
 	CLIActive = 0;
 
+	// First check whether we have "Open With" invocation.
+	if (*lpCmdLine != 0)
+	{
+		#define OUT_OF_FILE 0
+		#define IN_FILE_QUOTED 1
+		#define IN_FILE_BARE 2
+		#define MAX_CMD 2048
+		int tmp, n, i, j, k;
+		int state, ndx;
+		char *swp;
+
+//		MessageBox(hWnd, lpCmdLine, NULL, MB_OK);
+		ptr = lpCmdLine;
+		// Look at the first non-white-space character.
+		// If it is a '-' we have CLI invocation, else
+		// we have "Open With" invocation.
+		while (*ptr == ' ' && *ptr == '\t') ptr++;
+		if (*ptr != '-')
+		{
+			// "Open With" invocation.
+			NumLoadedFiles = 0;
+			// Pick up all the filenames.
+			// The command line will look like this (with the quotes!):
+			// "c:\my dir\file1.vob" c:\dir\file2.vob ...
+			// The paths with spaces have quotes; those without do not.
+			// This is tricky to parse, so use a state machine.
+			state = OUT_OF_FILE;
+			for (k = 0; k < MAX_CMD; k++)
+			{
+				if (state == OUT_OF_FILE)
+				{
+					if (*ptr == 0)
+					{
+						break;
+					}
+					else if (*ptr == ' ')
+					{
+					}
+					else if (*ptr == '"')
+					{
+						state = IN_FILE_QUOTED;
+						ndx = 0;
+					}
+					else
+					{
+						state = IN_FILE_BARE;
+						ndx = 0;
+						cwd[ndx++] = *ptr;
+					}
+				}
+				else if (state == IN_FILE_QUOTED)
+				{
+					if (*ptr == '"')
+					{
+						cwd[ndx] = 0;
+						if ((tmp = _open(cwd, _O_RDONLY | _O_BINARY)) != -1)
+						{
+//							MessageBox(hWnd, "Open OK", NULL, MB_OK);
+							strcpy(Infilename[NumLoadedFiles], cwd);
+							Infile[NumLoadedFiles] = tmp;
+							NumLoadedFiles++;
+						}
+						state = OUT_OF_FILE;
+					}
+					else
+					{
+						cwd[ndx++] = *ptr;
+					}
+				}
+				else if (state == IN_FILE_BARE)
+				{
+					if (*ptr == 0)
+					{
+						cwd[ndx] = 0;
+						if ((tmp = _open(cwd, _O_RDONLY | _O_BINARY)) != -1)
+						{
+//							MessageBox(hWnd, "Open OK", NULL, MB_OK);
+							strcpy(Infilename[NumLoadedFiles], cwd);
+							Infile[NumLoadedFiles] = tmp;
+							NumLoadedFiles++;
+						}
+						break;
+					}
+					else if (*ptr == ' ')
+					{
+						cwd[ndx] = 0;
+						if ((tmp = _open(cwd, _O_RDONLY | _O_BINARY)) != -1)
+						{
+//							MessageBox(hWnd, "Open OK", NULL, MB_OK);
+							strcpy(Infilename[NumLoadedFiles], cwd);
+							Infile[NumLoadedFiles] = tmp;
+							NumLoadedFiles++;
+						}
+						state = OUT_OF_FILE;
+					}
+					else
+					{
+						cwd[ndx++] = *ptr;
+					}
+				}
+				ptr++;
+			}
+			// Sort the filenames.
+			n = NumLoadedFiles;
+			for (i = 0; i < n - 1; i++)
+			{
+				for (j = 0; j < n - 1 - i; j++)
+				{
+					if (strverscmp(Infilename[j+1], Infilename[j]) < 0)
+					{
+						swp = Infilename[j];
+						Infilename[j] = Infilename[j+1];
+						Infilename[j+1] = swp;
+						tmp = Infile[j];
+						Infile[j] = Infile[j+1];
+						Infile[j+1] = tmp;
+					}
+				}
+			}
+			// Start everything up with these files.
+			Recovery();
+			RefreshWindow(true);
+			// Force the following CLI processing to be skipped.
+			*lpCmdLine = 0;
+			if (NumLoadedFiles)
+			{
+				// Start a LOCATE_INIT thread. When it kills itself, it will start a
+				// LOCATE_RIP thread by sending a WM_USER message to the main window.
+				process.rightfile = NumLoadedFiles-1;
+				process.rightlba = (int)(Infilelength[NumLoadedFiles-1]/BUFFER_SIZE);
+				process.end = Infiletotal - BUFFER_SIZE;
+				process.endfile = NumLoadedFiles - 1;
+				process.endloc = (Infilelength[NumLoadedFiles-1]/BUFFER_SIZE - 1)*BUFFER_SIZE;
+				process.locate = LOCATE_INIT;
+				if (!threadId || WaitForSingleObject(hThread, INFINITE)==WAIT_OBJECT_0)
+				  hThread = CreateThread(NULL, 0, MPEG2Dec, 0, 0, &threadId);
+			}
+		}
+	}
+
 	// If command line parameters are present, enter command line interface (CLI) mode.
-	if(*lpCmdLine != 0x00)
+	if(*lpCmdLine != 0)
 	{
 		int tmp;
-		char cwd[1024];
 
 		NumLoadedFiles = 0;
 		SystemStream_Flag = ELEMENTARY_STREAM;
@@ -800,8 +935,9 @@ TEST_END:
 				MuxFile = (FILE *) 0;
 			}
 
-			// Don't pop up warning box for automatic invocation.
+			// Don't pop up warning boxes for automatic invocation.
 			gop_warned = true;
+			crop1088_warned = true;
 			CLIActive = 1;
 			ExitOnEnd = strstr(ucCmdLine,"-EXIT");
 			ptr = lpCmdLine + (ptr - ucCmdLine);
@@ -817,7 +953,6 @@ TEST_END:
 			MessageBox(hWnd, "No output file in HIDE mode! Exiting.", NULL, MB_OK | MB_ICONERROR);
 			exit(0);
 		}
-
 
 		if (NumLoadedFiles)
 		{
@@ -1036,6 +1171,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 						if (WaitForSingleObject(hThread, INFINITE)==WAIT_OBJECT_0)
 							hThread = CreateThread(NULL, 0, MPEG2Dec, 0, 0, &threadId);
+					}
+					break;
+
+				case IDM_DEMUX_AUDIO:
+					process.locate = LOCATE_DEMUX_AUDIO;
+					RunningEnables();
+					ShowInfo(true);
+					if (CLIActive || WaitForSingleObject(hThread, INFINITE)==WAIT_OBJECT_0)
+					{
+						hThread = CreateThread(NULL, 0, MPEG2Dec, 0, 0, &threadId);
 					}
 					break;
 
@@ -1770,7 +1915,11 @@ D2V_PROCESS:
 
 				case IDM_PAUSE:
 					if (Pause_Flag)
+					{
+						// Forces restart of speed control algorithm upon resumption.
+						OldPlaybackSpeed = -1;
 						ResumeThread(hThread);
+					}
 					else
 						SuspendThread(hThread);
 
@@ -2206,7 +2355,6 @@ D2V_PROCESS:
 				fprintf(INIFile, "SRC_Precision=%d\n", SRC_Flag);
 				fprintf(INIFile, "Norm_Ratio=%d\n", 100 * Norm_Flag + Norm_Ratio);
 				fprintf(INIFile, "Process_Priority=%d\n", Priority_Flag);
-				fprintf(INIFile, "Transport_PIDs=%x,%x\n", MPEG2_Transport_VideoPID, MPEG2_Transport_AudioPID);
 				fprintf(INIFile, "Playback_Speed=%d\n", PlaybackSpeed);
 				fprintf(INIFile, "Force_Open_Gops=%d\n", ForceOpenGops);
 				fprintf(INIFile, "Correct_Field_Order=%d\n", CorrectFieldOrder);
@@ -2540,11 +2688,22 @@ static void OpenVideoFile(HWND hVideoListDlg)
 	}
 }
 
-extern "C" unsigned int NextBfr;
-
 void ThreadKill()
 {
 	int i;
+	double film_percent;
+
+	if (AudioOnly_Flag)
+	{
+		_fcloseall();
+		FileLoadedEnables();
+		SendMessage(hTrack, TBM_SETSEL, (WPARAM) true, (LPARAM) MAKELONG(process.trackleft, process.trackright));
+		SetForegroundWindow(hWnd);
+		MessageBeep(MB_OK);	
+		SetDlgItemText(hDlg, IDC_REMAIN, "FINISH");
+		AudioOnly_Flag = 0;
+		ExitThread(0);
+	}
 
 	// Close the quants log if necessary.
 	if (Quants)
@@ -2574,7 +2733,11 @@ void ThreadKill()
 			fprintf(D2VFile, "\nFINISHED");
 			// Prevent divide by 0.
 			if (FILM_Purity+VIDEO_Purity == 0) VIDEO_Purity = 1;
-			fprintf(D2VFile, "  %.2f%% FILM\n", (FILM_Purity*100.0)/(FILM_Purity+VIDEO_Purity));
+			film_percent = (FILM_Purity*100.0)/(FILM_Purity+VIDEO_Purity);
+			if (film_percent >= 50.0)
+				fprintf(D2VFile, "  %.2f%% FILM\n", film_percent);
+			else
+				fprintf(D2VFile, "  %.2f%% VIDEO\n", 100.0 - film_percent);
 			if (CorrectFieldOrder)
 			{
 				char d2vpath[2048];
@@ -2613,7 +2776,7 @@ void ThreadKill()
 		SendMessage(hTrack, TBM_SETSEL, (WPARAM) true, (LPARAM) MAKELONG(process.trackleft, process.trackright));
 	}
 
-	if (process.locate==LOCATE_RIP)
+	if (process.locate == LOCATE_RIP)
 	{
 		SetForegroundWindow(hWnd);
 
@@ -2622,7 +2785,7 @@ void ThreadKill()
 		if (D2V_Flag)
 			SendMessage(hWnd, D2V_DONE_MESSAGE, 0, 0);
 		if (ExitOnEnd) exit(0);
-		else CLIActive= 0;
+		else CLIActive = 0;
 	}
 
 	if (process.locate==LOCATE_INIT || process.locate==LOCATE_RIP)
@@ -2794,11 +2957,13 @@ LRESULT CALLBACK Luminance(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPa
 		case WM_INITDIALOG:
 			SendDlgItemMessage(hDialog, IDC_GAMMA_SPIN, UDM_SETRANGE, 0, MAKELPARAM(511, 1));
 			SendDlgItemMessage(hDialog, IDC_GAMMA_SPIN, UDM_SETPOS, 1, LumGamma + 256);
-			SetDlgItemInt(hDialog, IDC_GAMMA_BOX, LumGamma, 0);
+			sprintf(szTemp, "%d", LumGamma);
+			SetDlgItemText(hDialog, IDC_GAMMA_BOX, szTemp);	
 
 			SendDlgItemMessage(hDialog, IDC_OFFSET_SPIN, UDM_SETRANGE, 0, MAKELPARAM(511, 1));
 			SendDlgItemMessage(hDialog, IDC_OFFSET_SPIN, UDM_SETPOS, 1, LumOffset + 256);
-			SetDlgItemInt(hDialog, IDC_OFFSET_BOX, LumOffset, 0);
+			sprintf(szTemp, "%d", LumOffset);
+			SetDlgItemText(hDialog, IDC_OFFSET_BOX, szTemp);	
 
 			ShowWindow(hDialog, SW_SHOW);
 
@@ -3080,6 +3245,7 @@ bool PopFileDlg(PTSTR pstrFileName, HWND hOwner, int Status)
 		case OPEN_D2V:
 		case OPEN_WAV:
 			gop_warned = false;
+			crop1088_warned = false;
 			*ofn.lpstrFile = 0;
 			ofn.Flags = OFN_HIDEREADONLY | OFN_FILEMUSTEXIST | OFN_ALLOWMULTISELECT | OFN_EXPLORER;
 			return GetOpenFileName(&ofn);
@@ -3453,7 +3619,7 @@ static void Recovery()
 
 	if (NumLoadedFiles)
 	{
-		ZeroMemory(&process, sizeof(PROCESS));
+		ZeroMemory(&process, sizeof(process));
 		process.trackright = TRACK_PITCH;
 
 		Display_Flag = true;
@@ -3692,6 +3858,7 @@ static void StartupEnables(void)
 	EnableMenuItem(hMenu, IDM_LOAD_D2V, MF_ENABLED);
 	EnableMenuItem(hMenu, IDM_SAVE_D2V, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_SAVE_D2V_AND_DEMUX, MF_GRAYED);
+	EnableMenuItem(hMenu, IDM_DEMUX_AUDIO, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_BMP, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_PLAY, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_PREVIEW, MF_GRAYED);
@@ -3769,6 +3936,7 @@ static void FileLoadedEnables(void)
 	EnableMenuItem(hMenu, IDM_LOAD_D2V, MF_ENABLED);
 	EnableMenuItem(hMenu, IDM_SAVE_D2V, MF_ENABLED);
 	EnableMenuItem(hMenu, IDM_SAVE_D2V_AND_DEMUX, MF_ENABLED);
+	EnableMenuItem(hMenu, IDM_DEMUX_AUDIO, MF_ENABLED);
 	EnableMenuItem(hMenu, IDM_BMP, MF_ENABLED);
 	EnableMenuItem(hMenu, IDM_PLAY, MF_ENABLED);
 	EnableMenuItem(hMenu, IDM_PREVIEW, MF_ENABLED);
@@ -3811,6 +3979,7 @@ static void RunningEnables(void)
 	EnableMenuItem(hMenu, IDM_LOAD_D2V, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_SAVE_D2V, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_SAVE_D2V_AND_DEMUX, MF_GRAYED);
+	EnableMenuItem(hMenu, IDM_DEMUX_AUDIO, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_BMP, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_PLAY, MF_GRAYED);
 	EnableMenuItem(hMenu, IDM_PREVIEW, MF_GRAYED);
