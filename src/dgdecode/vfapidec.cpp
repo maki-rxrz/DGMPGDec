@@ -42,10 +42,6 @@ CMPEG2Decoder::CMPEG2Decoder()
   Rdptr = Rdmax = 0;
   CurrentBfr = NextBfr = BitsLeft = Val = Read = 0;
   Fault_Flag = File_Flag = File_Limit = FO_Flag = IDCT_Flag = SystemStream_Flag = 0;
-
-	MPEG2_Transport_AudioPID = 0x14;  // primary value for many US DTV broadcasters
-	MPEG2_Transport_VideoPID = 0x11;  // primary value for many US DTV broadcasters
-
   Luminance_Flag = false;
   BufferOp = 0;
   memset(intra_quantizer_matrix, 0, sizeof(intra_quantizer_matrix));
@@ -82,7 +78,7 @@ int CMPEG2Decoder::Open(const char *path)
 
 	Choose_Prediction(this->fastMC);
 
-	char ID[80], PASS[80] = "DGIndexProjectFile13";
+	char ID[80], PASS[80] = "DGIndexProjectFile16";
 	DWORD i, j, size, code, type, tff, rff, film, ntsc, gop, top, bottom, mapping;
 	int repeat_on, repeat_off, repeat_init;
 	int vob_id, cell_id;
@@ -112,8 +108,12 @@ int CMPEG2Decoder::Open(const char *path)
 	}
 
 	fscanf(out->VF_File, "\nStream_Type=%d\n", &SystemStream_Flag);
-	if ( SystemStream_Flag == 2 )
-		fscanf(out->VF_File, "MPEG2_Transport_PID=%x,%x\n", &MPEG2_Transport_VideoPID,	&MPEG2_Transport_AudioPID);
+	if (SystemStream_Flag == 2)
+	{
+		fscanf(out->VF_File, "MPEG2_Transport_PID=%x,%x,%x\n",
+			   &MPEG2_Transport_VideoPID, &MPEG2_Transport_AudioPID, &MPEG2_Transport_PCRPID);
+		fscanf(out->VF_File, "Transport_Packet_Size=%d\n", &TransportPacketSize);
+	}
 	fscanf(out->VF_File, "MPEG_Type=%d\n", &mpeg_type);
 	fscanf(out->VF_File, "iDCT_Algorithm=%d\n", &IDCT_Flag);
 
@@ -306,6 +306,8 @@ int CMPEG2Decoder::Open(const char *path)
 			while (*buf_p++ != ' ');
 			position = _atoi64(buf_p);
 			while (*buf_p++ != ' ');
+			sscanf(buf_p, "%d", &(GOPList[gop]->I_count));
+			while (*buf_p++ != ' ');
 			sscanf(buf_p, "%d %d", &vob_id, &cell_id);
 			while (*buf_p++ != ' ');
 			while (*buf_p++ != ' ');
@@ -354,6 +356,9 @@ int CMPEG2Decoder::Open(const char *path)
 
 		if (FO_Flag==FO_FILM)
 		{
+			// Force Film not currently supported for frame repeats.
+			if (GOPList[gop-1]->progressive)
+					return 6;
 			if (rff)
 				repeat_on++;
 			else
@@ -403,42 +408,63 @@ int CMPEG2Decoder::Open(const char *path)
 		}
 		else
 		{
-			if (top)
-			{
-				FrameList[ntsc].bottom = film;
-				ntsc ++;
-				FrameList[ntsc].top = film;
-			}
-			else if (bottom)
+			if (GOPList[gop-1]->progressive)
 			{
 				FrameList[ntsc].top = film;
-				ntsc ++;
 				FrameList[ntsc].bottom = film;
+				ntsc++;
+				if (FO_Flag != FO_RAW && rff)
+				{
+					FrameList[ntsc].top = film;
+					FrameList[ntsc].bottom = film;
+					ntsc++;
+					if (tff)
+					{
+						FrameList[ntsc].top = film;
+						FrameList[ntsc].bottom = film;
+						ntsc++;
+					}
+				}
 			}
 			else
 			{
-				FrameList[ntsc].top = film;
-				FrameList[ntsc].bottom = film;
-				ntsc ++;
-			}
-
-			if (rff)
-			{
-				if (tff)
+				if (top)
+				{
+					FrameList[ntsc].bottom = film;
+					ntsc++;
+					FrameList[ntsc].top = film;
+				}
+				else if (bottom)
 				{
 					FrameList[ntsc].top = film;
-					top = 1;
+					ntsc++;
+					FrameList[ntsc].bottom = film;
 				}
 				else
 				{
+					FrameList[ntsc].top = film;
 					FrameList[ntsc].bottom = film;
-					bottom = 1;
+					ntsc++;
 				}
 
-				if (top && bottom)
+				if (rff)
 				{
-					top = bottom = 0;
-					ntsc ++;
+					if (tff)
+					{
+						FrameList[ntsc].top = film;
+						top = 1;
+					}
+					else
+					{
+						FrameList[ntsc].bottom = film;
+						bottom = 1;
+					}
+
+					if (top && bottom)
+					{
+						top = bottom = 0;
+						ntsc++;
+					}
 				}
 			}
 		}
@@ -620,13 +646,13 @@ __try
 					tmp = saved_active;
 					saved_active = saved_store;
 					saved_store = tmp;
-					Copyall(dst, saved_store);
+					CopyAll(dst, saved_store);
 				}
 			}
 			else
 			{
 				// We already decoded the needed frame. Retrieve it.
-				Copyall(saved_store, dst);
+				CopyAll(saved_store, dst);
 			}
 
 			// Perform pulldown if required.
@@ -634,11 +660,11 @@ __try
 			{
 				if (FrameList[frame].top > FrameList[frame].bottom)
 				{
-					Copyeven(saved_active, dst);
+					CopyBot(saved_active, dst);
 				}	
 				else if (FrameList[frame].top < FrameList[frame].bottom)
 				{
-					Copyodd(saved_active, dst);
+					CopyTop(saved_active, dst);
 				}
 			}
 		}
@@ -648,11 +674,7 @@ __try
 	else prev_frame = requested_frame;
 
 	// Have to do random access.
-	f = FrameList[frame].top;
-	if (FrameList[frame].top < FrameList[frame].bottom)
-	{
-		f = FrameList[frame].bottom;
-	}
+	f = max(FrameList[frame].top, FrameList[frame].bottom);
 
 	// Determine the GOP that the requested frame is in.
 	for (gop = 0; gop < VF_GOPLimit-1; gop++)
@@ -670,8 +692,16 @@ __try
 	// the previous encoded frame requires it, because that one might be pulled
 	// down for this frame. This can be improved by actually testing if the
 	// previous frame will be pulled down.
-	if (gop && (DirectAccess[f] == 0 || (f && DirectAccess[f-1] == 0)))
-		gop--;
+	// Obviously we can't decrement gop if it is 0.
+	if (gop)
+	{
+		if (DirectAccess[f] == 0 || (f && DirectAccess[f-1] == 0))
+			gop--;
+		// This covers the special case where a field of the previous GOP is
+		// pulled down into the current GOP.
+		else if (f == GOPList[gop]->number && FrameList[frame].top != FrameList[frame].bottom)
+			gop--;
+	}
 
 	// Calculate how many frames to decode.
 	count = f - GOPList[gop]->number;
@@ -684,36 +714,48 @@ __try
 	Initialize_Buffer();
 
 	// Start decoding. Stop when the requested frame is decoded.
-	// First get the starting I frame of the GOP.
-	HadI = 0;
-	while (true)
+	// First decode the required I picture of the D2V index line.
+	// An indexed unit (especially a pack) can contain multiple I frames.
+	// If we did nothing we would have multiple D2V lines with the same position
+	// and the navigation code in DGDecode would be confused. We detect this in DGIndex
+	// by seeing how many previous lines we have written with the same position.
+	// We store that number in the D2V file and DGDecode uses that as the
+	// number of I frames to skip before settling on the required one.
+	// So, in fact, we are indexing position plus number of I frames to skip.
+	for (i = 0; i <= GOPList[gop]->I_count; i++)
 	{
-		if (!Get_Hdr())
+		HadI = 0;
+		while (true)
 		{
-			// Something is really messed up.
-			return;
-		}
-		Decode_Picture(dst);
-		if (picture_coding_type == I_TYPE)
-			HadI = 1;
-		if (picture_structure != FRAME_PICTURE)
-		{
-			Get_Hdr();
+			if (!Get_Hdr())
+			{
+				// Something is really messed up.
+				return;
+			}
 			Decode_Picture(dst);
 			if (picture_coding_type == I_TYPE)
 				HadI = 1;
-			if (Second_Field == 1)
+			if (picture_structure != FRAME_PICTURE)
 			{
 				Get_Hdr();
 				Decode_Picture(dst);
+				if (picture_coding_type == I_TYPE)
+					HadI = 1;
+				// The reason for this next test is quite technical. For details
+				// refer to the file CodeNote1.txt.
+				if (Second_Field == 1)
+				{
+					Get_Hdr();
+					Decode_Picture(dst);
+				}
 			}
+			if (HadI) break;
 		}
-		if (HadI) break;
 	}
 	Second_Field = 0;
 	if (HaveRFFs == true && count == 0)
 	{
-		Copyall(dst, saved_active);
+		CopyAll(dst, saved_active);
 	}
 	if (!Get_Hdr())
 	{
@@ -734,7 +776,7 @@ __try
 	}
 	if (HaveRFFs == true && count == 1)
 	{
-		Copyall(dst, saved_active);
+		CopyAll(dst, saved_active);
 	}
 	for (i = 0; i < count; i++)
 	{
@@ -757,23 +799,23 @@ __try
 		}
 		if ((HaveRFFs == true) && (count > 1) && (i == count - 2))
 		{
-			Copyall(dst, saved_active);
+			CopyAll(dst, saved_active);
 		}
 	}
 
 	if (HaveRFFs == true)
 	{
 		// Save for transition to non-random mode.
-		Copyall(dst, saved_store);
+		CopyAll(dst, saved_store);
 
 		// Pull down a field if needed.
 		if (FrameList[frame].top > FrameList[frame].bottom)
 		{
-			Copyeven(saved_active, dst);
+			CopyBot(saved_active, dst);
 		}	
 		else if (FrameList[frame].top < FrameList[frame].bottom)
 		{
-			Copyodd(saved_active, dst);
+			CopyTop(saved_active, dst);
 		}
 	}
 	return;
@@ -920,7 +962,7 @@ void CMPEG2Decoder::CopyPlane(unsigned char *src, int src_pitch, unsigned char *
 	}
 }
 
-void CMPEG2Decoder::Copyall(YV12PICT *src, YV12PICT *dst)
+void CMPEG2Decoder::CopyAll(YV12PICT *src, YV12PICT *dst)
 {
 	int tChroma_Height = (upConv > 0 && chroma_format == 1) ? Chroma_Height*2 : Chroma_Height;
 	if ( AVSenv )
@@ -937,7 +979,7 @@ void CMPEG2Decoder::Copyall(YV12PICT *src, YV12PICT *dst)
 	}
 }
 
-void CMPEG2Decoder::Copyodd(YV12PICT *src, YV12PICT *dst)
+void CMPEG2Decoder::CopyTop(YV12PICT *src, YV12PICT *dst)
 {
 	int tChroma_Height = (upConv > 0 && chroma_format == 1) ? Chroma_Height*2 : Chroma_Height;
 	if ( AVSenv )
@@ -954,7 +996,7 @@ void CMPEG2Decoder::Copyodd(YV12PICT *src, YV12PICT *dst)
 	}
 }
 
-void CMPEG2Decoder::Copyeven(YV12PICT *src, YV12PICT *dst)
+void CMPEG2Decoder::CopyBot(YV12PICT *src, YV12PICT *dst)
 {
 	int tChroma_Height = (upConv > 0 && chroma_format == 1) ? Chroma_Height*2 : Chroma_Height;
 	if ( AVSenv )
@@ -971,7 +1013,7 @@ void CMPEG2Decoder::Copyeven(YV12PICT *src, YV12PICT *dst)
 	}
 }
 
-void CMPEG2Decoder::Copyoddeven(YV12PICT *odd, YV12PICT *even, YV12PICT *dst)
+void CMPEG2Decoder::CopyTopBot(YV12PICT *odd, YV12PICT *even, YV12PICT *dst)
 {
 	int tChroma_Height = (upConv > 0 && chroma_format == 1) ? Chroma_Height*2 : Chroma_Height;
 	cpy_oddeven(odd->y,odd->ypitch*2,even->y+even->ypitch,even->ypitch*2,dst->y,dst->ypitch,dst->ywidth,Coded_Picture_Height>>1,0);

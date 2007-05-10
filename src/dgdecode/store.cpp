@@ -207,7 +207,7 @@ void CMPEG2Decoder::assembleFrame(unsigned char *src[], int pf, YV12PICT *dst)
 				conv420to422(psrc.v,dst->v,1,psrc.uvpitch,dst->uvpitch,Coded_Picture_Width,Coded_Picture_Height);
 			}
 		}
-		else Copyall(&psrc,dst);
+		else CopyAll(&psrc,dst);
 	}
 
 	if (showQ)

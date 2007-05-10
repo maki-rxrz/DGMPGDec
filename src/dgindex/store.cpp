@@ -35,7 +35,6 @@ static BITMAPINFOHEADER birgb, birgbsmall;
 
 static char VideoOut[_MAX_PATH];
 static unsigned char *y444;
-static int playback, Old_Playback;
 static long frame_size;
 static bool TFF, RFF, TFB, BFB, frame_type;
 
@@ -46,7 +45,6 @@ static char *FrameType[] = {
 void Write_Frame(unsigned char *src[], D2VData d2v, DWORD frame)
 {
 	int repeat;
-	char *ext, szTemp[_MAX_PATH];
 
 	frame_type = d2v.pf;
 	TFF = d2v.trf>>1;
@@ -55,23 +53,10 @@ void Write_Frame(unsigned char *src[], D2VData d2v, DWORD frame)
 	else
 		RFF = d2v.trf & 0x01;
 
-	// Update the main window title bar.
-	sprintf(szBuffer, "DGIndex - ");
-	ext = strrchr(Infilename[CurrentFile], '\\');
-	strncat(szBuffer, ext+1, strlen(Infilename[0])-(int)(ext-Infilename[0]));
-	sprintf(szTemp, " [%dx%d] [File %d/%d]", Clip_Width, Clip_Height, CurrentFile+1, NumLoadedFiles);
-	strcat(szBuffer, szTemp);
-	if (VOB_ID && CELL_ID)
-	{
-		sprintf(szTemp, " [Vob %d] [Cell %d]", VOB_ID, CELL_ID);
-		strcat(szBuffer, szTemp);
-	}
-	SetWindowText(hWnd, szBuffer);
-
 	if (!frame)
 	{
 		TFB = BFB = false;
-		playback = Old_Playback = 0;
+		playback = frame_repeats = field_repeats = Old_Playback = 0;
 		frame_size = 0;
 
 		Clip_Width = horizontal_size;
@@ -136,25 +121,69 @@ void Write_Frame(unsigned char *src[], D2VData d2v, DWORD frame)
 		birgbsmall.biCompression = BI_RGB;
 		birgbsmall.biSizeImage = Clip_Width * Clip_Height * 3;
 
-		if (FO_Flag!=FO_FILM)
+		if (TFF)
+			SetDlgItemText(hDlg, IDC_FIELD_ORDER, "Top");
+		else
+			SetDlgItemText(hDlg, IDC_FIELD_ORDER, "Bottom");
+	}
+
+	if (progressive_sequence)
+	{
+		DetectVideoType(frame, d2v.trf);
+		if (chroma_format==CHROMA420)
 		{
-			if (TFF)
-				SetDlgItemText(hDlg, IDC_FIELD_ORDER, "Top");
-			else
-				SetDlgItemText(hDlg, IDC_FIELD_ORDER, "Bottom");
+			conv420to422(src[1], u422, frame_type);
+			conv420to422(src[2], v422, frame_type);
+
+			conv422to444(u422, u444);
+			conv422to444(v422, v444);
+		}
+		else
+		{
+			conv422to444(src[1], u444);
+			conv422to444(src[2], v444);
+		}
+
+		if (Luminance_Flag)
+		{
+			LuminanceFilter(src[0], lum);
+			y444 = lum;
+		}
+		else
+			y444 = src[0];
+		conv444toRGB24odd(y444, u444, v444, rgb24);
+		conv444toRGB24even(y444, u444, v444, rgb24);
+		TFB = BFB = true;
+		FlushRGB24();
+		if ((FO_Flag != FO_RAW) && (d2v.trf & 1))
+		{
+			TFB = BFB = true;
+			FlushRGB24();
+			frame_repeats++;
+			if (d2v.trf & 2)
+			{
+				TFB = BFB = true;
+				FlushRGB24();
+				frame_repeats++;
+			}
 		}
 	}
-
-	repeat = DetectVideoType(frame, d2v.trf);
-
-	if (FO_Flag != FO_FILM || repeat)
+	else
 	{
-		Store_RGB24(src);
-	}
+		repeat = DetectVideoType(frame, d2v.trf);
 
-	if (FO_Flag != FO_FILM && repeat==2)
-	{
-		Store_RGB24(src);
+		if ((FO_Flag != FO_RAW) && (d2v.trf & 1))
+			field_repeats++;
+
+		if (FO_Flag != FO_FILM || repeat)
+		{
+			Store_RGB24(src);
+		}
+
+		if (FO_Flag != FO_FILM && repeat==2)
+		{
+			Store_RGB24(src);
+		}
 	}
 
 	if (Info_Flag && process.locate==LOCATE_RIP)
@@ -162,10 +191,34 @@ void Write_Frame(unsigned char *src[], D2VData d2v, DWORD frame)
 		sprintf(szBuffer, "%s", FrameType[frame_type]);
 		SetDlgItemText(hDlg, IDC_FRAME_TYPE, szBuffer);
 
-		sprintf(szBuffer, "%s", matrix_coefficients == 7 ? "SMPTE 240M" :
-								matrix_coefficients == 6 ? "SMPTE 170M" :
-								matrix_coefficients == 5 ? "ITU-R BT.470-2" :
-								matrix_coefficients == 4 ? "FCC" : "ITU-R BT.709");
+        switch (matrix_coefficients)
+        {
+        case 1:
+		    sprintf(szBuffer, "%s", "BT.709");
+            break;
+        case 2:
+		    sprintf(szBuffer, "%s", "Unknown");
+            break;
+        case 3:
+		    sprintf(szBuffer, "%s", "Reserved");
+            break;
+        case 4:
+		    sprintf(szBuffer, "%s", "BT.470-2 M");
+            break;
+        case 5:
+		    sprintf(szBuffer, "%s", "BT.470-2 B,G");
+            break;
+        case 6:
+		    sprintf(szBuffer, "%s", "SMPTE 170M");
+            break;
+        case 7:
+		    sprintf(szBuffer, "%s", "SMPTE 240M");
+            break;
+        case 0:
+        default:
+		    sprintf(szBuffer, "%s", "Reserved");
+            break;
+        }
 		SetDlgItemText(hDlg, IDC_COLORIMETRY, szBuffer);
 
 		sprintf(szBuffer, "%s", picture_structure == 3 ? "Frame" : "Field");
@@ -176,6 +229,12 @@ void Write_Frame(unsigned char *src[], D2VData d2v, DWORD frame)
 
 		sprintf(szBuffer, "%d", playback);
 		SetDlgItemText(hDlg, IDC_PLAYBACK_NUMBER, szBuffer);
+
+		sprintf(szBuffer, "%d", frame_repeats);
+		SetDlgItemText(hDlg, IDC_FRAME_REPEATS, szBuffer);
+
+		sprintf(szBuffer, "%d", field_repeats);
+		SetDlgItemText(hDlg, IDC_FIELD_REPEATS, szBuffer);
 
 		if ((frame & 31) == 31)
 		{
@@ -329,6 +388,24 @@ int DetectVideoType(int frame, int trf)
 {
 	static int Old_TRF, Repeat_On, Repeat_Off;
 	static bool Repeat_Init;
+
+	if (progressive_sequence)
+	{
+		if (frame)
+		{
+			if ((trf == 3 && Old_TRF == 1) || (trf == 1 && Old_TRF == 3))
+				FILM_Purity++;
+			else
+				VIDEO_Purity++;
+		}
+		else
+		{
+			FILM_Purity = VIDEO_Purity = Repeat_On = Repeat_Off = 0;
+			Repeat_Init = false;
+		}
+		Old_TRF = trf;
+		return 0;
+	}
 
 	if (frame)
 	{

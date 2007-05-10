@@ -33,7 +33,6 @@ static void video_parser(int *);
 static void pack_parser(void);
 static unsigned char get_byte(void);
 
-static int stream_type;
 static int file;
 static int state, found;
 // Should hold maximum size PES packet.
@@ -68,7 +67,7 @@ int initial_parse(char *input_file, int *mpeg_type_p, int *is_program_stream_p)
 	{
 		return -1;
 	}
-	*is_program_stream_p = stream_type;
+	*is_program_stream_p = program_stream_type;
 	return 0;
 }
 
@@ -76,7 +75,7 @@ static unsigned char get_byte(void)
 {
 	unsigned char val;
 
-	if (stream_type != ELEMENTARY_STREAM)
+	if (program_stream_type != ELEMENTARY_STREAM)
 	{
 		if (buffer_ndx >= buffer_length)
 		{
@@ -246,7 +245,7 @@ static void pack_parser(void)
 			{
 				// Pack header. Skip it.
 				if (_read(file, &val, 1) != 1) { EOF_reached = 1; return; }
-				if (stream_type == MPEG1_PROGRAM_STREAM)
+				if (program_stream_type == MPEG1_PROGRAM_STREAM)
 				{
 					// MPEG1 program stream.
 					if (_read(file, buffer, 7) != 7) { EOF_reached = 1; return; }
@@ -277,7 +276,7 @@ static void pack_parser(void)
 				pes_packet_length = (unsigned short) (val << 8);
 				if (_read(file, &val2, 1) != 1)  { EOF_reached = 1; return; }
 				pes_packet_length |= val2;
-				if (stream_type == MPEG1_PROGRAM_STREAM)
+				if (program_stream_type == MPEG1_PROGRAM_STREAM)
 				{
 					// MPEG1 program stream.
 					pes_packet_header_length = 0;
@@ -364,7 +363,7 @@ static void determine_stream_type(void)
 
 	// Start by assuming ES. Then look for a valid pack start. If one
 	// is found declare a program stream.
-	stream_type = ELEMENTARY_STREAM;
+	program_stream_type = ELEMENTARY_STREAM;
 
 	// Look for start codes.
 	state = NEED_FIRST_0;
@@ -419,7 +418,7 @@ static void determine_stream_type(void)
 					if (_read(file, &val, 1) != 1) { EOF_reached = 1; return; }
 					if (!(val & 1)) continue;
 					// MPEG1 program stream.
-					stream_type = MPEG1_PROGRAM_STREAM;
+					program_stream_type = MPEG1_PROGRAM_STREAM;
 					break;
 				}
 				else if ((val & 0xc0) == 0x40)
@@ -439,7 +438,7 @@ static void determine_stream_type(void)
 					if (_read(file, &val, 1) != 1) { EOF_reached = 1; return; }
 					if (!(val & 0x03)) continue;
 					// MPEG2 program stream.
-					stream_type = MPEG2_PROGRAM_STREAM;
+					program_stream_type = MPEG2_PROGRAM_STREAM;
 					break;
 				}
 			}

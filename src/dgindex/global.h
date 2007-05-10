@@ -52,7 +52,6 @@
 // Messages to the window procedure.
 #define CLI_RIP_MESSAGE			(WM_APP)
 #define D2V_DONE_MESSAGE		(WM_APP + 1)
-#define SET_WINDOW_TEXT_MESSAGE	(WM_APP + 2)
 
 /* code definition */
 #define PICTURE_START_CODE			0x100
@@ -71,6 +70,7 @@
 #define VIDEO_ELEMENTARY_STREAM		0x1E0
 
 #define PRIVATE_STREAM_1			0x1BD
+#define BLURAY_STREAM_1			    0x1FD
 #define PRIVATE_STREAM_2			0x1BF
 #define AUDIO_ELEMENTARY_STREAM_0	0x1C0
 #define AUDIO_ELEMENTARY_STREAM_1	0x1C1
@@ -132,9 +132,7 @@
 #define BUFFER_SIZE				2048
 #define MAX_FILE_NUMBER			512
 #define MAX_PICTURES_PER_GOP	500
-
-#define STORE_RGB24		1
-#define STORE_YUY2		2
+#define MAX_GOPS				1000000
 
 #define IDCT_MMX		1
 #define IDCT_SSEMMX		2
@@ -166,8 +164,9 @@
 #define FORMAT_AC3			1
 #define FORMAT_MPA			2
 #define FORMAT_LPCM			3
-#define FORMAT_DTS			4
-#define FORMAT_AAC			5
+#define FORMAT_LPCM_M2TS	4
+#define FORMAT_DTS			5
+#define FORMAT_AAC			6
 
 #define AUDIO_NONE			0
 #define AUDIO_DEMUX			1
@@ -202,6 +201,9 @@ typedef struct {
 }	D2VData;
 XTN D2VData d2v_backward, d2v_forward, d2v_current;
 
+XTN __int64 gop_positions[MAX_GOPS];
+XTN int gop_positions_ndx;
+
 XTN int Channel[CHANNEL], Sound_Max;
 
 typedef struct {
@@ -229,6 +231,7 @@ typedef struct {
 	int						size;
 	int						delay;
 	unsigned char			format;
+	unsigned short			format_m2ts;
 } PCMStream;
 XTN PCMStream pcm[CHANNEL];
 
@@ -290,11 +293,11 @@ XTN int SystemStream_Flag;
 #define PROGRAM_STREAM 1
 #define TRANSPORT_STREAM 2
 #define PVA_STREAM 3
+XTN int program_stream_type;
 XTN __int64 PackHeaderPosition;
 
 XTN int LeadingBFrames;
 XTN int ForceOpenGops;
-XTN int CorrectFieldOrder;
 XTN char AVSTemplatePath[_MAX_PATH];
 XTN int FullPathInFiles;
 XTN int UseOverlay;
@@ -302,6 +305,7 @@ XTN int FusionAudio;
 
 XTN bool Luminance_Flag;
 XTN bool Cropping_Flag;
+XTN int Clip_Width, Clip_Height; 
 
 XTN int Method_Flag;
 // Track_Flag is now bit-mapped: bit 0 means track 1 enabled,
@@ -333,7 +337,7 @@ XTN char D2VFilePath[_MAX_PATH];
 XTN char AudioFilePath[_MAX_PATH];
 XTN int VOB_ID, CELL_ID;
 XTN FILE *MuxFile;
-#define D2V_FILE_VERSION 13
+#define D2V_FILE_VERSION 16
 
 XTN int WindowMode;
 XTN HWND hWnd, hDlg, hTrack;
@@ -345,6 +349,8 @@ XTN unsigned char *u422, *v422, *u444, *v444, *rgb24, *rgb24small, *yuy2, *lum;
 XTN __int64 RGB_Scale, RGB_Offset, RGB_CRV, RGB_CBU, RGB_CGX;
 XTN int LumGamma, LumOffset;
 
+XTN	unsigned int elapsed, remain;
+XTN int playback, frame_repeats, field_repeats, Old_Playback;
 XTN int PlaybackSpeed, OldPlaybackSpeed;
 XTN bool RightArrowHit;
 #define SPEED_SINGLE_STEP	0
@@ -397,6 +403,9 @@ XTN int aspect_ratio_information;
 XTN int progressive_sequence;
 XTN int chroma_format;
 
+/* ISO/IEC 13818-2 section 6.2.2.6:  group_of_pictures_header() */
+XTN int closed_gop;
+
 /* ISO/IEC 13818-2 section 6.2.3: picture_header() */
 XTN int temporal_reference;
 XTN int picture_coding_type;
@@ -405,8 +414,6 @@ XTN int StartTemporalReference;
 XTN int PTSAdjustDone;
 // Default to ITU-709.
 XTN int matrix_coefficients;
-XTN int closed_gop_prev;
-XTN int progressive_sequence_prev;
 
 /* ISO/IEC 13818-2 section 6.2.3.1: picture_coding_extension() header */
 XTN int f_code[2][2];
@@ -434,6 +441,7 @@ XTN void Decode_Picture(void);
 XTN void WriteD2VLine(int);
 
 /* gui.cpp */
+XTN void UpdateWindowText();
 XTN void ThreadKill(void);
 XTN void CheckDirectDraw(void);
 XTN void ResizeWindow(int width, int height);
@@ -495,8 +503,10 @@ static char *AspectRatioMPEG1[] = {
 	"1.0695", "4:3,525", "1.575", "1.2015"
 };
 
+XTN int TransportPacketSize;
 XTN int MPEG2_Transport_VideoPID;
 XTN int MPEG2_Transport_AudioPID;
+XTN int MPEG2_Transport_PCRPID;
 XTN int MPEG2_Transport_AudioType;
 #define PID_DETECT_RAW 0
 #define PID_DETECT_PATPMT 1

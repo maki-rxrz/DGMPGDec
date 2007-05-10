@@ -13,7 +13,8 @@ int parse_d2v(HWND hWnd, char *szInput)
 	int i, fill, val, prev_val = -1, ndx = 0, count = 0, fdom = -1;
 	int D2Vformat = 0;
 	int vob, cell;
-	unsigned int gop_field, field_operation, frame_rate, hour, min, sec;
+	unsigned int gop_field, field_operation, frame_rate, hour, min;
+	double sec;
 	char render[128], temp[20];
 	int type;
 	
@@ -89,6 +90,7 @@ int parse_d2v(HWND hWnd, char *szInput)
 		sscanf(p, "%x", &gop_field);
 		if (gop_field & 0x100)
 			fprintf(wfp, "[GOP]\n");
+		while (*p++ != ' ');
 		while (*p++ != ' ');
 		while (*p++ != ' ');
 		while (*p++ != ' ');
@@ -193,19 +195,106 @@ int parse_d2v(HWND hWnd, char *szInput)
 		}
 	} while ((fgets(line, 2048, fp) != 0) &&
 			 ((line[0] >= '0' && line[0] <= '9') || (line[0] >= 'a' && line[0] <= 'f')));
-	sec = (int)(((float)(ndx + count / 2)) * 1000.0 / frame_rate);
-	hour = sec / 3600;
+	sec = ((float)(ndx + count / 2)) * 1000.0 / frame_rate;
+	hour = (int) (sec / 3600);
 	sec -= hour * 3600;
-	min = sec / 60;
+	min = (int) (sec / 60);
 	sec -= min * 60;
-	fprintf(wfp, "Running time = %d hours, %d minutes, %d seconds\n", hour, min, sec);
+	fprintf(wfp, "Running time = %d hours, %d minutes, %f seconds\n", hour, min, sec);
 
 	fclose(fp);
 	fclose(wfp);
 	return 1;
 }
 
-int fix_d2v(HWND hWnd, char *Input, int silent)
+int analyze_sync(HWND hWnd, char *Input, int track)
+{
+	FILE *fp, *wfp;
+	char line[2048], *p;
+	unsigned int vpts, apts;
+	int delay, ref;
+	double rate;
+	char track_str[10], tmp[20];
+
+	sprintf(track_str, " A%d", track);
+	fp = fopen(Input, "r");
+	if (fp == 0)
+	{
+		MessageBox(hWnd, "Cannot open the dump file!", NULL, MB_OK | MB_ICONERROR);
+		return 0;
+	}
+	// Check that it is a timestamps dump file
+	fgets(line, 1024, fp);
+	if (strncmp(line, "DGIndex Timestamps Dump", 23) != 0)
+	{
+		MessageBox(hWnd, "The file is not a DGIndex timestamps dump file!", NULL, MB_OK | MB_ICONERROR);
+		fclose(fp);
+		return 0;
+	}
+
+	// Mutate the file name to the output text file to receive the parsed data.
+	p = &szInput[strlen(Input)];
+	while (*p != '.') p--;
+	p[1] = 0;
+	sprintf(tmp, "delayT%d.txt", track);
+	strcat(p, tmp);
+	// Open the output file.
+	wfp = fopen(szInput, "w");
+	if (wfp == 0)
+	{
+		MessageBox(hWnd, "Cannot create the output file!", NULL, MB_OK | MB_ICONERROR);
+		return 0;
+	}
+	fprintf(wfp, "Delay Analysis Output (Track %d)\n\n", track + 1);
+
+	fgets(line, 1024, fp);
+	fgets(line, 1024, fp);
+	p = line;
+	while (*p++ != '=');
+	sscanf(p, "%Lf", &rate);
+next_vpts:
+	while (fgets(line, 1024, fp) != 0)
+	{
+		if (!strncmp(line, "V PTS", 5))
+		{
+			p = line;
+			while (*p++ != '[');
+			sscanf(p, "%d", &vpts);
+			while (fgets(line, 1024, fp) != 0)
+			{
+				if (!strncmp(line, "Decode picture", 14))
+				{
+					p = line + 35;
+					sscanf(p, "%d", &ref);
+					while (*p++ != '[');
+					if (*p != 'I')
+						goto next_vpts;
+					fprintf(wfp, "%s", line);
+					break;
+				}
+			}
+			vpts -= (unsigned int) ((1000.0 * ref) / rate);
+			while (fgets(line, 1024, fp) != 0)
+			{
+				if (!strncmp(line, track_str, 3))
+				{
+					p = line;
+					while (*p++ != '[');
+					sscanf(p, "%d", &apts);
+					delay = apts - vpts;
+					fprintf(wfp, "delay = %d\n", delay);
+					break;
+				}
+			}
+		}
+	}
+	fclose(fp);
+	fclose(wfp);
+
+	return 1;
+}
+	
+int fix_d2v(HWND hWnd, char *Input, int test_only)
 {
 	FILE *fp, *wfp, *dfp;
 	char line[2048], prev_line[2048], wfile[2048], logfile[2048], *p, *q;
@@ -235,41 +324,44 @@ int fix_d2v(HWND hWnd, char *Input, int silent)
 		return 0;
 	}
 
-	strcpy(wfile, Input);
-	strcat(wfile,".fixed");
-	wfp = fopen(wfile, "w");
-	if (wfp == 0)
+	if (!test_only)
 	{
-		MessageBox(hWnd, "Cannot create the fixed D2V file!", NULL, MB_OK | MB_ICONERROR);
-		fclose(fp);
-		return 0;
-	}
-	fputs(line, wfp);
-	// Mutate the file name to the output text file to receive processing status information.
-	strcpy(logfile, Input);
-	p = &logfile[strlen(logfile)];
-	while (*p != '.') p--;
-	p[1] = 0;
-	strcat(p, "fix.txt");
-	// Open the output file.
-	dfp = fopen(logfile, "w");
-	if (dfp == 0)
-	{
-		fclose(fp);
-		fclose(wfp);
-		MessageBox(hWnd, "Cannot create the info output file!", NULL, MB_OK | MB_ICONERROR);
-		return 0;
-	}
+		strcpy(wfile, Input);
+		strcat(wfile,".fixed");
+		wfp = fopen(wfile, "w");
+		if (wfp == 0)
+		{
+			MessageBox(hWnd, "Cannot create the fixed D2V file!", NULL, MB_OK | MB_ICONERROR);
+			fclose(fp);
+			return 0;
+		}
+		fputs(line, wfp);
+		// Mutate the file name to the output text file to receive processing status information.
+		strcpy(logfile, Input);
+		p = &logfile[strlen(logfile)];
+		while (*p != '.') p--;
+		p[1] = 0;
+		strcat(p, "fix.txt");
+		// Open the output file.
+		dfp = fopen(logfile, "w");
+		if (dfp == 0)
+		{
+			fclose(fp);
+			fclose(wfp);
+			MessageBox(hWnd, "Cannot create the info output file!", NULL, MB_OK | MB_ICONERROR);
+			return 0;
+		}
 
-	fprintf(dfp, "D2V Fix Output\n\n");
+		fprintf(dfp, "D2V Fix Output\n\n");
+	}
 	
 	while (fgets(line, 1024, fp) != 0)
 	{
-		fputs(line, wfp);
+		if (!test_only) fputs(line, wfp);
 		if (strncmp(line, "Location", 8) == 0) break;
 	}
 	fgets(line, 1024, fp);
-	fputs(line, wfp);
+	if (!test_only) fputs(line, wfp);
 	fgets(line, 1024, fp);
 	prev_line[0] = 0;
 	prev_val = -1;
@@ -278,6 +370,7 @@ int fix_d2v(HWND hWnd, char *Input, int silent)
 	do
 	{
 		p = line;
+		while (*p++ != ' ');
 		while (*p++ != ' ');
 		while (*p++ != ' ');
 		while (*p++ != ' ');
@@ -306,9 +399,9 @@ int fix_d2v(HWND hWnd, char *Input, int silent)
 			if (fix >= 0)
 			{
 				found = true;
-				fprintf(dfp, "Field order transition: %x -> %x\n", mprev_val, mval);
-				fprintf(dfp, prev_line);
-				fprintf(dfp, line);
+				if (!test_only) fprintf(dfp, "Field order transition: %x -> %x\n", mprev_val, mval);
+				if (!test_only) fprintf(dfp, prev_line);
+				if (!test_only) fprintf(dfp, line);
 				if (first == false)
 				{
 					q = p;
@@ -321,40 +414,40 @@ int fix_d2v(HWND hWnd, char *Input, int silent)
 					while (!((*q >= '0' && *q <= '9') || (*q >= 'a' && *q <= 'f'))) q--;
 				}
 				*q = (char) fix + '0';
-				fprintf(dfp, "corrected...\n");
-				fprintf(dfp, prev_line);
-				fprintf(dfp, line);
-				fprintf(dfp, "\n");
+				if (!test_only) fprintf(dfp, "corrected...\n");
+				if (!test_only) fprintf(dfp, prev_line);
+				if (!test_only) fprintf(dfp, line);
+				if (!test_only) fprintf(dfp, "\n");
 			}
 			while (*p != ' ' && *p != '\n') p++;
 			p++;
 			prev_val = val;
 			first = false;
 		}
-		fputs(prev_line, wfp);
+		if (!test_only) fputs(prev_line, wfp);
 		strcpy(prev_line, line);
 	} while ((fgets(line, 2048, fp) != 0) &&
 			 ((line[0] >= '0' && line[0] <= '9') || (line[0] >= 'a' && line[0] <= 'f')));
-	fputs(prev_line, wfp);
-	fputs(line, wfp);
-	while (fgets(line, 2048, fp) != 0) fputs(line, wfp);
+	if (!test_only) fputs(prev_line, wfp);
+	if (!test_only) fputs(line, wfp);
+	while (fgets(line, 2048, fp) != 0)
+		if (!test_only) fputs(line, wfp);
 	fclose(fp);
-	fclose(wfp);
+	if (!test_only) fclose(wfp);
+	if (test_only)
+	{
+		if (found == true)
+		{
+			MessageBox(hWnd, "A field order transition was detected. You may need to use the Fix D2V tool\nto repair this stream. Refer to the DGIndex Users Manual for details.", "Field Order Transition Detected", MB_OK | MB_ICONINFORMATION);
+		}
+		return 1;
+	}
 	if (found == false)
 	{
-		if (silent)
-		{
-			fclose(dfp);
-			unlink(wfile);
-			unlink(logfile);
-		}
-		else
-		{
-			fprintf(dfp, "No errors found.\n");
-			fclose(dfp);
-			unlink(wfile);
-			MessageBox(hWnd, "No errors found.", "Fix D2V", MB_OK | MB_ICONINFORMATION);
-		}
+		fprintf(dfp, "No errors found.\n");
+		fclose(dfp);
+		unlink(wfile);
+		MessageBox(hWnd, "No errors found.", "Fix D2V", MB_OK | MB_ICONINFORMATION);
 		return 0;
 	}
 	else
@@ -391,8 +484,7 @@ int fix_d2v(HWND hWnd, char *Input, int silent)
 		if (!CLIActive)
 		{
 			MessageBox(hWnd, "Field order corrected. The original version was\nsaved with the extension \".bad\".", "Correct Field Order", MB_OK | MB_ICONINFORMATION);
-			if (!silent)
-				ShellExecute(hDlg, "open", logfile, NULL, NULL, SW_SHOWNORMAL);
+			ShellExecute(hDlg, "open", logfile, NULL, NULL, SW_SHOWNORMAL);
 		}
 	}
 

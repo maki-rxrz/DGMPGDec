@@ -920,6 +920,12 @@ void CMPEG2Decoder::skipped_macroblock(int dc_dct_pred[3], int PMV[2][2][2], int
 			(picture_structure == BOTTOM_FIELD);
 	}
 
+	if (picture_coding_type == I_TYPE)
+	{
+		Fault_Flag = true;
+		return;
+	}
+
 	/* clear MACROBLOCK_INTRA */
 	*macroblock_type &= ~MACROBLOCK_INTRA;
 }

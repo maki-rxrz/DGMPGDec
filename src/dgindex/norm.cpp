@@ -92,7 +92,6 @@ static void TwoPass(FILE *WaveIn, int WaveInPos, FILE *WaveOut, int WaveOutPos, 
 	
 	while (size > 0)
 	{
-		unsigned int elapsed, remain;
 		float percent;
 
 		rsize = (size >= NORM_SIZE ? NORM_SIZE : size);

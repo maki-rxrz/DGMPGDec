@@ -343,7 +343,6 @@ void sequence_header()
 
 /* decode group of pictures header */
 /* ISO/IEC 13818-2 section 6.2.2.6 */
-int closed_gop;
 static void group_of_pictures_header()
 {
 	int gop_hour;
@@ -352,7 +351,6 @@ static void group_of_pictures_header()
 	int gop_frame;
 	int drop_flag;
 	int broken_link;
-	static cgop_prev = 0;
 
 	if (LogTimestamps_Flag && D2V_Flag)
 		fprintf(Timestamps, "GOP start\n");
@@ -363,8 +361,6 @@ static void group_of_pictures_header()
 	gop_sec     = Get_Bits(6);
 	gop_frame	= Get_Bits(6);
 	closed_gop  = Get_Bits(1);
-	closed_gop_prev = cgop_prev;
-	cgop_prev = closed_gop;
 	broken_link = Get_Bits(1);
 
 //	extension_and_user_data();
@@ -455,6 +451,7 @@ static void picture_header(__int64 start, boolean HadSequenceHeader, boolean Had
 
 		if (Info_Flag)
 			UpdateInfo();
+		UpdateWindowText();
 	}
 
 	vbv_delay = Get_Bits(16);
@@ -494,7 +491,6 @@ static void picture_header(__int64 start, boolean HadSequenceHeader, boolean Had
 	if (HadSequenceHeader == false)
 	{
 		// Indexing for the D2V file.
-//		if (picture_coding_type == I_TYPE && picture_structure != BOTTOM_FIELD)
 		if (picture_coding_type == I_TYPE && !Second_Field)
 		{
 //			dprintf("DGIndex: Index picture header at %d\n", Rdptr - Rdbfr);
@@ -590,18 +586,16 @@ static void sequence_extension()
 	int vertical_size_extension;
 	int bit_rate_extension;
 	int vbv_buffer_size_extension;
-	static int pseq_prev = 0;
 
 	// This extension means we must have MPEG2, so
 	// override the earlier assumption of MPEG1 for
 	// transport streams.
 	mpeg_type = IS_MPEG2;
 	matrix_coefficients = 1;
+   	setRGBValues();
 
 	profile_and_level_indication = Get_Bits(8);
 	progressive_sequence         = Get_Bits(1);
-	progressive_sequence_prev = pseq_prev;
-	pseq_prev = progressive_sequence;
 	chroma_format                = Get_Bits(2);
 	horizontal_size_extension    = Get_Bits(2);
 	vertical_size_extension      = Get_Bits(2);
@@ -831,6 +825,16 @@ static void picture_coding_extension()
 	intra_vlc_format			= Get_Bits(1);
 	alternate_scan				= Get_Bits(1);
 	repeat_first_field			= Get_Bits(1);
+	if (progressive_sequence && repeat_first_field)
+	{
+		if (FO_Flag == FO_FILM)
+		{
+			MessageBox(hWnd, "Frame repeats were detected in the source stream.\n"
+							 "Proper handling of them requires that you turn off Force Film mode.\n"
+							 "After turning it off, restart this operation.", NULL, MB_OK | MB_ICONERROR);
+			ThreadKill();
+		}
+	}
 	chroma_420_type				= Get_Bits(1);
 	progressive_frame			= Get_Bits(1);
 	composite_display_flag		= Get_Bits(1);

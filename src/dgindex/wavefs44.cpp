@@ -293,7 +293,6 @@ void Wavefs44File(int channel, int delay)
 
 		while (rsize > 0)
 		{
-			unsigned int elapsed, remain;
 			float percent;
 
 			if (Stop_Flag)

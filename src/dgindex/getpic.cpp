@@ -82,6 +82,8 @@ struct ENTRY
 	int trf;
 	int pf;
 	int closed;
+	int pseq;
+	int matrix;
 	int vob_id;
 	int cell_id;
 } gop_entries[MAX_PICTURES_PER_GOP];
@@ -98,14 +100,34 @@ void WriteD2VLine(int finish)
     struct ENTRY ref = gop_entries [0]; // To avoid compiler warning.
 	struct ENTRY entries[MAX_PICTURES_PER_GOP];
 	unsigned int gop_marker = 0x800;
+	int num_to_skip, ndx;
+
+	// We need to keep a record of the history of the I frame positions
+	// to enable the following trick.
+	gop_positions[gop_positions_ndx] = gop_entries[0].position;
+	// An indexed unit (especially a pack) can contain multiple I frames.
+	// If we did nothing we would have multiple D2V lines with the same position
+	// and the navigation code in DGDecode would be confused. We detect this
+	// by seeing how many previous lines we have written with the same position.
+	// We store that number in the D2V file and DGDecode uses that as the
+	// number of I frames to skip before settling on the required one.
+	// So, in fact, we are indexing position plus number of I frames to skip.
+	num_to_skip = 0;
+	ndx = gop_positions_ndx;
+	while (ndx && gop_positions[ndx] == gop_positions[ndx-1])
+	{
+		num_to_skip++;
+		ndx--;
+	}
+	gop_positions_ndx++;
 
 	// Write the first part of the data line to the D2V file.
 	if (gop_entries[0].gop_start == true) gop_marker |= 0x100;
-	if (!ForceOpenGops && closed_gop_prev == 1) gop_marker |= 0x400;
-	if (progressive_sequence_prev == 1) gop_marker |= 0x200;
+	if (gop_entries[0].closed == 1) gop_marker |= 0x400;
+	if (gop_entries[0].pseq == 1) gop_marker |= 0x200;
 	_i64toa(gop_entries[0].position, position, 10);
-	sprintf(D2VLine,"%03x %d %d %s %d %d",
-		    gop_marker, matrix_coefficients, d2v_forward.file, position,
+	sprintf(D2VLine,"%03x %d %d %s %d %d %d",
+		    gop_marker, gop_entries[0].matrix, d2v_forward.file, position, num_to_skip,
 			gop_entries[0].vob_id, gop_entries[0].cell_id);
 
 	// Reorder frame bytes for display order.
@@ -185,8 +207,6 @@ void SetFaultFlag(int val)
 
 void Decode_Picture()
 {
-	extern int closed_gop;
-
 __try
 {
 	if (picture_structure==FRAME_PICTURE && Second_Field)
@@ -216,6 +236,8 @@ __try
 		gop_entries[gop_entries_ndx].pct = picture_coding_type;
 		gop_entries[gop_entries_ndx].trf = d2v_current.trf;
 		gop_entries[gop_entries_ndx].closed = ForceOpenGops ? 0 : closed_gop;
+		gop_entries[gop_entries_ndx].pseq = progressive_sequence;
+		gop_entries[gop_entries_ndx].matrix = matrix_coefficients;
 		gop_entries[gop_entries_ndx].vob_id = VOB_ID;
 		gop_entries[gop_entries_ndx].cell_id = CELL_ID;
 		if (gop_entries_ndx < MAX_PICTURES_PER_GOP - 1)
@@ -286,8 +308,10 @@ __try
 }
 __except (EXCEPTION_EXECUTE_HANDLER)
 {
-//	MessageBox(hWnd, "Caught an exception during decoding! Continuing...", NULL, MB_OK | MB_ICONERROR);
-	return;
+	if (MessageBox(hWnd, "Caught an exception during decoding! Continue?", "Exception!", MB_YESNO | MB_ICONERROR) == IDYES)
+		return;
+	else
+		ThreadKill();
 }
 }
 
@@ -914,6 +938,12 @@ static void skipped_macroblock(int dc_dct_pred[3], int PMV[2][2][2], int *motion
 		*motion_type = MC_FIELD;
 		motion_vertical_field_select[0][0] = motion_vertical_field_select[0][1] = 
 			(picture_structure==BOTTOM_FIELD);
+	}
+
+	if (picture_coding_type == I_TYPE)
+	{
+		SetFaultFlag(1);
+		return;
 	}
 
 	/* clear MACROBLOCK_INTRA */
@@ -2392,4 +2422,5 @@ mc7:
 			}
 			break;
 	}
+	__asm emms;
 }

@@ -23,7 +23,7 @@
 
 #include <math.h>
 
-int Clip_Width, Clip_Height, half_height, pheight, iheight;
+int half_height, pheight, iheight;
 static int DOUBLE_WIDTH, HALF_WIDTH, LUM_AREA, PROGRESSIVE_HEIGHT, INTERLACED_HEIGHT;
 static int HALF_WIDTH_D8, RGB_DOWN1, RGB_DOWN2;
 

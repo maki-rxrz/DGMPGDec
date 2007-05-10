@@ -46,7 +46,7 @@ unsigned __int64 read_counter(void)
 ui64 get_freq(void)
 {
 	unsigned __int64  x = 0;
-	long i;
+	time_t i;
 	i = time(NULL);
 	while (i == time(NULL));
 	x -= read_counter();

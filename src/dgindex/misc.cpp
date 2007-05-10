@@ -43,7 +43,7 @@ unsigned __int64 read_counter(void)
 ui64 get_freq(void)
 {
 	unsigned __int64  x = 0;
-	long i;
+	time_t i;
 	i = time(NULL);
 	while (i == time(NULL));
 	x -= read_counter();
@@ -56,8 +56,8 @@ ui64 get_freq(void)
 void init_first(ts* timers) {
 	memset(timers,0,sizeof(ts));
 	timers->div = 0; timers->sum = 0;
-//	timers->freq = get_freq()/1000;
-	timers->freq = 1412*1000000; // shortcut for my athlon xp 1600+ (1.4 Gz)
+	timers->freq = get_freq()/1000;
+//	timers->freq = 1412*1000000; // shortcut for my athlon xp 1600+ (1.4 Gz)
 }
 
 void init_timers(ts* timers) {
@@ -104,7 +104,7 @@ void timer_debug(ts* timers) {
 	//tim.freq = ;
 //	sprintf(buffer,"conv = %I64d ",tim.conv);
 //	sprintf(buffer,"idct = %I64d overall=%I64d idct% = %f",tim.idct,tim.overall,(double)tim.idct*100/tim.overall);
-	sprintf(buffer,"| dec% = %f > mcmp% = %f addb% = %f idct% = %f decMB% = %f bit% = %f | conv% = %f | post% = %f | mcpy% = %f | msec = %f fps = %f mean = %f",
+	sprintf(buffer,"| dec%% = %f > mcmp%% = %f addb%% = %f idct%% = %f decMB%% = %f bit%% = %f | conv%% = %f | post%% = %f | mcpy%% = %f | msec = %f fps = %f mean = %f",
 		(double)tim.dec*100/tim.overall,
 		(double)tim.idct*100/tim.overall,
 		(double)tim.addb*100/tim.overall,

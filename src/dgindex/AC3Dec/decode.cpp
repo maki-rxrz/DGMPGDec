@@ -176,6 +176,11 @@ void InitialAC3()
 {
 	int i, count;
 
+	if (AudioOnly_Flag)
+	{
+		MessageBox(hWnd, "The \'Demux Audio Only\' feature is intended for demuxing, not decoding.\nDeselect \'Decode AC3 Track to WAV\' in Audio/Output Method.", NULL, MB_OK | MB_ICONERROR);
+		ThreadKill();
+	}
 	for (i = 0, count = 0; i < 8; i++)
 	{
 		if (Track_Flag & (1 << i))

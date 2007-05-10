@@ -42,17 +42,17 @@ int PATParser::SyncTransport(void)
 		}
 		if (byte == TS_SYNC_BYTE)
 		{
-			fseek(fin, 187, SEEK_CUR);
+			fseek(fin, TransportPacketSize - 1, SEEK_CUR);
 			if (fread(&byte, 1, 1, fin) == 0)
 			{
 				return 1;
 			}
 			if (byte == TS_SYNC_BYTE)
 			{
-				fseek(fin, -189, SEEK_CUR);
+				fseek(fin, -(TransportPacketSize + 1), SEEK_CUR);
 				break;
 			}
-			fseek(fin, -188, SEEK_CUR);
+			fseek(fin, -TransportPacketSize, SEEK_CUR);
 		}
 	}
 	if (i == LIMIT)
@@ -74,7 +74,7 @@ int PATParser::AnalyzeRaw(void)
 	unsigned int i, pid = 0;
 	unsigned char stream_id;
 	int afc, pkt_count;
-	unsigned char buffer[188];
+	unsigned char buffer[204];
 	int read, pes_offset, pes_header_data_length, data_offset;
 	char listbox_line[255], description[80];
 	struct
@@ -109,7 +109,7 @@ int PATParser::AnalyzeRaw(void)
 
 	// Process the transport packets looking for PIDs.
 	pkt_count = 0;
-	while ((pkt_count++ < MAX_PACKETS) && (read = fread(buffer, 1, 188, fin)) == 188)
+	while ((pkt_count++ < MAX_PACKETS) && (read = fread(buffer, 1, TransportPacketSize, fin)) == TransportPacketSize)
 	{
 		// Pick up the PID.
 		pid = ((buffer[1] & 0x1f) << 8) | buffer[2];
@@ -136,7 +136,7 @@ int PATParser::AnalyzeRaw(void)
 				if (stream_id == 0xbd)
 				{
 					// This is private stream 1, which may carry AC3 or DTS audio.
-					// Since all DTS frammes fit in one PES packet, we can just
+					// Since all DTS frames fit in one PES packet, we can just
 					// look for the DTS audio frame header to distinguish the two.
 					pes_header_data_length = buffer[pes_offset+8];
 					data_offset = pes_offset + 9 + pes_header_data_length;
@@ -184,6 +184,8 @@ int PATParser::AnalyzeRaw(void)
 				fclose(fin);
 				return 0;
 			}
+			if (op == InitialPids && MPEG2_Transport_AudioPID == 0x2)
+				MPEG2_Transport_AudioPID = Pids[i].pid;
 			strcpy(description, "Private Stream 1 (AC3/DTS Audio)");
 		}
 		else if (Pids[i].stream_id == 0xbe)
@@ -203,10 +205,16 @@ int PATParser::AnalyzeRaw(void)
 				fclose(fin);
 				return 0;
 			}
+			if (op == InitialPids && MPEG2_Transport_AudioPID == 0x2)
+				MPEG2_Transport_AudioPID = Pids[i].pid;
 			strcpy(description, "MPEG1/MPEG2/AAC Audio");
 		}
 		else if ((Pids[i].stream_id & 0xf0) == 0xe0)
+		{
+			if (op == InitialPids && MPEG2_Transport_VideoPID == 0x2)
+				MPEG2_Transport_VideoPID = Pids[i].pid;
 			strcpy(description, "MPEG Video");
+		}
 		else if (Pids[i].stream_id == 0xf0)
 			strcpy(description, "ECM Stream");
 		else if (Pids[i].stream_id == 0xf1)
@@ -221,10 +229,14 @@ int PATParser::AnalyzeRaw(void)
 				fclose(fin);
 				return 0;
 			}
+			if (op == InitialPids && MPEG2_Transport_AudioPID == 0x2)
+				MPEG2_Transport_AudioPID = Pids[i].pid;
 			strcpy(description, "Private Stream 1 (DTS Audio)");
 		}
 		else if (Pids[i].stream_id == 0xff)
 			strcpy(description, "Program Stream Directory");
+		else if (Pids[i].stream_id == PCR_STREAM)
+			strcpy(description, "PCR");
 		else
 			strcpy(description, "Other");
 		if (hDialog != NULL)
@@ -267,7 +279,12 @@ int PATParser::DoInitialPids(char *_filename)
 	op = InitialPids;
 	hDialog = NULL;
 	filename = _filename;
-	return AnalyzePAT();
+	AnalyzePAT();
+	if (MPEG2_Transport_VideoPID == 0x2)
+	{
+		AnalyzeRaw();
+	}
+	return 0;
 }
 
 int PATParser::AnalyzePAT(void)
@@ -387,7 +404,7 @@ int PATParser::ProcessPMTSection(void)
 	program |= section[4];
 
 	// If we're setting the initial PIDs automatically, then
-	// we're intersted inonly the first program.
+	// we're intersted in only the first program.
 	if (op == InitialPids && num_programs > 0)
 		return 0;
 	// We stop when we see a progam that we've already seen.
@@ -406,7 +423,9 @@ int PATParser::ProcessPMTSection(void)
 	// Get the PCRPID.
 	pcrpid = (section[8] & 0x1f) << 8;
 	pcrpid |= section[9];
-	if (op == Dump)
+	if (op == InitialPids)
+		MPEG2_Transport_PCRPID = pcrpid;
+	else if (op == Dump)
 	{
 		sprintf(listbox_line, "    PCR on PID 0x%x", pcrpid); 
 		SendDlgItemMessage(hDialog, IDC_PID_LISTBOX, LB_ADDSTRING, 0, (LPARAM)listbox_line);
@@ -480,7 +499,7 @@ int PATParser::ProcessPMTSection(void)
 				MPEG2_Transport_AudioPID = pid;
 			break;
 		case 0x80:
-			// This could be private stream video.
+			// This could be private stream video or LPCM audio.
 			stream_type = "Private Stream";
 			pid = (section[ndx++] & 0x1f) << 8;
 			pid |= section[ndx++];
@@ -488,6 +507,16 @@ int PATParser::ProcessPMTSection(void)
 		case 0x81:
 			// This could be AC3 or DTS audio.
 			stream_type = "AC3/DTS Audio";
+			pid = (section[ndx++] & 0x1f) << 8;
+			pid |= section[ndx++];
+			if (op == InitialPids)
+				MPEG2_Transport_AudioPID = pid;
+			break;
+		// These are found on bluray disks.
+		case 0x85:
+		case 0x86:
+			stream_type = "DTS Audio";
+			type = 0xfe;
 			pid = (section[ndx++] & 0x1f) << 8;
 			pid |= section[ndx++];
 			if (op == InitialPids)
@@ -524,12 +553,14 @@ int PATParser::ProcessPMTSection(void)
 			{
 				// This might be private stream video.
 				// Parse the descriptors for a video descriptor.
-				int hadVideo = 0;
+				int hadVideo = 0, hadAudio = 0;
 				do
 				{
 					tag = section[ndx++];
 					if (tag == 0x02)
 						hadVideo = 1;
+					else if (tag == 0x05)
+						hadAudio = 1;
 					length = section[ndx++];
 					ndx += length;
 				} while (ndx < end);
@@ -540,6 +571,12 @@ int PATParser::ProcessPMTSection(void)
 					type = 0x02;
 					if (op == InitialPids)
 						MPEG2_Transport_VideoPID = pid;
+				}
+				else if (hadAudio == 1)
+				{
+					stream_type = "LPCM Audio";
+					if (op == InitialPids)
+						MPEG2_Transport_AudioPID = pid;
 				}
 			}
 			else if (type == 0x06)
@@ -606,10 +643,20 @@ int PATParser::ProcessPMTSection(void)
 		}
 		if (op == AudioType && pid == audio_pid)
 		{
+			if (type != 0x81)
+			{
+				audio_type = type;
+				return 0;
+			}
+            // If the packet size is 192, it's probably M2TS (bluray)
+            // and so we accept it as AC3.
+            else if (TransportPacketSize == 192)
+			{
+                audio_type = type;
+				return 0;
+			}
 			// If it's private stream 1, it could be AC3 or DTS.
 			// Force raw detection to find out which.
-			if (type != 0x81)
-				audio_type = type;
 			return 1;
 		}
 	}
@@ -627,7 +674,7 @@ void PATParser::GetTable(unsigned int table_pid)
 	// Process the transport packets.
 	pkt_count = 0;
 	section_ptr = section;
-	while ((pkt_count++ < MAX_PACKETS) && (read = fread(buffer, 1, 188, fin)) == 188)
+	while ((pkt_count++ < MAX_PACKETS) && (read = fread(buffer, 1, TransportPacketSize, fin)) == TransportPacketSize)
 	{
 		// Check that this is the desired PID.
 		pid = ((buffer[1] & 0x1f) << 8) | buffer[2];
@@ -661,7 +708,7 @@ void PATParser::GetTable(unsigned int table_pid)
 		if (section_ptr != section)
 		{
 			// Collect the section data.
-			if (section_length <= 188 - ndx)
+            if (section_length <= TransportPacketSize - ndx - (TransportPacketSize == 192 ? 4 : 0))
 			{
 				// The remainder of the section is contained entirely
 				// in this packet. Skip the pointer field if one exists.
@@ -691,9 +738,9 @@ void PATParser::GetTable(unsigned int table_pid)
 				// The section is spilling over to the next packet.
 				// There can't be a pointer field, so there's no need to
 				// check for it.
-				memcpy(section_ptr, &buffer[ndx], 188 - ndx);
-				section_ptr += (188 - ndx);
-				section_length -= (188 - ndx);
+				memcpy(section_ptr, &buffer[ndx], TransportPacketSize - ndx - (TransportPacketSize == 192 ? 4 : 0));
+				section_ptr += (TransportPacketSize - ndx - (TransportPacketSize == 192 ? 4 : 0));
+				section_length -= (TransportPacketSize - ndx - (TransportPacketSize == 192 ? 4 : 0));
 				continue;
 			}
 		}
@@ -723,7 +770,7 @@ another_section:
 			first_pat = false;
 		else
 			first_pmt = false;
-		if (ndx + section_length + 3 <= 188)
+		if (ndx + section_length + 3 <= (unsigned int) TransportPacketSize - (TransportPacketSize == 192 ? 4 : 0))
 		{
 			// The section is entirely contained in this packet.
 			// Collect the section data.
@@ -748,9 +795,9 @@ another_section:
 			// This section spills over to the next transport packet.
 			// Collect the first part and get ready to collect the
 			// second part from the next packet.
-			memcpy(section_ptr, &buffer[ndx], 188 - ndx);
-			section_ptr += (188 - ndx);
-			section_length -= (188 - ndx);
+			memcpy(section_ptr, &buffer[ndx], TransportPacketSize - ndx - (TransportPacketSize == 192 ? 4 : 0));
+			section_ptr += (TransportPacketSize - ndx - (TransportPacketSize == 192 ? 4 : 0));
+			section_length -= (TransportPacketSize - ndx - (TransportPacketSize == 192 ? 4 : 0));
 			continue;
 		}
 	}

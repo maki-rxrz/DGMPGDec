@@ -155,8 +155,8 @@ XTN CPU cpu;
 void CheckCPU(void);
 
 /* alloc.cpp */
-extern "C"void *aligned_malloc(size_t size, size_t alignement);
-extern "C"void aligned_free(void *aligned);
+extern "C" void *aligned_malloc(size_t size, size_t alignment);
+extern "C" void aligned_free(void *aligned);
 
 typedef void (WINAPI *PBufferOp) (unsigned char*, int, int);
 
@@ -296,8 +296,10 @@ protected:
   int SystemStream_Flag;	// 0 = none, 1=program, 2=Transport 3=PVA
   void (__fastcall *idctFunc)(short *block);
 
+  int TransportPacketSize;
   int MPEG2_Transport_AudioPID;  // used only for transport streams
   int MPEG2_Transport_VideoPID;  // used only for transport streams
+  int MPEG2_Transport_PCRPID;  // used only for transport streams
 
   int lfsr0, lfsr1;
   PBufferOp BufferOp;
@@ -379,12 +381,13 @@ protected:
 
   // interface
   struct GOPLIST {
-	DWORD		number;
-	int			file;
-	__int64		position;
-	int			closed;
-	int			progressive;
-	int			matrix;
+	DWORD			number;
+	int				file;
+	__int64			position;
+	unsigned int	I_count;
+	int				closed;
+	int				progressive;
+	int				matrix;
   };
   GOPLIST **GOPList;
   int GOPListSize;
@@ -404,10 +407,10 @@ public:
   bool HaveRFFs;
 protected:
 
-  _INLINE_ void Copyall(YV12PICT *src, YV12PICT *dst);
-  _INLINE_ void Copyodd(YV12PICT *src, YV12PICT *dst);
-  _INLINE_ void Copyeven(YV12PICT *src, YV12PICT *dst);
-  _INLINE_ void Copyoddeven(YV12PICT *odd, YV12PICT *even, YV12PICT *dst);
+  _INLINE_ void CopyAll(YV12PICT *src, YV12PICT *dst);
+  _INLINE_ void CopyTop(YV12PICT *src, YV12PICT *dst);
+  _INLINE_ void CopyBot(YV12PICT *src, YV12PICT *dst);
+  _INLINE_ void CopyTopBot(YV12PICT *odd, YV12PICT *even, YV12PICT *dst);
   _INLINE_ void CopyPlane(unsigned char *src, int src_pitch, unsigned char *dst, int dst_pitch,
 							  int width, int height);
 

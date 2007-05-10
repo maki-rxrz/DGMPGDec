@@ -33,7 +33,7 @@ static void InitialDecoder(void);
 DWORD WINAPI MPEG2Dec(LPVOID n)
 {
 	int i = (int) n; // Prevent compiler warning.
-	extern int closed_gop, VideoPTS;
+	extern int VideoPTS;
 	extern FILE *mpafp, *mpvfp;
 	__int64 saveloc;
     int field;
@@ -45,6 +45,7 @@ DWORD WINAPI MPEG2Dec(LPVOID n)
 	Bitrate_Average = 0.0;
 	GOPSeen = false;
 	AudioOnly_Flag = 0;
+	AudioFilePath[0] = 0;
 
 	for (i=0; i<CHANNEL; i++)
 	{
@@ -170,9 +171,11 @@ do_rip_play:
 		int code;
 		int i, count;
 		unsigned int show;
-		unsigned char buf[200];
+		unsigned char buf[204];
 
 		// Position to start of the first file.
+		TransportPacketSize = 188;
+try_again:
 		CurrentFile = 0;
 		_lseeki64(Infile[0], 0, SEEK_SET);
 		Initialize_Buffer();
@@ -198,7 +201,7 @@ do_rip_play:
 			}
 		}
 
-		// Search for four sync bytes 188 bytes apart.
+		// Search for four sync bytes 188, 192, or 204 bytes apart.
 		// Gives good protection against sync byte emulation.
 		// Look in the first 10000 good data bytes of the file only,
 		// then give up.
@@ -207,9 +210,9 @@ do_rip_play:
 			_read(Infile[0], buf, 1);
 			if (buf[0] == 0x47)
 			{
-				// We should see this sync byte within 188 bytes of the
+				// We should see this sync byte within 188 or 204 bytes of the
 				// first non-null byte. If not, it's a spoof.
-				if (count == 0 && i > 187)
+				if (count == 0 && i > TransportPacketSize - 1)
 					break;
 				if (count++ >= 4)
 				{
@@ -219,14 +222,26 @@ do_rip_play:
 					// a sequence extension arrives.
 					mpeg_type = IS_MPEG1;
 					is_program_stream = 0;
-					if (MPEG2_Transport_VideoPID == 0x02 && MPEG2_Transport_AudioPID == 0x02)
+					if (MPEG2_Transport_VideoPID == 0x02 &&
+						MPEG2_Transport_AudioPID == 0x02 &&
+						MPEG2_Transport_PCRPID == 0x02)
 						pat_parser.DoInitialPids(Infilename[0]);
 					break;
 				}
-				_read(Infile[0], buf, 187);
+				_read(Infile[0], buf, TransportPacketSize - 1);
 			}
 			else
 				count = 0;
+		}
+		if (SystemStream_Flag != TRANSPORT_STREAM && TransportPacketSize == 188)
+		{
+			TransportPacketSize = 192;
+			goto try_again;
+		}
+		else if (SystemStream_Flag != TRANSPORT_STREAM && TransportPacketSize == 192)
+		{
+			TransportPacketSize = 204;
+			goto try_again;
 		}
 
 		// Now try for PVA streams. Look for a packet start in the first 1024 bytes.
@@ -254,15 +269,17 @@ do_rip_play:
 		CurrentFile = 0;
 		_lseeki64(Infile[0], 0, SEEK_SET);
 		Initialize_Buffer();
+		count = 0;
 		while ((show = Show_Bits(32)) != 0x1b3)
 		{
-			if (Stop_Flag)
+			if (Stop_Flag || count > 10000000)
 			{
-				// We reached EOF without ever seeing a sequence header.
+				// We didn't find a sequence header.
 				MessageBox(hWnd, "No video sequence header found!", NULL, MB_OK | MB_ICONERROR);
 				ThreadKill();
 			}
 			Flush_Buffer(8);
+			count++;
 		}
 
 		// Determine whether this is an MPEG2 file and whether it is a program stream.
@@ -363,7 +380,11 @@ do_rip_play:
 
 		fprintf(D2VFile, "\nStream_Type=%d\n", SystemStream_Flag);
 		if (SystemStream_Flag == TRANSPORT_STREAM)
-			fprintf(D2VFile, "MPEG2_Transport_PID=%x,%x\n", MPEG2_Transport_VideoPID, MPEG2_Transport_AudioPID);
+		{
+			fprintf(D2VFile, "MPEG2_Transport_PID=%x,%x,%x\n",
+					MPEG2_Transport_VideoPID, MPEG2_Transport_AudioPID, MPEG2_Transport_PCRPID);
+			fprintf(D2VFile, "Transport_Packet_Size=%d\n", TransportPacketSize);
+		}
 
 		fprintf(D2VFile, "MPEG_Type=%d\n", mpeg_type);
 		fprintf(D2VFile, "iDCT_Algorithm=%d\n", iDCT_Flag);
@@ -406,8 +427,8 @@ do_rip_play:
 			}
 		}
 		fprintf(D2VFile, "Frame_Rate=%d (%u/%u)\n", (int)(Frame_Rate*1000), fr_num, fr_den);
-		fprintf(D2VFile, "Location=%d,%X,%d,%X\n\n", process.leftfile, (int)process.leftlba, 
-				process.rightfile, (int)process.rightlba);
+		fprintf(D2VFile, "Location=%d,%I64x,%d,%I64x\n\n",
+				process.leftfile, process.leftlba, process.rightfile, process.rightlba);
 	}
 
 	// Start normal decoding from the start position.
@@ -415,6 +436,11 @@ do_rip_play:
 	PTSAdjustDone = 0;
 	CurrentFile = process.startfile;
 	_lseeki64(Infile[process.startfile], (process.startloc/BUFFER_SIZE)*BUFFER_SIZE, SEEK_SET);
+	// We initialize the following variables to the current start position, because if the user
+	// has set a range, and the packs are large such that we won't hit a pack/packet start
+	// before we hit an I frame, we don't want the pack/packet position to remain at 0.
+	// It has to be at least equal to or greater than the starting position in the stream.
+	CurrentPackHeaderPosition = PackHeaderPosition = (process.startloc/BUFFER_SIZE)*BUFFER_SIZE;
 	Initialize_Buffer();
 
 	timing.op = 0;

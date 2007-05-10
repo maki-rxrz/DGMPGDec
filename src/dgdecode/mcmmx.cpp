@@ -7,7 +7,10 @@
  * I only made some copy-paste of Jackey's code and some clean up
  *****************************************************************************/
 
- void MC_put_8_mmx (unsigned char * dest, unsigned char * ref,
+
+#pragma warning( disable : 4799 )
+
+void MC_put_8_mmx (unsigned char * dest, unsigned char * ref,
                               int stride, int offs, int height)
 {__asm {
 	mov			eax, [ref]

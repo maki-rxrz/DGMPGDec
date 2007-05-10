@@ -28,6 +28,8 @@
 #define SHOWDECISIONS_V
 #endif
 
+#pragma warning( disable : 4799 )
+
 /* entry point for MMX postprocessing */
 void postprocess(unsigned char * src[], int src_stride,
                  unsigned char * dst[], int dst_stride, 

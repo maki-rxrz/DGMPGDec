@@ -29,6 +29,7 @@
 #define PAT_PID 0
 #define MAX_PIDS 500
 #define MAX_PACKETS 100000
+#define PCR_STREAM 1
 
 class PATParser
 {
@@ -45,7 +46,7 @@ private:
 	unsigned int programs[MAX_PROGRAMS];
 	unsigned char section[MAX_SECTION];
 	unsigned char *section_ptr;
-	unsigned char buffer[188];
+	unsigned char buffer[204];
 private:
 	int SyncTransport(void);
 	void PATParser::GetTable(unsigned int table_pid);

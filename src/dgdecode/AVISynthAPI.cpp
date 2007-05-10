@@ -31,7 +31,7 @@
 #include "utilities.h"
 #include <string.h>
 
-#define VERSION "DGDecode 1.4.8"
+#define VERSION "DGDecode 1.4.9"
 
 MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int moderate_h, int moderate_v, bool showQ, bool fastMC, const char* _cpu2, int _info, int _upConv, bool _i420, int iCC, IScriptEnvironment* env)
 {
@@ -99,6 +99,8 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
 		env->ThrowError("MPEG2Source: Could not find a sequence header in the input stream.");
 	else if (status == 5)
 		env->ThrowError("MPEG2Source: The input file is not a D2V project file.");
+	else if (status == 6)
+		env->ThrowError("MPEG2Source: Force Film mode not supported for frame repeats.");
 
 	memset(&vi, 0, sizeof(vi));
 	vi.width = m_decoder.Clip_Width;
@@ -2039,6 +2041,8 @@ extern "C" __declspec(dllexport) void __cdecl closeVideo(void)
 
 extern "C" __declspec(dllexport) VideoInfo* __cdecl openMPEG2SourceMI(char* file, int ident)
 {
+	NoAVSAccess *i, *j;
+
 	if (!g_LL.LLB) 
 	{
 		g_LL.LLB = new NoAVSAccess();
@@ -2047,7 +2051,7 @@ extern "C" __declspec(dllexport) VideoInfo* __cdecl openMPEG2SourceMI(char* file
 	}
 	else
 	{
-		for (NoAVSAccess *i=g_LL.LLB; i; i=i->nxt)
+		for (i=g_LL.LLB; i; i=i->nxt)
 		{
 			if (i->ident == ident) 
 			{
@@ -2062,7 +2066,7 @@ extern "C" __declspec(dllexport) VideoInfo* __cdecl openMPEG2SourceMI(char* file
 		g_LL.LLE = i;
 	}
 
-	NoAVSAccess *j = g_LL.LLE;
+	j = g_LL.LLE;
 
 	char *p;
 
@@ -2121,7 +2125,9 @@ extern "C" __declspec(dllexport) VideoInfo* __cdecl openMPEG2SourceMI(char* file
 
 extern "C" __declspec(dllexport) unsigned char* __cdecl getFrameMI(int frame, int ident)
 {
-	for (NoAVSAccess *i=g_LL.LLB; i; i=i->nxt)
+	NoAVSAccess *i;
+
+	for (i=g_LL.LLB; i; i=i->nxt)
 	{
 		if (i->ident == ident) break;
 	}
@@ -2149,7 +2155,9 @@ extern "C" __declspec(dllexport) unsigned char* __cdecl getFrameMI(int frame, in
 
 extern "C" __declspec(dllexport) unsigned char* __cdecl getRGBFrameMI(int frame, int ident)
 {
-	for (NoAVSAccess *i=g_LL.LLB; i; i=i->nxt)
+	NoAVSAccess *i;
+
+	for (i=g_LL.LLB; i; i=i->nxt)
 	{
 		if (i->ident == ident) break;
 	}
@@ -2193,7 +2201,9 @@ extern "C" __declspec(dllexport) unsigned char* __cdecl getRGBFrameMI(int frame,
 
 extern "C" __declspec(dllexport) void __cdecl closeVideoMI(int ident)
 {
-	for (NoAVSAccess *i=g_LL.LLB; i; i=i->nxt)
+	NoAVSAccess *i;
+
+	for (i=g_LL.LLB; i; i=i->nxt)
 	{
 		if (i->ident == ident)
 		{

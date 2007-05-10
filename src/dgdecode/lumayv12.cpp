@@ -1493,11 +1493,7 @@ void asm_LumaYV1216_ISSE_ROW
 				int lom)
 {
 __asm{
-		mov			esi,[srcp]
-		mov			edx,[row]
-		mov			ebx,[height]
-		mov			edi,[modulo]
-		mov			edx,0x00400040
+		mov		edx,0x00400040
 
 		movd		mm5,[lom]
 		movd		mm6,[lgm]
@@ -1508,6 +1504,11 @@ __asm{
 
 		punpckldq	mm7,mm7
 		pxor		mm0,mm0
+
+		mov			esi,[srcp]
+		mov			edx,[row]
+		mov			ebx,[height]
+		mov			edi,[modulo]
 align 16
 y_loop:
 		mov			eax,edx//[row]

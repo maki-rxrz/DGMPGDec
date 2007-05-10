@@ -155,16 +155,25 @@ void CMPEG2Decoder::Next_Transport_Packet()
 	for (;;)
 	{
 		// 0) initialize some temp variables
-		Packet_Length = 188; // total length of 1 MPEG-2 transport packet
+		Packet_Length = TransportPacketSize; // total length of an MPEG-2 transport packet
+
+        if (TransportPacketSize == 192)
+        {
+            Get_Byte();
+            Get_Byte();
+            Get_Byte();
+            Get_Byte();
+            Packet_Length -= 4;
+        }
 
 		// 1) Search for a sync byte. Gives some protection against emulation.
 		for(;;)
 		{
 			if ((tp.sync_byte = Get_Byte()) != 0x47)
 				continue;
-			if (Rdptr + 187 >= Rdbfr + BUFFER_SIZE && Rdptr[-189] == 0x47)
+			if (Rdptr + (TransportPacketSize-1) >= Rdbfr + BUFFER_SIZE && Rdptr[-(TransportPacketSize+1)] == 0x47)
 				break;
-			if (Rdptr + 187 < Rdbfr + BUFFER_SIZE && Rdptr[+187] == 0x47)
+			if (Rdptr + (TransportPacketSize-1) < Rdbfr + BUFFER_SIZE && Rdptr[+(TransportPacketSize-1)] == 0x47)
 				break;
 			else
 				continue;
@@ -270,6 +279,8 @@ void CMPEG2Decoder::Next_Transport_Packet()
 					SKIP_TRANSPORT_PACKET_BYTES( Packet_Header_Length )
 			}
 			Rdmax = Rdptr + Packet_Length;
+			if (TransportPacketSize == 204)
+				Rdmax -= 16;
 			return;
 		}
 

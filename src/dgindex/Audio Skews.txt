@@ -1,0 +1,7 @@
+Here's what I think is happening...
+
+The skew amount is calculated from the first video frame which has a PTS attached.  But in most of the MPEG sequences I'm studying, many frames do not have an attached PTS (in fact, it seems that VOBs only have PTS attached to I-frames).  So what happens if the MPEG contains valid frames without PTS which appear prior to the first frame with PTS (in display order)?  They don't get counted in the skew calculation.
+
+My plan originally was to derive the missing PTS for all frames, using the reciprocal of the frame rate and/or interpolation.  I haven't actually done it yet, but I believe that will fix the incorrect skews.
+
+fccHandler

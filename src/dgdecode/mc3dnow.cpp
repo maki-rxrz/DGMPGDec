@@ -43,6 +43,8 @@
 // Can define this just to stop the errors with ICL for now
 // #define pavgusb movq
 
+#pragma warning( disable : 4799 )
+
 void MC_put_8_3dnow (unsigned char * dest, unsigned char * ref,
                               int stride, int offs, int height)
 {__asm {

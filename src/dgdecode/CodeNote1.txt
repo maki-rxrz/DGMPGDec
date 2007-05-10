@@ -1,0 +1,33 @@
+This fix was added to address a submitted VOB that caused DGDecode to hang.
+
+This is a field structure clip so we have:
+
+top field picture
+bottom field picture
+top field picture <---
+bottom field picture
+top field picture
+bottom field picture
+...
+
+Now, suppose I want to index the arrowed picture above. For program streams (of which VOB is one), I index the previous pack start code. But we have this in this clip:
+
+pack start
+bottom field picture (P)
+top field picture (I) <---
+bottom field picture (P)
+...
+
+So the code loop looking for the I picture sees a bottom field P picture first and thus fails the test to set HadI. Then it decodes another picture because it is field structure and encounters the top field I picture, but that decode had no test to set HadI. That causes the hang.
+
+Normally this would never happen because pictures are usually bigger than one pack. But in this case it was at a static scene. And of course field pictures are smaller than frame pictures. And the bottom field was a P and not an I. A really bad congruence of factors!
+
+We can't just add the HadI test for the second picture decode in the loop because we would exit the loop out of sync by one field, i.e., we should exit with a top and bottom field decoded and expecting a top next, but we'd have done a bottom and then a top, so instead of having a top coming next as we should, we'd have a bottom.
+
+Unfortunately MPEG2 syntax doesn't give you a direct way to determine if a field is the first one of a frame pair for field structure. They should have used the top_field_first flag, IMHO.
+
+I made a fix by using the Second_Field variable. I reset it to 0 whenever a sequence header or gop header is encountered. Then I test it and decide whether an extra field picture needs to be decoded. So, in this case, after the spurious bottom field picture is decoded, the Second_Field variable gets reset to 0, allowing me to know that I am out of sync by a field. (We could get really unlucky and not have an intervening SH or GH. In that case I don't know what to do, other than just ensure that it doesn't hang, even though we'd still be out by a field.)
+
+The fix works fine for the submitted VOB.
+
+Another idea is to record the field order as seen at the most recent SH and assume that is still valid. That would handle the cases where there is no intervening SH or GH. That may be worth trying.
