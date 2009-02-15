@@ -10,7 +10,6 @@
 #define APSTUDIO_HIDDEN_SYMBOLS
 #include "windows.h"
 #undef APSTUDIO_HIDDEN_SYMBOLS
-#include "resource.h"
 
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
@@ -31,7 +30,7 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,4,9,0
+ FILEVERSION 1,5,4,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x29L
@@ -48,8 +47,8 @@ BEGIN
         BEGIN
             VALUE "Comments", "DGVfapi is the VFAPI component of DGMPGDec, an MPEG decoding and frame serving utility.\0"
             VALUE "CompanyName", "Freeware licensed under GPL\0"
-            VALUE "FileVersion", "1.4.9 final\0"
-             VALUE "LegalCopyright", "Copyright (C) 2001-2007 Donald A. Graft\0"
+            VALUE "FileVersion", "1.5.4\0"
+             VALUE "LegalCopyright", "Copyright (C) 2001-2009 Donald A. Graft\0"
         END
     END
     BLOCK "VarFileInfo"

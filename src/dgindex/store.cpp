@@ -33,7 +33,7 @@ static void FlushRGB24(void);
 
 static BITMAPINFOHEADER birgb, birgbsmall;
 
-static char VideoOut[_MAX_PATH];
+static char VideoOut[DG_MAX_PATH];
 static unsigned char *y444;
 static long frame_size;
 static bool TFF, RFF, TFB, BFB, frame_type;
@@ -121,10 +121,105 @@ void Write_Frame(unsigned char *src[], D2VData d2v, DWORD frame)
 		birgbsmall.biCompression = BI_RGB;
 		birgbsmall.biSizeImage = Clip_Width * Clip_Height * 3;
 
-		if (TFF)
-			SetDlgItemText(hDlg, IDC_FIELD_ORDER, "Top");
-		else
-			SetDlgItemText(hDlg, IDC_FIELD_ORDER, "Bottom");
+        if (d2v.picture_structure == FRAME_PICTURE)
+        {
+		    if (TFF)
+			    SetDlgItemText(hDlg, IDC_FIELD_ORDER, "Top");
+		    else
+			    SetDlgItemText(hDlg, IDC_FIELD_ORDER, "Bottom");
+        }
+        else
+        {
+            SetDlgItemText(hDlg, IDC_FIELD_ORDER, d2v.picture_structure == TOP_FIELD ? "Top" : "Bottom");
+        }
+	}
+
+	if (Info_Flag && process.locate==LOCATE_RIP)
+	{
+		sprintf(szBuffer, "%s", FrameType[frame_type]);
+		SetDlgItemText(hDlg, IDC_FRAME_TYPE, szBuffer);
+
+        sprintf(szBuffer, "%s", progressive_sequence ? "Frame only" : "Field/Frame");
+		SetDlgItemText(hDlg, IDC_SEQUENCE, szBuffer);
+
+        switch (matrix_coefficients)
+        {
+        case 1:
+		    sprintf(szBuffer, "%s", "BT.709");
+            break;
+        case 2:
+		    sprintf(szBuffer, "%s", "Unknown");
+            break;
+        case 3:
+		    sprintf(szBuffer, "%s", "Reserved");
+            break;
+        case 4:
+		    sprintf(szBuffer, "%s", "BT.470-2 M");
+            break;
+        case 5:
+		    sprintf(szBuffer, "%s", "BT.470-2 B,G");
+            break;
+        case 6:
+		    sprintf(szBuffer, "%s", "SMPTE 170M");
+            break;
+        case 7:
+		    sprintf(szBuffer, "%s", "SMPTE 240M");
+            break;
+        case 0:
+        default:
+		    sprintf(szBuffer, "%s", "Reserved");
+            break;
+        }
+        if (default_matrix_coefficients == true)
+            strcat(szBuffer, "*");
+		SetDlgItemText(hDlg, IDC_COLORIMETRY, szBuffer);
+
+		sprintf(szBuffer, "%s", picture_structure == 3 ? "Frame" : "Field");
+		SetDlgItemText(hDlg, IDC_FRAME_STRUCTURE, szBuffer);
+
+		sprintf(szBuffer, "%d", frame+1);
+		SetDlgItemText(hDlg, IDC_CODED_NUMBER, szBuffer);
+
+		sprintf(szBuffer, "%d", playback+1);
+		SetDlgItemText(hDlg, IDC_PLAYBACK_NUMBER, szBuffer);
+
+		sprintf(szBuffer, "%d", frame_repeats);
+		SetDlgItemText(hDlg, IDC_FRAME_REPEATS, szBuffer);
+
+		sprintf(szBuffer, "%d", field_repeats);
+		SetDlgItemText(hDlg, IDC_FIELD_REPEATS, szBuffer);
+
+        if (playback - Old_Playback == 30)
+		{
+			double rate, rate_avg;
+			timing.ed = timeGetTime();
+
+			sprintf(szBuffer, "%.2f", 1000.0*(playback-Old_Playback)/(timing.ed-timing.mi+1));
+			SetDlgItemText(hDlg, IDC_FPS, szBuffer);
+            // The first time through seems to be unreliable so don't use it.
+            if (playback > 30)
+            {
+			    rate = ((double) (Bitrate_Monitor * 8 * Frame_Rate) / (playback-Old_Playback)) / 1000000.0;
+			    Bitrate_Average += Bitrate_Monitor;
+			    rate_avg = (Bitrate_Average * 8 * Frame_Rate) / (playback-30) / 1000000.0;
+                if (rate > max_rate)
+		        {
+			        max_rate = rate;
+		        }
+			    sprintf(szBuffer, "%.3f Mbps", rate);
+			    SetDlgItemText(hDlg, IDC_BITRATE, szBuffer);
+		        sprintf(szBuffer, "%.3f Mbps", max_rate);
+		        SetDlgItemText(hDlg, IDC_BITRATE_MAX, szBuffer);
+			    sprintf(szBuffer, "%.3f Mbps", rate_avg);
+			    SetDlgItemText(hDlg, IDC_BITRATE_AVG, szBuffer);
+            }
+			Bitrate_Monitor = 0;
+			timing.mi = timing.ed;
+			Old_Playback = playback;
+		}
+
+		sprintf(szBuffer, "%s", d2v.type == I_TYPE ? "I" : (d2v.type == P_TYPE ? "P" : "B"));
+		SetDlgItemText(hDlg, IDC_CODING_TYPE, szBuffer);
 	}
 
 	if (progressive_sequence)
@@ -183,76 +278,6 @@ void Write_Frame(unsigned char *src[], D2VData d2v, DWORD frame)
 		if (FO_Flag != FO_FILM && repeat==2)
 		{
 			Store_RGB24(src);
-		}
-	}
-
-	if (Info_Flag && process.locate==LOCATE_RIP)
-	{
-		sprintf(szBuffer, "%s", FrameType[frame_type]);
-		SetDlgItemText(hDlg, IDC_FRAME_TYPE, szBuffer);
-
-        switch (matrix_coefficients)
-        {
-        case 1:
-		    sprintf(szBuffer, "%s", "BT.709");
-            break;
-        case 2:
-		    sprintf(szBuffer, "%s", "Unknown");
-            break;
-        case 3:
-		    sprintf(szBuffer, "%s", "Reserved");
-            break;
-        case 4:
-		    sprintf(szBuffer, "%s", "BT.470-2 M");
-            break;
-        case 5:
-		    sprintf(szBuffer, "%s", "BT.470-2 B,G");
-            break;
-        case 6:
-		    sprintf(szBuffer, "%s", "SMPTE 170M");
-            break;
-        case 7:
-		    sprintf(szBuffer, "%s", "SMPTE 240M");
-            break;
-        case 0:
-        default:
-		    sprintf(szBuffer, "%s", "Reserved");
-            break;
-        }
-		SetDlgItemText(hDlg, IDC_COLORIMETRY, szBuffer);
-
-		sprintf(szBuffer, "%s", picture_structure == 3 ? "Frame" : "Field");
-		SetDlgItemText(hDlg, IDC_FRAME_STRUCTURE, szBuffer);
-
-		sprintf(szBuffer, "%d", frame+1);
-		SetDlgItemText(hDlg, IDC_CODED_NUMBER, szBuffer);
-
-		sprintf(szBuffer, "%d", playback);
-		SetDlgItemText(hDlg, IDC_PLAYBACK_NUMBER, szBuffer);
-
-		sprintf(szBuffer, "%d", frame_repeats);
-		SetDlgItemText(hDlg, IDC_FRAME_REPEATS, szBuffer);
-
-		sprintf(szBuffer, "%d", field_repeats);
-		SetDlgItemText(hDlg, IDC_FIELD_REPEATS, szBuffer);
-
-		if ((frame & 31) == 31)
-		{
-			double rate, rate_avg;
-			timing.ed = timeGetTime();
-
-			sprintf(szBuffer, "%.2f", 1000.0*(playback-Old_Playback)/(timing.ed-timing.mi+1));
-			SetDlgItemText(hDlg, IDC_FPS, szBuffer);
-			rate = ((double) (Bitrate_Monitor * 8 * Frame_Rate) / (playback-Old_Playback)) / 1000000.0;
-			Bitrate_Average += Bitrate_Monitor;
-			rate_avg = (Bitrate_Average * 8 * Frame_Rate) / playback / 1000000.0;
-			sprintf(szBuffer, "%.3f Mbps", rate);
-			SetDlgItemText(hDlg, IDC_BITRATE, szBuffer);
-			sprintf(szBuffer, "%.3f Mbps", rate_avg);
-			SetDlgItemText(hDlg, IDC_BITRATE_AVG, szBuffer);
-			Bitrate_Monitor = 0;
-			timing.mi = timing.ed;
-			Old_Playback = playback;
 		}
 	}
 }
@@ -472,29 +497,89 @@ void ShowFrame(bool move)
 
 	if (rgb24 && rgb24small && (move || Display_Flag))
 	{
-		if (Clip_Width > MAX_WINDOW_WIDTH || Clip_Height > MAX_WINDOW_HEIGHT)
+        if (Clip_Width > MAX_WINDOW_WIDTH || Clip_Height > MAX_WINDOW_HEIGHT)
 		{
-			// Zoom out by two in both directions. Quick and dirty.
-			yp = rgb24small + (Clip_Height - 1) * Clip_Width * 3;
-			yyp = rgb24 + (Clip_Height - 1) * Clip_Width * 3;
-			incy = Clip_Width * 3;
-			incyy = 2 * Clip_Width * 3;
-			for (y = yy = Clip_Height - 1; y >= Clip_HeightOver2; y--, yy-=2)
-			{
-				for (x = xx = 0; x < Clip_WidthTimes3Over2; x+=3, xx+=6)
-				{
-					yp[x] = yyp[xx];
-					yp[x+1] = yyp[xx+1];
-					yp[x+2] = yyp[xx+2];
-				}
-				yp -= incy;
-				yyp -= incyy;
-			}
-			SetDIBitsToDevice(hDC, 0, 0, Clip_Width / 2, Clip_Height, 0, 0, Clip_Height/2, Clip_Height/2,
-							  rgb24small + Clip_Height/2 * Clip_Width * 3, (LPBITMAPINFO) &birgbsmall, DIB_RGB_COLORS);
+            if (HDDisplay == HD_DISPLAY_SHRINK_BY_HALF)
+            {
+			    // Zoom out by two in both directions. Quick and dirty.
+			    yp = rgb24small + (Clip_Height - 1) * Clip_Width * 3;
+			    yyp = rgb24 + (Clip_Height - 1) * Clip_Width * 3;
+			    incy = Clip_Width * 3;
+			    incyy = 2 * Clip_Width * 3;
+			    for (y = yy = Clip_Height - 1; y >= Clip_HeightOver2; y--, yy-=2)
+			    {
+				    for (x = xx = 0; x < Clip_WidthTimes3Over2; x+=3, xx+=6)
+				    {
+					    yp[x] = yyp[xx];
+					    yp[x+1] = yyp[xx+1];
+					    yp[x+2] = yyp[xx+2];
+				    }
+				    yp -= incy;
+				    yyp -= incyy;
+			    }
+			    SetDIBitsToDevice(hDC, 0, 0, Clip_Width / 2, Clip_Height, 0, 0, Clip_Height/2, Clip_Height/2,
+							      rgb24small + Clip_Height/2 * Clip_Width * 3, (LPBITMAPINFO) &birgbsmall, DIB_RGB_COLORS);
+            }
+            else if (HDDisplay == HD_DISPLAY_BOTTOM_LEFT)
+            {
+                // Bottom left quadrant
+			    SetDIBitsToDevice(hDC,
+                                0,
+                                0,
+                                Clip_Width/2,   // dest width
+                                Clip_Height/2,  // dest height
+                                0,              // X source
+                                0,              // Y source
+                                0,              // start scan
+                                Clip_Height,    // scan lines
+							    rgb24, (LPBITMAPINFO)&birgb, DIB_RGB_COLORS);
+            }
+            else if (HDDisplay == HD_DISPLAY_BOTTOM_RIGHT)
+            {
+                // Bottom right quadrant
+                SetDIBitsToDevice(hDC,
+                                0,
+                                0,
+                                Clip_Width/2,   // dest width
+                                Clip_Height/2,  // dest height
+                                Clip_Width/2,   // X source
+                                0,              // Y source
+                                0,              // start scan
+                                Clip_Height,    // scan lines
+							    rgb24, (LPBITMAPINFO)&birgb, DIB_RGB_COLORS);
+            }
+            else if (HDDisplay == HD_DISPLAY_TOP_LEFT)
+            {
+                // Top left quadrant
+                SetDIBitsToDevice(hDC,
+                                0,
+                                0,
+                                Clip_Width/2,   // dest width
+                                Clip_Height/2,  // dest height
+                                0,              // X source
+                                Clip_Height/2,  // Y source
+                                0,              // start scan
+                                Clip_Height,    // scan lines
+							    rgb24, (LPBITMAPINFO)&birgb, DIB_RGB_COLORS);
+            }
+            else
+            {
+                // Top right quadrant
+                SetDIBitsToDevice(hDC,
+                                0,
+                                0,
+                                Clip_Width/2,   // dest width
+                                Clip_Height/2,  // dest height
+                                Clip_Width/2,   // X source
+                                Clip_Height/2,  // Y source
+                                0,              // start scan
+                                Clip_Height,    // scan lines
+							    rgb24, (LPBITMAPINFO)&birgb, DIB_RGB_COLORS);
+            }
 		}
 		else
 		{
+            // Full size display.
 			SetDIBitsToDevice(hDC, 0, 0, Clip_Width, Clip_Height, 0, 0, 0, Clip_Height,
 							  rgb24, (LPBITMAPINFO)&birgb, DIB_RGB_COLORS);
 		}

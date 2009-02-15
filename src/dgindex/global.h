@@ -50,8 +50,9 @@
 #define		false	FALSE
 
 // Messages to the window procedure.
-#define CLI_RIP_MESSAGE			(WM_APP)
-#define D2V_DONE_MESSAGE		(WM_APP + 1)
+#define CLI_RIP_MESSAGE				(WM_APP)
+#define D2V_DONE_MESSAGE			(WM_APP + 1)
+#define CLI_PREVIEW_DONE_MESSAGE	(WM_APP + 2)
 
 /* code definition */
 #define PICTURE_START_CODE			0x100
@@ -129,6 +130,7 @@
 #define CHROMA422		2
 #define CHROMA444		3
 
+#define SECTOR_SIZE				2048
 #define BUFFER_SIZE				2048
 #define MAX_FILE_NUMBER			512
 #define MAX_PICTURES_PER_GOP	500
@@ -190,6 +192,8 @@
 
 #define TRACK_PITCH		30000
 
+#define DG_MAX_PATH 2048
+
 typedef struct {
 	int			gop_start;
 	int			type;
@@ -198,42 +202,32 @@ typedef struct {
 	__int64		position;
 	bool		pf;
 	bool		trf;
+    int         picture_structure;
 }	D2VData;
 XTN D2VData d2v_backward, d2v_forward, d2v_current;
 
 XTN __int64 gop_positions[MAX_GOPS];
 XTN int gop_positions_ndx;
 
-XTN int Channel[CHANNEL], Sound_Max;
-
 typedef struct {
+	char					filename[DG_MAX_PATH];
 	FILE					*file;
+    bool                    selected_for_demux;
 	bool					rip;
+    int                     type;
+	// The different types use subsets of the following variables.
+	unsigned int			layer;
 	unsigned int			mode;
+	unsigned int			sample;
 	unsigned int			rate;
-}	AC3Stream;
-XTN AC3Stream ac3[CHANNEL];
-
-typedef struct {
-	FILE					*file;
-	bool					rip;
-}	RAWStream;
-XTN RAWStream mpa[CHANNEL], dts[CHANNEL];
-
-// Currently, because the AC3 decoder uses global variables,
-// only one instance of pcm can be active. However, I allow for
-// multiple instances in the data structure in case the decoding
-// is ever changed to support multiple instances.
-typedef struct {
-	FILE					*file;
-	char					filename[_MAX_PATH];
-	bool					rip;
 	int						size;
 	int						delay;
-	unsigned char			format;
+    unsigned char			format;
 	unsigned short			format_m2ts;
-} PCMStream;
-XTN PCMStream pcm[CHANNEL];
+} AudioStream;
+XTN AudioStream audio[256];
+
+XTN int Sound_Max;
 
 typedef struct {
 	__int64					run;
@@ -276,7 +270,6 @@ XTN bool Check_Flag;
 XTN bool D2V_Flag;
 XTN bool AudioOnly_Flag;
 XTN unsigned int AudioPktCount;
-XTN bool DDOverlay_Flag;
 XTN bool Display_Flag;
 XTN int Fault_Flag;
 XTN int CurrentFile;
@@ -288,6 +281,7 @@ XTN bool Pause_Flag;
 XTN bool Scale_Flag;
 XTN bool Start_Flag;
 XTN bool Stop_Flag;
+XTN bool HadAudioPTS;
 XTN int SystemStream_Flag;
 #define ELEMENTARY_STREAM 0
 #define PROGRAM_STREAM 1
@@ -298,19 +292,21 @@ XTN __int64 PackHeaderPosition;
 
 XTN int LeadingBFrames;
 XTN int ForceOpenGops;
-XTN char AVSTemplatePath[_MAX_PATH];
+XTN char AVSTemplatePath[DG_MAX_PATH];
+XTN char BMPPathString[DG_MAX_PATH];
 XTN int FullPathInFiles;
-XTN int UseOverlay;
+XTN int LoopPlayback;
 XTN int FusionAudio;
+XTN int UseMPAExtensions;
+XTN int NotifyWhenDone;
 
 XTN bool Luminance_Flag;
 XTN bool Cropping_Flag;
 XTN int Clip_Width, Clip_Height; 
 
 XTN int Method_Flag;
-// Track_Flag is now bit-mapped: bit 0 means track 1 enabled,
-// bit 1 means track 2 enabled, etc.
-XTN unsigned char Track_Flag;
+XTN char Track_List[255];
+XTN char Delay_Track[255];
 XTN int DRC_Flag;
 XTN bool DSDown_Flag;
 XTN bool Decision_Flag;
@@ -320,28 +316,26 @@ XTN int Norm_Ratio;
 XTN double PreScale_Ratio;
 
 /* DirectDraw & GDI resources */
-XTN LPDIRECTDRAW lpDD;
-XTN LPDIRECTDRAW2 lpDD2;
-XTN LPDIRECTDRAWSURFACE lpPrimary, lpOverlay;
-XTN DDCAPS halcaps;
-XTN DDSURFACEDESC ddsd;
-XTN DDOVERLAYFX ddofx;
 XTN HMENU hMenu;
 XTN HDC hDC;
 
 /* Global Value */
 XTN int CLIActive;
-XTN char ExePath[_MAX_PATH];
+XTN char *CLIPreview;
+XTN char ExePath[DG_MAX_PATH];
 XTN FILE *D2VFile;
-XTN char D2VFilePath[_MAX_PATH];
-XTN char AudioFilePath[_MAX_PATH];
+XTN char D2VFilePath[DG_MAX_PATH];
+XTN char AudioFilePath[DG_MAX_PATH];
+XTN unsigned int LowestAudioId;
 XTN int VOB_ID, CELL_ID;
 XTN FILE *MuxFile;
+XTN int HadAddDialog;
 #define D2V_FILE_VERSION 16
 
 XTN int WindowMode;
 XTN HWND hWnd, hDlg, hTrack;
-XTN char szInput[MAX_FILE_NUMBER*_MAX_PATH], szOutput[_MAX_PATH], szBuffer[_MAX_PATH], szSave[_MAX_PATH];
+XTN HWND hwndSelect;
+XTN char szInput[MAX_FILE_NUMBER*DG_MAX_PATH], szOutput[DG_MAX_PATH], szBuffer[DG_MAX_PATH], szSave[DG_MAX_PATH];
 
 XTN unsigned char *backward_reference_frame[3], *forward_reference_frame[3];
 XTN unsigned char *auxframe[3], *current_frame[3];
@@ -360,6 +354,13 @@ XTN bool RightArrowHit;
 #define SPEED_FAST			4
 #define SPEED_MAXIMUM		5
 
+XTN int HDDisplay;
+#define HD_DISPLAY_SHRINK_BY_HALF	0
+#define HD_DISPLAY_TOP_LEFT     	1
+#define HD_DISPLAY_TOP_RIGHT		2
+#define HD_DISPLAY_BOTTOM_LEFT		3
+#define HD_DISPLAY_BOTTOM_RIGHT		4
+
 XTN unsigned int Frame_Number;
 XTN int Coded_Picture_Width, Coded_Picture_Height;
 XTN int block_count, Second_Field;
@@ -369,6 +370,7 @@ XTN double frame_rate, Frame_Rate;
 XTN unsigned int fr_num, fr_den;
 XTN int FILM_Purity, VIDEO_Purity, Bitrate_Monitor;
 XTN double Bitrate_Average;
+XTN double max_rate;
 
 XTN int Clip_Left, Clip_Right, Clip_Top, Clip_Bottom;
 
@@ -403,6 +405,10 @@ XTN int aspect_ratio_information;
 XTN int progressive_sequence;
 XTN int chroma_format;
 
+/* sequence_display_extension() */
+XTN int display_horizontal_size;
+XTN int display_vertical_size;
+
 /* ISO/IEC 13818-2 section 6.2.2.6:  group_of_pictures_header() */
 XTN int closed_gop;
 
@@ -410,10 +416,10 @@ XTN int closed_gop;
 XTN int temporal_reference;
 XTN int picture_coding_type;
 XTN int progressive_frame;
-XTN int StartTemporalReference;
 XTN int PTSAdjustDone;
-// Default to ITU-709.
+
 XTN int matrix_coefficients;
+XTN bool default_matrix_coefficients;
 
 /* ISO/IEC 13818-2 section 6.2.3.1: picture_coding_extension() header */
 XTN int f_code[2][2];
@@ -442,14 +448,21 @@ XTN void WriteD2VLine(int);
 
 /* gui.cpp */
 XTN void UpdateWindowText();
-XTN void ThreadKill(void);
-XTN void CheckDirectDraw(void);
+XTN void UpdateMRUList(void);
+XTN void AddMRUList(char *);
+XTN void DeleteMRUList(int);
+XTN char mMRUList[4][DG_MAX_PATH];
+#define MISC_KILL 0
+#define END_OF_DATA_KILL 1
+XTN void ThreadKill(int);
 XTN void ResizeWindow(int width, int height);
-XTN bool gop_warned, crop1088_warned, crop1088;
+XTN bool crop1088_warned, crop1088;
 XTN int LogQuants_Flag;
 XTN FILE *Quants;
 XTN int LogTimestamps_Flag;
+XTN int StartLogging_Flag;
 XTN FILE *Timestamps;
+XTN int InfoLog_Flag;
 
 /* idct */
 extern "C" void __fastcall MMX_IDCT(short *block);
@@ -488,7 +501,6 @@ XTN void ShowFrame(bool move);
 XTN void InitialSRC(void);
 XTN void Wavefs44(FILE *file, int size, unsigned char *buffer);
 XTN void EndSRC(FILE *file);
-XTN void Wavefs44File(int channel, int delay);
 XTN void StartWAV(FILE *file, unsigned char format);
 XTN void CloseWAV(FILE *file, int size);
 XTN void DownWAV(FILE *file);
@@ -510,6 +522,7 @@ XTN int MPEG2_Transport_PCRPID;
 XTN int MPEG2_Transport_AudioType;
 #define PID_DETECT_RAW 0
 #define PID_DETECT_PATPMT 1
+#define PID_DETECT_PSIP 2
 XTN int Pid_Detect_Method;
 XTN PATParser pat_parser;
 

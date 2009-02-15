@@ -102,7 +102,7 @@ void WriteD2VLine(int finish)
 	unsigned int gop_marker = 0x800;
 	int num_to_skip, ndx;
 
-	// We need to keep a record of the history of the I frame positions
+    // We need to keep a record of the history of the I frame positions
 	// to enable the following trick.
 	gop_positions[gop_positions_ndx] = gop_entries[0].position;
 	// An indexed unit (especially a pack) can contain multiple I frames.
@@ -288,7 +288,7 @@ __try
 			if (process.locate != LOCATE_RIP)
 			{
 				Write_Frame(backward_reference_frame, d2v_backward, 0);
-				ThreadKill();
+				ThreadKill(MISC_KILL);
 			}
 			else if (Frame_Number > 0)
 			{
@@ -305,13 +305,18 @@ __try
 
 	if (!Second_Field)
 		Frame_Number++;
+	if (Info_Flag && process.locate==LOCATE_RIP && CLIPreview && Frame_Number >= 100)
+	{
+		SendMessage(hWnd, CLI_PREVIEW_DONE_MESSAGE, 0, 0);
+		ThreadKill(MISC_KILL);
+	}
 }
 __except (EXCEPTION_EXECUTE_HANDLER)
 {
 	if (MessageBox(hWnd, "Caught an exception during decoding! Continue?", "Exception!", MB_YESNO | MB_ICONERROR) == IDYES)
 		return;
 	else
-		ThreadKill();
+		ThreadKill(MISC_KILL);
 }
 }
 
@@ -480,9 +485,8 @@ static void macroblock_modes(int *pmacroblock_type, int *pmotion_type,
 		else
 			motion_type = Get_Bits(2);
     }
-	else if ((macroblock_type & MACROBLOCK_INTRA) && concealment_motion_vectors)
+	else
 		motion_type = (picture_structure==FRAME_PICTURE) ? MC_FRAME : MC_FIELD;
-	else motion_type = 0; // implied
 
 	/* derive motion_vector_count, mv_format and dmv, (table 6-17, 6-18) */
 	if (picture_structure==FRAME_PICTURE)

@@ -276,6 +276,8 @@ static void pack_parser(void)
 				pes_packet_length = (unsigned short) (val << 8);
 				if (_read(file, &val2, 1) != 1)  { EOF_reached = 1; return; }
 				pes_packet_length |= val2;
+ //               if (pes_packet_length == 0)
+ //                   pes_packet_length = 256;
 				if (program_stream_type == MPEG1_PROGRAM_STREAM)
 				{
 					// MPEG1 program stream.

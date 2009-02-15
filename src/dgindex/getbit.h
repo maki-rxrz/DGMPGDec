@@ -33,7 +33,7 @@ void Flush_Buffer_All(unsigned int N);
 unsigned int Get_Bits_All(unsigned int N);
 void Next_File(void);
 
-GXTN unsigned char Rdbfr[BUFFER_SIZE], *Rdptr, *Rdmax;
+GXTN unsigned char *Rdbfr, *Rdptr, *Rdmax;
 GXTN unsigned int BitsLeft, CurrentBfr, NextBfr, Val, Read;
 GXTN __int64 CurrentPackHeaderPosition;
 
@@ -79,7 +79,8 @@ __forceinline static unsigned int Get_Byte()
 	if (Rdptr >= buffer_invalid)
 	{
 		// Ran out of good data.
-//		ThreadKill();
+        if (LoopPlayback)
+            ThreadKill(END_OF_DATA_KILL);
 		Stop_Flag = 1;
 		return 0xff;
 	}
@@ -87,7 +88,8 @@ __forceinline static unsigned int Get_Byte()
 	while (Rdptr >= Rdbfr+BUFFER_SIZE)
 	{
 		Read = _donread(Infile[CurrentFile], Rdbfr, BUFFER_SIZE);
-		if (Read < BUFFER_SIZE)	Next_File();
+		if (Read < BUFFER_SIZE)
+            Next_File();
 
 		Rdptr -= BUFFER_SIZE;
 		Rdmax -= BUFFER_SIZE;
@@ -103,6 +105,8 @@ __forceinline static void Fill_Next()
 	if (Rdptr >= buffer_invalid)
 	{
 		// Ran out of good data.
+		if (LoopPlayback)
+            ThreadKill(END_OF_DATA_KILL);
 		Stop_Flag = 1;
 		NextBfr = 0xffffffff;
 		return;
@@ -195,12 +199,17 @@ __forceinline static void next_start_code()
 {
 	unsigned int show;
 
-	Flush_Buffer(BitsLeft & 7);
+    // This is contrary to the spec but is more resilient to some
+    // stream corruption scenarios.
+    BitsLeft = ((BitsLeft + 7) / 8) * 8;
 
-	while ((show = Show_Bits(24)) != 1)
+	while (1)
 	{
+        show = Show_Bits(24);
 		if (Stop_Flag == true)
 			return;
+        if (show == 0x000001)
+            return;
 		Flush_Buffer(8);
 	}
 }

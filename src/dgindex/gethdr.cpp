@@ -154,8 +154,6 @@ int Get_Hdr(int mode)
 		switch (code)
 		{
 			case SEQUENCE_HEADER_CODE:
-				if (process.locate == LOCATE_RIP && MuxFile == (FILE *) 0)
-					StartVideoDemux();
 				// Index the location of the sequence header for the D2V file.
 				// We prefer to index the sequence header corresponding to this
 				// GOP, but if one doesn't exist, we index the picture header of the I frame.
@@ -214,6 +212,10 @@ void sequence_header()
 	int bit_rate_value;
 	int vbv_buffer_size;
 	int i;
+
+    // These will become nonzero if we receive a sequence display extension
+	display_horizontal_size = 0;
+	display_vertical_size = 0;
 
 	horizontal_size             = Get_Bits(12);
 	vertical_size               = Get_Bits(12);
@@ -312,6 +314,7 @@ void sequence_header()
 	// It may be overridden to MPEG2 if a
 	// sequence extension arrives.
 	matrix_coefficients = 5;
+    default_matrix_coefficients = true;
 
 	setRGBValues();
 	// These are MPEG1 defaults. These will be overridden if we have MPEG2
@@ -324,13 +327,18 @@ void sequence_header()
 	// Special case for 1080i video.
 	if (vertical_size == 1088)
 	{
+        if (CLIActive)
+        {
+            crop1088_warned = true;
+            crop1088 = true;
+        }
 		if (crop1088_warned == false)
 		{
 			char buf[255];
 			sprintf(buf, "Your stream specifies a display height of 1088.\n"
 				"This is sometimes an encoding mistake and the last 8 lines are garbage.\n"
 				"Do you want to treat it as if it specified a height of 1080?");
-			if (MessageBox(hWnd, buf, "Display Height 1088 Warning", MB_YESNO | MB_ICONWARNING) == IDYES)
+			if (MessageBox(hWnd, buf, "Display Height 1088 Warning", MB_YESNO | MB_ICONINFORMATION) == IDYES)
 				crop1088 = true;
 			else
 				crop1088 = false;
@@ -352,7 +360,7 @@ static void group_of_pictures_header()
 	int drop_flag;
 	int broken_link;
 
-	if (LogTimestamps_Flag && D2V_Flag)
+	if (LogTimestamps_Flag && D2V_Flag && StartLogging_Flag)
 		fprintf(Timestamps, "GOP start\n");
 	drop_flag   = Get_Bits(1);
 	gop_hour    = Get_Bits(5);
@@ -377,7 +385,7 @@ static void picture_header(__int64 start, boolean HadSequenceHeader, boolean Had
 
 	temporal_reference  = Get_Bits(10);
 	picture_coding_type = Get_Bits(3);
-	if (LogTimestamps_Flag && D2V_Flag)
+	if (LogTimestamps_Flag && D2V_Flag && StartLogging_Flag)
 	{
 		fprintf(Timestamps, "Decode picture: temporal reference %d", temporal_reference);
 		switch (picture_coding_type)
@@ -394,32 +402,25 @@ static void picture_header(__int64 start, boolean HadSequenceHeader, boolean Had
 		}
 	}
 
-
-	if (StartTemporalReference == -1 && HadGopHeader == true && picture_coding_type == I_TYPE)
-	{
-		StartTemporalReference = temporal_reference;
-		HadGopHeader = false;
-//		dprintf("DGIndex: StartTemporalReference = %d\n", StartTemporalReference);
-	}
-
 	d2v_current.type = picture_coding_type;
 
 	if (d2v_current.type == I_TYPE)
 	{
 		d2v_current.file = process.startfile = CurrentFile;
 		process.startloc = _telli64(Infile[CurrentFile]);
-		d2v_current.lba = process.startloc/BUFFER_SIZE - 1;
+		d2v_current.lba = process.startloc/SECTOR_SIZE - 1;
 		if (d2v_current.lba < 0)
 		{
 			d2v_current.lba = 0;
 		}
 		track = (double) d2v_current.lba;
-		track *= BUFFER_SIZE;
+		track *= SECTOR_SIZE;
 		track += process.run;
 		track *= TRACK_PITCH;
 		track /= Infiletotal;
 		trackpos = (int) track;
 		SendMessage(hTrack, TBM_SETPOS, (WPARAM)true, trackpos);
+    	InvalidateRect(hwndSelect, NULL, TRUE);
 #if 0
 		{
 			char buf[80];
@@ -446,7 +447,7 @@ static void picture_header(__int64 start, boolean HadSequenceHeader, boolean Had
 		// This triggers if we reach the right marker position.
 		if (CurrentFile==process.endfile && process.startloc>=process.endloc)		// D2V END
 		{
-			ThreadKill();
+			ThreadKill(END_OF_DATA_KILL);
 		}
 
 		if (Info_Flag)
@@ -591,7 +592,6 @@ static void sequence_extension()
 	// override the earlier assumption of MPEG1 for
 	// transport streams.
 	mpeg_type = IS_MPEG2;
-	matrix_coefficients = 1;
    	setRGBValues();
 
 	profile_and_level_indication = Get_Bits(8);
@@ -612,6 +612,13 @@ static void sequence_extension()
 
 	horizontal_size = (horizontal_size_extension<<12) | (horizontal_size&0x0fff);
 	vertical_size = (vertical_size_extension<<12) | (vertical_size&0x0fff);
+    // This is the default case and may be overridden by a sequence display extension.
+    if (horizontal_size > 720 || vertical_size > 576)
+        // HD
+	    matrix_coefficients = 1;
+    else
+        // SD
+       	matrix_coefficients = 5;
 }
 
 /* decode sequence display extension */
@@ -621,8 +628,7 @@ static void sequence_display_extension()
 	int color_description;
 	int color_primaries;
 	int transfer_characteristics;
-	int display_horizontal_size;
-	int display_vertical_size;
+    int matrix;
 
 	video_format      = Get_Bits(3);
 	color_description = Get_Bits(1);
@@ -631,7 +637,14 @@ static void sequence_display_extension()
 	{
 		color_primaries          = Get_Bits(8);
 		transfer_characteristics = Get_Bits(8);
-		matrix_coefficients      = Get_Bits(8);
+		matrix = Get_Bits(8);
+        // If the stream specifies "reserved" or "unspecified" then leave things set to our default
+        // based on HD versus SD.
+        if (matrix == 1 || (matrix >= 4 && matrix <= 7))
+        {
+		    matrix_coefficients  = matrix;
+            default_matrix_coefficients = false;
+        }
 		setRGBValues();
 	}
 
@@ -819,28 +832,35 @@ static void picture_coding_extension()
 	intra_dc_precision			= Get_Bits(2);
 	picture_structure			= Get_Bits(2);
 	top_field_first				= Get_Bits(1);
-	frame_pred_frame_dct		= Get_Bits(1);
+    frame_pred_frame_dct		= Get_Bits(1);
 	concealment_motion_vectors	= Get_Bits(1);
 	q_scale_type				= Get_Bits(1);
 	intra_vlc_format			= Get_Bits(1);
 	alternate_scan				= Get_Bits(1);
 	repeat_first_field			= Get_Bits(1);
-	if (progressive_sequence && repeat_first_field)
+#if 0
+    // Not working right
+	if (D2V_Flag && progressive_sequence && repeat_first_field)
 	{
 		if (FO_Flag == FO_FILM)
 		{
 			MessageBox(hWnd, "Frame repeats were detected in the source stream.\n"
 							 "Proper handling of them requires that you turn off Force Film mode.\n"
 							 "After turning it off, restart this operation.", NULL, MB_OK | MB_ICONERROR);
-			ThreadKill();
+			ThreadKill(MISC_KILL);
 		}
 	}
+#endif
 	chroma_420_type				= Get_Bits(1);
 	progressive_frame			= Get_Bits(1);
 	composite_display_flag		= Get_Bits(1);
 
 	d2v_current.pf = progressive_frame;
 	d2v_current.trf = (top_field_first<<1) + repeat_first_field;
+    // Store just the first picture structure encountered. We'll
+    // use it to report the field order for field structure clips.
+    if (d2v_current.picture_structure == -1)
+	    d2v_current.picture_structure = picture_structure;
 
 	if (composite_display_flag)
 	{
@@ -860,6 +880,8 @@ static int extra_bit_information()
 
 	while (Get_Bits(1))
 	{
+        if (Stop_Flag)
+            break;
 		Flush_Buffer(8);
 		Byte_Count++;
 	}

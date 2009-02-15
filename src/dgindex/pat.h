@@ -23,10 +23,10 @@
 
 #define TS_SYNC_BYTE 0x47
 #define PAT_PID 0
+#define PSIP_PID 0x1ffb
 #define LIMIT 10000000
 #define MAX_PROGRAMS 500
 #define MAX_SECTION 4096
-#define PAT_PID 0
 #define MAX_PIDS 500
 #define MAX_PACKETS 100000
 #define PCR_STREAM 1
@@ -51,12 +51,15 @@ private:
 	int SyncTransport(void);
 	void PATParser::GetTable(unsigned int table_pid);
 	int AnalyzePAT(void);
+	int AnalyzePSIP(void);
 	int AnalyzeRaw(void);
 	int ProcessPATSection(void);
 	int ProcessPMTSection(void);
+	int ProcessPSIPSection(void);
 public:
 	PATParser(void);
 	int DumpPAT(HWND hDialog, char *filename);
+	int DumpPSIP(HWND hDialog, char *filename);
 	int DumpRaw(HWND hDialog, char *filename);
 	int GetAudioType(char *filename, unsigned int audio_pid);
 	int DoInitialPids(char *filename);

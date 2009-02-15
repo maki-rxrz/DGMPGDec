@@ -171,12 +171,22 @@ void CMPEG2Decoder::Next_Transport_Packet()
 		{
 			if ((tp.sync_byte = Get_Byte()) != 0x47)
 				continue;
-			if (Rdptr + (TransportPacketSize-1) >= Rdbfr + BUFFER_SIZE && Rdptr[-(TransportPacketSize+1)] == 0x47)
-				break;
-			if (Rdptr + (TransportPacketSize-1) < Rdbfr + BUFFER_SIZE && Rdptr[+(TransportPacketSize-1)] == 0x47)
-				break;
+
+			if (Rdptr - Rdbfr > TransportPacketSize)
+			{
+				if (Rdptr[-(TransportPacketSize+1)] == 0x47)
+					break;
+			}
+			else if (Rdbfr + Read - Rdptr > TransportPacketSize - 1)
+			{
+				if (Rdptr[+(TransportPacketSize-1)] == 0x47)
+					break;
+			}
 			else
-				continue;
+			{
+				// We can't check so just accept this sync byte.
+                break;
+			}
 		}
 		--Packet_Length; // decrement the sync_byte;
 
@@ -674,20 +684,19 @@ unsigned int CMPEG2Decoder::Get_Short()
 
 void CMPEG2Decoder::next_start_code()
 {
-	#ifdef PROFILING
-//		start_bit_timer();
-	#endif
+	unsigned int show;
 
-	Flush_Buffer(BitsLeft & 7);
+    // This is contrary to the spec but is more resilient to some
+    // stream corruption scenarios.
+    BitsLeft = ((BitsLeft + 7) / 8) * 8;
 
-	while (Show_Bits(24) != 1)
+	while (1)
 	{
+        show = Show_Bits(24);
 		if (Fault_Flag == OUT_OF_BITS)
 			return;
+        if (show == 0x000001)
+            return;
 		Flush_Buffer(8);
 	}
-
-	#ifdef PROFILING
-//		stop_bit_timer();
-	#endif
 }

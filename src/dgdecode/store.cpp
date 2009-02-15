@@ -56,27 +56,6 @@ __inline void MBnum(uc* dst, int stride, int number)
 	uc* num;
 
 	dst += 3*stride;
-	for (y=0;y<7;y++) {
-		if (y==0 || y==3 || y==6) {
-				dst[2+y*stride] = hc;
-				dst[3+y*stride] = hc;
-				//
-				dst[5+2+y*stride] = hc;
-				dst[5+3+y*stride] = hc;
-				//
-				dst[10+2+y*stride] = hc;
-				dst[10+3+y*stride] = hc;
-		}
-		dst[1+y*stride] = hc;
-		dst[4+y*stride] = hc;
-		//
-		dst[5+1+y*stride] = hc;
-		dst[5+4+y*stride] = hc;
-		//
-		dst[10+1+y*stride] = hc;
-		dst[10+4+y*stride] = hc;
-	}
-
 	c = (number/100)%10;
 	num = nums[c]; // x00
 	if (c==0) num = rien;
@@ -144,6 +123,8 @@ __inline void MBnum(uc* dst, int stride, int number)
 
 void CMPEG2Decoder::assembleFrame(unsigned char *src[], int pf, YV12PICT *dst)
 {
+    int *qp;
+
 	#ifdef PROFILING
 		start_timer();
 	#endif
@@ -210,6 +191,37 @@ void CMPEG2Decoder::assembleFrame(unsigned char *src[], int pf, YV12PICT *dst)
 		else CopyAll(&psrc,dst);
 	}
 
+    // Re-order quant data for display order.
+    if (info == 1 || info == 2 || showQ)
+    {
+        if (picture_coding_type == B_TYPE)
+            qp = auxQP;
+        else
+            qp = backwardQP;
+    }
+
+	if (info == 1 || info == 2)
+	{
+		__asm emms;
+		int x, y, temp;
+		int quant;
+
+		minquant = maxquant = qp[0];
+        avgquant = 0;
+		for(y=0; y<mb_height; ++y)
+		{
+			temp = y*mb_width;
+			for(x=0; x<mb_width; ++x) 
+			{
+				quant = qp[x+temp];
+				if (quant > maxquant) maxquant = quant;
+				if (quant < minquant) minquant = quant;
+				avgquant += quant;
+			}
+		}
+		avgquant = (int)(((float)avgquant/(float)(mb_height*mb_width)) + 0.5f);
+	}
+
 	if (showQ)
 	{
 		int x, y;
@@ -217,7 +229,7 @@ void CMPEG2Decoder::assembleFrame(unsigned char *src[], int pf, YV12PICT *dst)
 		{
 			for(x=0;x<this->mb_width; x++) 
 			{
-				MBnum(&dst->y[x*16+y*16*dst->ypitch],dst->ypitch,QP[x+y*this->mb_width]);
+				MBnum(&dst->y[x*16+y*16*dst->ypitch],dst->ypitch,qp[x+y*this->mb_width]);
 			}
 		}
 	}

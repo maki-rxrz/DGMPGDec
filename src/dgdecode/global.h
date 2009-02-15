@@ -433,7 +433,7 @@ public:
   int iPP, iCC;
   bool fastMC;
   bool showQ;
-  int* QP;
+  int *QP, *backwardQP, *auxQP;
   int upConv;
   bool i420;
   int pc_scale;

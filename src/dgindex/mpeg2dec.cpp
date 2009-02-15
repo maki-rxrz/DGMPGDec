@@ -24,57 +24,63 @@
 #include "global.h"
 #include "getbit.h"
 #include "math.h"
+#include "shlwapi.h"
 
 static BOOL GOPBack(void);
 static void InitialDecoder(void);
+extern void StartVideoDemux(void);
 
 #define DISABLE_EXCEPTION_HANDLING
 
 DWORD WINAPI MPEG2Dec(LPVOID n)
 {
 	int i = (int) n; // Prevent compiler warning.
-	extern int VideoPTS;
+	extern unsigned int VideoPTS;
+	extern unsigned int AudioPTS;
 	extern FILE *mpafp, *mpvfp;
 	__int64 saveloc;
+    int savefile;
     int field;
 
-	Pause_Flag = Stop_Flag = Start_Flag = false;
+	Pause_Flag = Stop_Flag = Start_Flag = HadAudioPTS = false;
+    VideoPTS = AudioPTS = 0;
 	Fault_Flag = 0;
 	Frame_Number = Second_Field = 0;
 	Sound_Max = 1; Bitrate_Monitor = 0;
 	Bitrate_Average = 0.0;
+    max_rate = 0.0;
 	GOPSeen = false;
 	AudioOnly_Flag = 0;
 	AudioFilePath[0] = 0;
+    LowestAudioId = 0xffffffff;
+    StartLogging_Flag = 0;
+    d2v_current.picture_structure = -1;
 
-	for (i=0; i<CHANNEL; i++)
-	{
-		ZeroMemory(&ac3[i], sizeof(AC3Stream));
-		ZeroMemory(&mpa[i], sizeof(RAWStream));	
-		ZeroMemory(&dts[i], sizeof(RAWStream));
-	}
-
-	ZeroMemory(pcm, sizeof(pcm));
-	ZeroMemory(&Channel, sizeof(Channel));
+    for (i = 0; i < 0xc8; i++)
+    {
+        audio[i].type = 0;
+        audio[i].rip = 0;
+        audio[i].size = 0;
+    }
 	mpafp = mpvfp = NULL;
 
 	switch (process.locate)
 	{
 		case LOCATE_FORWARD:
 			process.startfile = process.file;
-			process.startloc = (process.lba + 1) * BUFFER_SIZE;
+			process.startloc = (process.lba + 1) * SECTOR_SIZE;
 
-			process.end = Infiletotal - BUFFER_SIZE;
+			process.end = Infiletotal - SECTOR_SIZE;
 			process.endfile = NumLoadedFiles - 1;
-			process.endloc = (Infilelength[NumLoadedFiles-1]/BUFFER_SIZE - 1) * BUFFER_SIZE;
+			process.endloc = (Infilelength[NumLoadedFiles-1]/SECTOR_SIZE - 1) * SECTOR_SIZE;
 			break;
 
 		case LOCATE_BACKWARD:
 			process.startfile = process.file;
-			process.startloc = process.lba * BUFFER_SIZE;
-			process.end = Infiletotal - BUFFER_SIZE;
+			process.startloc = process.lba * SECTOR_SIZE;
+			process.end = Infiletotal - SECTOR_SIZE;
 			process.endfile = NumLoadedFiles - 1;
-			process.endloc = (Infilelength[NumLoadedFiles-1]/BUFFER_SIZE - 1) * BUFFER_SIZE;
+			process.endloc = (Infilelength[NumLoadedFiles-1]/SECTOR_SIZE - 1) * SECTOR_SIZE;
 			if (GOPBack() == false && CurrentFile > 0)
 			{
 				// Trying to step back to previous VOB file.
@@ -92,15 +98,15 @@ DWORD WINAPI MPEG2Dec(LPVOID n)
 		case LOCATE_RIP:
 		case LOCATE_DEMUX_AUDIO:
 			process.startfile = process.leftfile;
-			process.startloc = process.leftlba * BUFFER_SIZE;
+			process.startloc = process.leftlba * SECTOR_SIZE;
 			process.endfile = process.rightfile;
-			process.endloc = (process.rightlba - 1) * BUFFER_SIZE;
+			process.endloc = (process.rightlba - 1) * SECTOR_SIZE;
 			goto do_rip_play;
 		case LOCATE_PLAY:
 			process.startfile = process.file;
-			process.startloc = process.lba * BUFFER_SIZE;
+			process.startloc = process.lba * SECTOR_SIZE;
 			process.endfile = NumLoadedFiles - 1;
-			process.endloc = (Infilelength[NumLoadedFiles-1]/BUFFER_SIZE - 1) * BUFFER_SIZE;
+			process.endloc = (Infilelength[NumLoadedFiles-1]/SECTOR_SIZE - 1) * SECTOR_SIZE;
 			process.locate = LOCATE_RIP;
 do_rip_play:
 			process.run = 0;
@@ -116,7 +122,7 @@ do_rip_play:
 
 		case LOCATE_SCROLL:
 			CurrentFile = process.startfile;
-			_lseeki64(Infile[process.startfile], (process.startloc/BUFFER_SIZE)*BUFFER_SIZE, SEEK_SET);
+			_lseeki64(Infile[process.startfile], (process.startloc/SECTOR_SIZE)*SECTOR_SIZE, SEEK_SET);
 			Initialize_Buffer();
 
 			timing.op = 0;
@@ -126,7 +132,7 @@ do_rip_play:
 			{
 				Get_Hdr(0);
 				if (Stop_Flag == true)
-					ThreadKill();
+					ThreadKill(MISC_KILL);
 				if (picture_coding_type == I_TYPE)
 				{
 					process.startloc = saveloc;
@@ -160,7 +166,7 @@ do_rip_play:
 			Next_Packet();
 			if (Stop_Flag)
 			{
-				ThreadKill();
+				ThreadKill(MISC_KILL);
 			}
 		}
 	}
@@ -169,23 +175,16 @@ do_rip_play:
 	if (!Check_Flag)
 	{
 		int code;
-		int i, count;
+		int i, count, Read;
 		unsigned int show;
-		unsigned char buf[204];
-
-		// Position to start of the first file.
-		TransportPacketSize = 188;
-try_again:
-		CurrentFile = 0;
-		_lseeki64(Infile[0], 0, SEEK_SET);
-		Initialize_Buffer();
+		unsigned char buf[32768], *b;
 
 		// First see if it is a transport stream.
 
 		// Skip any leading null characters, because some
 		// captured transport files were seen to start with a large
 		// number of nulls.
-		for (;;)
+        for (;;)
 		{
 			if (_read(Infile[0], buf, 1) == 0)
 			{
@@ -201,21 +200,16 @@ try_again:
 			}
 		}
 
-		// Search for four sync bytes 188, 192, or 204 bytes apart.
-		// Gives good protection against sync byte emulation.
-		// Look in the first 10000 good data bytes of the file only,
-		// then give up.
-		for (i = 0, count = 0; i < 10000; i++)
-		{
-			_read(Infile[0], buf, 1);
-			if (buf[0] == 0x47)
-			{
-				// We should see this sync byte within 188 or 204 bytes of the
-				// first non-null byte. If not, it's a spoof.
-				if (count == 0 && i > TransportPacketSize - 1)
-					break;
-				if (count++ >= 4)
-				{
+	    Read = _read(Infile[0], buf, 2048);
+		TransportPacketSize = 188;
+try_again:
+        b = buf;
+	    while (b + 4 * TransportPacketSize < buf + Read)
+	    {
+		    if (*b == 0x47)
+		    {
+			    if ((b[TransportPacketSize] == 0x47) && b[2*TransportPacketSize] == 0x47 && b[3*TransportPacketSize] == 0x47 && b[4*TransportPacketSize] == 0x47)
+			    {
 					SystemStream_Flag = TRANSPORT_STREAM;
 					// initial_parse is not called for transport streams, so
 					// assume MPEG1 for now. It will be overridden to MPEG2 if
@@ -227,22 +221,20 @@ try_again:
 						MPEG2_Transport_PCRPID == 0x02)
 						pat_parser.DoInitialPids(Infilename[0]);
 					break;
-				}
-				_read(Infile[0], buf, TransportPacketSize - 1);
-			}
-			else
-				count = 0;
-		}
-		if (SystemStream_Flag != TRANSPORT_STREAM && TransportPacketSize == 188)
-		{
-			TransportPacketSize = 192;
-			goto try_again;
-		}
-		else if (SystemStream_Flag != TRANSPORT_STREAM && TransportPacketSize == 192)
-		{
-			TransportPacketSize = 204;
-			goto try_again;
-		}
+			    }
+		    }
+		    b++;
+	    }
+	    if (SystemStream_Flag != TRANSPORT_STREAM && TransportPacketSize == 188)
+	    {
+		    TransportPacketSize = 192;
+		    goto try_again;
+	    }
+	    else if (SystemStream_Flag != TRANSPORT_STREAM && TransportPacketSize == 192)
+	    {
+		    TransportPacketSize = 204;
+		    goto try_again;
+	    }
 
 		// Now try for PVA streams. Look for a packet start in the first 1024 bytes.
 		if (SystemStream_Flag != TRANSPORT_STREAM)
@@ -276,7 +268,7 @@ try_again:
 			{
 				// We didn't find a sequence header.
 				MessageBox(hWnd, "No video sequence header found!", NULL, MB_OK | MB_ICONERROR);
-				ThreadKill();
+				ThreadKill(MISC_KILL);
 			}
 			Flush_Buffer(8);
 			count++;
@@ -313,47 +305,13 @@ try_again:
 			{
 			case SEQUENCE_HEADER_CODE:
 				if (Stop_Flag == true)
-					ThreadKill();
+					ThreadKill(MISC_KILL);
 				sequence_header();
 				InitialDecoder();
 				Check_Flag = true;
 				break;
 			}
 		}
-
-		// Determine the number of leading B frames in display order.
-		// This will be used to warn the user if required and to
-		// adjust the VideoPTS.
-		saveloc = process.startloc;
-		CurrentFile = 0;
-		_lseeki64(Infile[0], 0, SEEK_SET);
-		Initialize_Buffer();
-		for (;;)
-		{
-			if (Stop_Flag) break;
-			Get_Hdr(0);
-			if (picture_coding_type == I_TYPE) break;
-		}
-		LeadingBFrames = 0;
-		for (;;)
-		{
-			if (Get_Hdr(1) == 1)
-			{
-				// We hit a sequence end code or end of file, so there are no
-				// more frames.
-				break;
-			}
-			if (picture_coding_type != B_TYPE) break;
-			LeadingBFrames++;
-		}
-		if (LeadingBFrames > 0 && gop_warned == false && closed_gop == 0)
-		{
-			MessageBox(hWnd, "WARNING! Opening GOP is not closed.\nThe first few frames may not be decoded correctly.", NULL, MB_OK | MB_ICONERROR);
-			gop_warned = true;
-		}
-		// Position back to the first GOP.
-		process.startloc = saveloc;
-		Stop_Flag = false;
 	}
 
 	Frame_Rate = (FO_Flag==FO_FILM) ? frame_rate * 0.8 : frame_rate;
@@ -368,13 +326,20 @@ try_again:
 		fprintf(D2VFile, "DGIndexProjectFile%d\n%d\n", D2V_FILE_VERSION, i);
 		while (i)
 		{
-            const char* pFile = strrchr(Infilename[NumLoadedFiles-i],'\\');
+			if (FullPathInFiles)
+				fprintf(D2VFile, "%s\n", Infilename[NumLoadedFiles-i]);
+			else
+            {
+				char path[DG_MAX_PATH];
+				char* p = path;
 
-            if (FullPathInFiles || pFile==0)
-			    fprintf(D2VFile, "%s\n", Infilename[NumLoadedFiles-i]);
-            else
-                fprintf(D2VFile, "%s\n", ++pFile);
-
+                if (!PathRelativePathTo(path, D2VFilePath, 0, Infilename[NumLoadedFiles-i], 0))
+					p = Infilename[NumLoadedFiles - i]; // different drives;
+                // Delete leading ".\" if it is present.
+                if (p[0] == '.' && p[1] == '\\')
+                    p += 2;
+				fprintf(D2VFile, "%s\n", p);
+			}
 			i--;
 		}
 
@@ -429,27 +394,71 @@ try_again:
 		fprintf(D2VFile, "Frame_Rate=%d (%u/%u)\n", (int)(Frame_Rate*1000), fr_num, fr_den);
 		fprintf(D2VFile, "Location=%d,%I64x,%d,%I64x\n\n",
 				process.leftfile, process.leftlba, process.rightfile, process.rightlba);
-	}
+
+        // Determine the number of leading B frames from the start position. This will be used to
+        // adjust VideoPTS so that it refers to the correct access unit.
+	    PTSAdjustDone = 0;
+        savefile = process.startfile;
+        saveloc = process.startloc;
+	    CurrentFile = process.startfile;
+	    _lseeki64(Infile[process.startfile], (process.startloc/SECTOR_SIZE)*SECTOR_SIZE, SEEK_SET);
+	    // We initialize the following variables to the current start position, because if the user
+	    // has set a range, and the packs are large such that we won't hit a pack/packet start
+	    // before we hit an I frame, we don't want the pack/packet position to remain at 0.
+	    // It has to be at least equal to or greater than the starting position in the stream.
+	    CurrentPackHeaderPosition = PackHeaderPosition = (process.startloc/SECTOR_SIZE)*SECTOR_SIZE;
+		Initialize_Buffer();
+		for (;;)
+		{
+			if (Stop_Flag) break;
+			Get_Hdr(0);
+			if (picture_coding_type == I_TYPE) break;
+		}
+		LeadingBFrames = 0;
+		for (;;)
+		{
+			if (Get_Hdr(1) == 1)
+			{
+				// We hit a sequence end code or end of file, so there are no
+				// more frames.
+				break;
+			}
+			if (picture_coding_type != B_TYPE) break;
+			if (picture_structure == FRAME_PICTURE)
+    			LeadingBFrames += 2;
+            else
+    			LeadingBFrames += 1;
+		}
+        LeadingBFrames /= 2;
+        process.startfile = savefile;
+        process.startloc = saveloc;
+	    Stop_Flag = false;
+    }
 
 	// Start normal decoding from the start position.
-	StartTemporalReference = -1;
-	PTSAdjustDone = 0;
+    if (Timestamps)
+    {
+        StartLogging_Flag = 1;
+        fprintf(Timestamps, "leading B frames = %d\n", LeadingBFrames);
+    }
+    PTSAdjustDone = 0;
 	CurrentFile = process.startfile;
-	_lseeki64(Infile[process.startfile], (process.startloc/BUFFER_SIZE)*BUFFER_SIZE, SEEK_SET);
+	_lseeki64(Infile[process.startfile], (process.startloc/SECTOR_SIZE)*SECTOR_SIZE, SEEK_SET);
 	// We initialize the following variables to the current start position, because if the user
 	// has set a range, and the packs are large such that we won't hit a pack/packet start
 	// before we hit an I frame, we don't want the pack/packet position to remain at 0.
 	// It has to be at least equal to or greater than the starting position in the stream.
-	CurrentPackHeaderPosition = PackHeaderPosition = (process.startloc/BUFFER_SIZE)*BUFFER_SIZE;
-	Initialize_Buffer();
+	CurrentPackHeaderPosition = PackHeaderPosition = (process.startloc/SECTOR_SIZE)*SECTOR_SIZE;
+ 	if (MuxFile == (FILE *) 0 && process.locate == LOCATE_RIP)
+		StartVideoDemux();
+   Initialize_Buffer();
 
 	timing.op = 0;
-
 	for (;;)
 	{
 		Get_Hdr(0);
 		if (Stop_Flag == true)
-			ThreadKill();
+			ThreadKill(MISC_KILL);
 		if (picture_coding_type == I_TYPE) break;
 	}
 	Start_Flag = true;
@@ -468,7 +477,7 @@ try_again:
 		{
 			// Stop only after every two fields if we are decoding field pictures.
 			Write_Frame(current_frame, d2v_current, Frame_Number - 1);
-			ThreadKill();
+			ThreadKill(MISC_KILL);
 		}
 		Decode_Picture();
 		field ^= 1;
@@ -476,7 +485,7 @@ try_again:
 		{
 			// Stop only after every two fields if we are decoding field pictures.
 			Write_Frame(current_frame, d2v_current, Frame_Number - 1);
-			ThreadKill();
+			ThreadKill(MISC_KILL);
 		}
 	}
 	return 0;
@@ -495,7 +504,7 @@ static BOOL GOPBack()
 	for (;;)
 	{
 		endloc = startloc;
-		startloc -= BUFFER_SIZE<<4;
+		startloc -= SECTOR_SIZE<<4;
 
 		if (startloc >= 0)
 		{
@@ -517,12 +526,12 @@ static BOOL GOPBack()
 			if (curloc >= endloc) break;
 			Get_Hdr(0);
 			if (Stop_Flag == true)
-				ThreadKill();
+				ThreadKill(MISC_KILL);
 			if (picture_structure != FRAME_PICTURE)
 			{
 				Get_Hdr(0);
 				if (Stop_Flag == true)
-					ThreadKill();
+					ThreadKill(MISC_KILL);
 			}
 			if (picture_coding_type==I_TYPE)
 			{
@@ -545,11 +554,11 @@ static BOOL GOPBack()
 				}
 				// We've found the I frame we want!
 				process.startfile = d2v_current.file;
-				process.startloc = d2v_current.lba * BUFFER_SIZE;
+				process.startloc = d2v_current.lba * SECTOR_SIZE;
 				// This is a kludge. For PES streams, the pack start
 				// might be in the previous LBA!
 				if (SystemStream_Flag != ELEMENTARY_STREAM)
-					process.startloc -= BUFFER_SIZE + 4;
+					process.startloc -= SECTOR_SIZE + 4;
 				return true;
 			}
 		}
@@ -596,9 +605,6 @@ static void InitialDecoder()
 	lum = (unsigned char*)_aligned_malloc(Coded_Picture_Width*Coded_Picture_Height, 64);
 	Clip_Width = horizontal_size;
 	Clip_Height = vertical_size;
-
-	if (UseOverlay && WindowMode == SW_SHOW)
-		CheckDirectDraw();
 }
 
 void setRGBValues()

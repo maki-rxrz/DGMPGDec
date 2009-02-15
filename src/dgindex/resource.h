@@ -1,7 +1,7 @@
-#ifndef IDC_STATIC
-#define IDC_STATIC (-1)
-#endif
-
+//{{NO_DEPENDENCIES}}
+// Microsoft Developer Studio generated include file.
+// Used by gui.rc
+//
 #define ID_LEFT_BUTTON                  1
 #define ID_LEFT_ARROW                   2
 #define ID_RIGHT_BUTTON                 3
@@ -26,6 +26,8 @@
 #define IDD_DETECT_PIDS                 22
 #define IDD_AVS_TEMPLATE                23
 #define IDD_SELECT_TRACKS               24
+#define IDD_BMP_PATH                    25
+#define IDD_SELECT_DELAY_TRACK          26
 #define IDC_CODED_NUMBER                1016
 #define IDC_PLAYBACK_NUMBER             1017
 #define IDC_FRAME_RATE                  1018
@@ -96,18 +98,32 @@
 #define IDC_STREAM_TYPE                 1083
 #define IDC_TRACK_OK                    1084
 #define IDC_TRACK_CANCEL                1085
+#define IDC_AUDIO_LIST                  1086
+#define IDC_TRACK_LIST                  1087
+#define IDC_CODING_TYPE                 1088
+#define IDC_BITRATE_MAX                 1089
+#define IDC_CHANGE_BMP_PATH             1090
+#define IDC_KEEP_BMP_PATH               1091
+#define IDC_BMP_PATH                    1092
+#define IDC_BMP_PATH_OK                 1093
+#define IDC_BMP_PATH_CANCEL             1094
+#define IDC_DISPLAY_SIZE                1095
+#define IDC_DELAY_LIST                  1096
+#define IDC_DELAY_OK                    1097
+#define IDC_SEQUENCE                    1098
 #define IDM_ABOUT                       32769
 #define IDM_EXIT                        32770
 #define IDM_OPEN                        32771
 #define IDM_SAVE_D2V                    32772
 #define IDM_LOAD_D2V                    32774
 #define IDM_PREVIEW                     32775
-#define IDM_PAUSE                       32776
-#define IDM_STOP                        32777
-#define IDM_DISPLAY                     32778
-#define IDM_PP_HIGH                     32779
-#define IDM_PP_NORMAL                   32780
-#define IDM_PP_LOW                      32781
+#define IDM_PREVIEW_NO_INFO             32776
+#define IDM_PAUSE                       32777
+#define IDM_STOP                        32778
+#define IDM_DISPLAY                     32779
+#define IDM_PP_HIGH                     32780
+#define IDM_PP_NORMAL                   32781
+#define IDM_PP_LOW                      32782
 #define IDM_FO_FILM                     32784
 #define IDM_INFO                        32785
 #define IDM_DIRECTDRAW                  32786
@@ -152,17 +168,17 @@
 #define IDM_DEMUXALL                    32830
 #define IDM_DECODE                      32831
 #define IDM_AUDIO_NONE                  32832
-#define IDM_OPEN_AUTO                   32833
 #define IDM_PLAY                        32834
 #define IDM_JACKEI                      32835
 #define IDM_NEURON2                     32836
 #define IDM_FO_RAW                      32837
 #define IDM_SET_PIDS                    32838
 #define IDM_DETECT_PIDS                 32839
-#define IDM_DETECT_PIDS_RAW             32840
-#define IDM_SAVE_D2V_AND_DEMUX          32841
-#define IDM_PARSE_D2V                   32842
-#define IDM_FIX_D2V                     32843
+#define IDM_DETECT_PIDS_PSIP            32840
+#define IDM_DETECT_PIDS_RAW             32841
+#define IDM_SAVE_D2V_AND_DEMUX          32842
+#define IDM_PARSE_D2V                   32843
+#define IDM_FIX_D2V                     32844
 #define IDM_IDCT_SKAL                   32845
 #define IDM_IDCT_SIMPLE                 32846
 #define IDM_LOG_QUANTS                  32847
@@ -178,7 +194,6 @@
 #define IDM_QUICK_START                 32857
 #define IDM_AVS_TEMPLATE                32859
 #define IDM_FULL_PATH                   32860
-#define IDM_USE_OVERLAY                 32861
 #define IDM_LOG_TIMESTAMPS              32862
 #define IDM_FUSION_AUDIO                32863
 #define IDM_DEMUX_AUDIO                 32864
@@ -191,3 +206,32 @@
 #define IDM_SYNC6                       32871
 #define IDM_SYNC7                       32872
 #define IDM_SYNC8                       32873
+#define IDM_LOOP_PLAYBACK               32874
+#define IDM_SHRINK_BY_HALF              32875
+#define IDM_TOP_LEFT                    32876
+#define IDM_TOP_RIGHT                   32877
+#define IDM_BOTTOM_LEFT                 32878
+#define IDM_BOTTOM_RIGHT                32879
+#define IDM_BMP_PATH                    32880
+#define IDM_INFO_LOG                    32881
+#define IDM_ANALYZESYNC                 32882
+#define ID_FILE_CLOSE                   32883
+#define IDM_CLOSE                       32883
+#define IDM_COPYFRAMETOCLIPBOARD        32884
+#define ID_MRU_FILE0                    50000
+#define ID_MRU_FILE1                    50001
+#define ID_MRU_FILE2                    50002
+#define ID_MRU_FILE3                    50003
+#define IDC_STATIC                      -1
+
+// Next default values for new objects
+// 
+#ifdef APSTUDIO_INVOKED
+#ifndef APSTUDIO_READONLY_SYMBOLS
+#define _APS_NO_MFC                     1
+#define _APS_NEXT_RESOURCE_VALUE        26
+#define _APS_NEXT_COMMAND_VALUE         32885
+#define _APS_NEXT_CONTROL_VALUE         1098
+#define _APS_NEXT_SYMED_VALUE           101
+#endif
+#endif

@@ -26,6 +26,7 @@
 
 #include "global.h"
 #include "mc.h"
+#include "shlwapi.h"
 
 static const int ChromaFormat[4] = {
 	0, 6, 8, 12
@@ -83,6 +84,7 @@ int CMPEG2Decoder::Open(const char *path)
 	int repeat_on, repeat_off, repeat_init;
 	int vob_id, cell_id;
 	__int64 position;
+    int HadI;
 
 	CMPEG2Decoder* out = this;
 
@@ -102,8 +104,42 @@ int CMPEG2Decoder::Open(const char *path)
 		fgets(Infilename[File_Limit-i], _MAX_PATH - 1, out->VF_File);
 		// Strip newline.
 		Infilename[File_Limit-i][strlen(Infilename[File_Limit-i])-1] = 0;
-		if ((Infile[File_Limit-i] = _open(Infilename[File_Limit-i], _O_RDONLY | _O_BINARY))==-1)
-			return 3;
+		if (PathIsRelative(Infilename[File_Limit-i]))
+		{
+			char *p, d2v_stem[_MAX_PATH], open_path[_MAX_PATH];
+
+			if (PathIsRelative(path))
+			{
+				GetCurrentDirectory(_MAX_PATH, d2v_stem);
+				if (*(d2v_stem + strlen(d2v_stem) - 1) != '\\')
+					strcat(d2v_stem, "\\");
+				strcat(d2v_stem, path);
+			}
+			else
+			{
+				strcpy(d2v_stem, path);
+			}
+			p = d2v_stem + strlen(d2v_stem);
+			while (*p != '\\' && p != d2v_stem) p--;
+			if (p != d2v_stem)
+			{
+				p[1] = 0;
+				strcat(d2v_stem, Infilename[File_Limit-i]);
+				PathCanonicalize(open_path, d2v_stem);
+				if ((Infile[File_Limit-i] = _open(open_path, _O_RDONLY | _O_BINARY))==-1)
+					return 3;
+			}
+			else
+			{
+				// This should never happen because the code should guarantee that d2v_stem has a '\' character.
+				return 3;
+			}
+		}
+		else
+		{
+			if ((Infile[File_Limit-i] = _open(Infilename[File_Limit-i], _O_RDONLY | _O_BINARY))==-1)
+				return 3;
+		}
 		i--;
 	}
 
@@ -200,6 +236,8 @@ int CMPEG2Decoder::Open(const char *path)
 	mb_height = progressive_sequence ? (vertical_size+15)/16 : 2*((vertical_size+31)/32);
 
 	QP = (int*)aligned_malloc(sizeof(int)*mb_width*mb_height, 32);
+	backwardQP = (int*)aligned_malloc(sizeof(int)*mb_width*mb_height, 32);
+	auxQP = (int*)aligned_malloc(sizeof(int)*mb_width*mb_height, 32);
 
 	Coded_Picture_Width = 16 * mb_width;
 	Coded_Picture_Height = 16 * mb_height;
@@ -317,20 +355,12 @@ int CMPEG2Decoder::Open(const char *path)
 			gop++;
 
 			sscanf(buf_p, "%x", &type);
-			tff = (type & 0x2) >> 1;
-			if (FO_Flag == FO_RAW)
-				rff = 0;
-			else
-				rff = type & 0x1;
 		}
-		else	// P, B frame
-		{
-			tff = (type & 0x2) >> 1;
-			if (FO_Flag == FO_RAW)
-				rff = 0;
-			else
-				rff = type & 0x1;
-		}
+		tff = (type & 0x2) >> 1;
+		if (FO_Flag == FO_RAW)
+			rff = 0;
+		else
+			rff = type & 0x1;
 		if (FO_Flag != FO_FILM && FO_Flag != FO_RAW && rff) HaveRFFs = true;
 
 		if (!film)
@@ -357,8 +387,8 @@ int CMPEG2Decoder::Open(const char *path)
 		if (FO_Flag==FO_FILM)
 		{
 			// Force Film not currently supported for frame repeats.
-			if (GOPList[gop-1]->progressive)
-					return 6;
+//			if (GOPList[gop-1]->progressive)
+//					return 6;
 			if (rff)
 				repeat_on++;
 			else
@@ -529,10 +559,18 @@ int CMPEG2Decoder::Open(const char *path)
 
 	closed_gop = -1;
 	BadStartingFrames = 0;
+    HadI = 0;
 	while (true)
 	{
 		Get_Hdr();
-		if (picture_coding_type == I_TYPE) break;
+		if (picture_coding_type == I_TYPE)
+            HadI = 1;
+		if (picture_structure != FRAME_PICTURE)
+        {
+			Get_Hdr();
+        }
+        if (HadI)
+            break;
 	}
 	if (GOPList[0]->closed != 1)
 	{
@@ -542,6 +580,8 @@ int CMPEG2Decoder::Open(const char *path)
 			Get_Hdr();
 			if (picture_coding_type != B_TYPE) break;
 			BadStartingFrames++;
+			if (picture_structure != FRAME_PICTURE)
+				Get_Hdr();
 		}
 		// Frames pulled down from non-decodable frames are non-decodable.
 		if (BadStartingFrames)
@@ -831,8 +871,11 @@ void CMPEG2Decoder::Close()
 	int i;
 	CMPEG2Decoder* in = this;
 
-	if (in != NULL)
+	if (in->VF_File)
+    {
 		fclose(in->VF_File);
+        in->VF_File = NULL;
+    }
 
 	while (File_Limit)
 	{
@@ -849,6 +892,8 @@ void CMPEG2Decoder::Close()
 	}
 
 	aligned_free(QP);
+	aligned_free(backwardQP);
+	aligned_free(auxQP);
 
 	if (u422 != NULL) aligned_free(u422);
 	if (v422 != NULL) aligned_free(v422);

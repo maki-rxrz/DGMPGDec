@@ -89,7 +89,12 @@ int parse_d2v(HWND hWnd, char *szInput)
 		p = line;
 		sscanf(p, "%x", &gop_field);
 		if (gop_field & 0x100)
-			fprintf(wfp, "[GOP]\n");
+        {
+		    if (gop_field & 0x400)
+			    fprintf(wfp, "[GOP: closed]\n");
+            else
+			    fprintf(wfp, "[GOP: open]\n");
+        }
 		while (*p++ != ' ');
 		while (*p++ != ' ');
 		while (*p++ != ' ');
@@ -207,16 +212,17 @@ int parse_d2v(HWND hWnd, char *szInput)
 	return 1;
 }
 
-int analyze_sync(HWND hWnd, char *Input, int track)
+int analyze_sync(HWND hWnd, char *Input, int audio_id)
 {
 	FILE *fp, *wfp;
 	char line[2048], *p;
-	unsigned int vpts, apts;
+	__int64 vpts, apts;
 	int delay, ref;
-	double rate;
-	char track_str[10], tmp[20];
+	double rate, picture_period;
+    int leadingBframes;
+	char audio_id_str[10], tmp[20];
 
-	sprintf(track_str, " A%d", track);
+    sprintf(audio_id_str, " A%02x", audio_id);
 	fp = fopen(Input, "r");
 	if (fp == 0)
 	{
@@ -236,7 +242,7 @@ int analyze_sync(HWND hWnd, char *Input, int track)
 	p = &szInput[strlen(Input)];
 	while (*p != '.') p--;
 	p[1] = 0;
-	sprintf(tmp, "delayT%d.txt", track);
+	sprintf(tmp, "delayT%x.txt", audio_id);
 	strcat(p, tmp);
 	// Open the output file.
 	wfp = fopen(szInput, "w");
@@ -245,21 +251,25 @@ int analyze_sync(HWND hWnd, char *Input, int track)
 		MessageBox(hWnd, "Cannot create the output file!", NULL, MB_OK | MB_ICONERROR);
 		return 0;
 	}
-	fprintf(wfp, "Delay Analysis Output (Track %d)\n\n", track + 1);
+	fprintf(wfp, "Delay Analysis Output (Audio ID %x)\n\n", audio_id);
 
 	fgets(line, 1024, fp);
 	fgets(line, 1024, fp);
 	p = line;
 	while (*p++ != '=');
 	sscanf(p, "%Lf", &rate);
+	fgets(line, 1024, fp);
+	p = line;
+	while (*p++ != '=');
+	sscanf(p, "%d", &leadingBframes);
 next_vpts:
 	while (fgets(line, 1024, fp) != 0)
 	{
 		if (!strncmp(line, "V PTS", 5))
 		{
 			p = line;
-			while (*p++ != '[');
-			sscanf(p, "%d", &vpts);
+			while (*p++ != 'S');
+            vpts = _atoi64(p);
 			while (fgets(line, 1024, fp) != 0)
 			{
 				if (!strncmp(line, "Decode picture", 14))
@@ -273,15 +283,16 @@ next_vpts:
 					break;
 				}
 			}
-			vpts -= (unsigned int) ((1000.0 * ref) / rate);
+			picture_period = 1.0 / rate;
+			vpts -= (int) (leadingBframes * picture_period * 90000);
 			while (fgets(line, 1024, fp) != 0)
 			{
-				if (!strncmp(line, track_str, 3))
+				if (!strncmp(line, audio_id_str, 4))
 				{
 					p = line;
-					while (*p++ != '[');
-					sscanf(p, "%d", &apts);
-					delay = apts - vpts;
+		        	while (*p++ != 'S');
+                    apts = _atoi64(p);
+					delay = (int) ((apts - vpts) / 90);
 					fprintf(wfp, "delay = %d\n", delay);
 					break;
 				}
@@ -293,7 +304,8 @@ next_vpts:
 
 	return 1;
 }
-	
+
+// Return 1 if a transition was detected in test_only mode and the user wants to correct it, otherwise 0.	
 int fix_d2v(HWND hWnd, char *Input, int test_only)
 {
 	FILE *fp, *wfp, *dfp;
@@ -301,6 +313,7 @@ int fix_d2v(HWND hWnd, char *Input, int test_only)
 	int val, mval, prev_val, mprev_val, fix;
 	bool first, found;
 	int D2Vformat = 0;
+    unsigned int info;
 
 	fp = fopen(Input, "r");
 	if (fp == 0)
@@ -370,6 +383,10 @@ int fix_d2v(HWND hWnd, char *Input, int test_only)
 	do
 	{
 		p = line;
+        sscanf(p, "%x", &info);
+        // If it's a progressive sequence then we can't have any transitions.
+        if (info & (1 << 9))
+            continue;
 		while (*p++ != ' ');
 		while (*p++ != ' ');
 		while (*p++ != ' ');
@@ -436,11 +453,25 @@ int fix_d2v(HWND hWnd, char *Input, int test_only)
 	if (!test_only) fclose(wfp);
 	if (test_only)
 	{
-		if (found == true)
-		{
-			MessageBox(hWnd, "A field order transition was detected. You may need to use the Fix D2V tool\nto repair this stream. Refer to the DGIndex Users Manual for details.", "Field Order Transition Detected", MB_OK | MB_ICONINFORMATION);
-		}
-		return 1;
+        if (found == true)
+        {
+		    if (!CLIActive)
+		    {
+			    if (MessageBox(hWnd, "A field order transition was detected.\n"
+                    "It is not possible to decide automatically if this should be corrected.\n"
+                    "Refer to the DGIndex Users Manual for an explanation.\n"
+                    "You can choose to correct it by hitting the Yes button below or\n"
+                    "you can correct it later using the Fix D2V tool.\n\n"
+                    "Correct the field order transition?",
+                    "Field Order Transition Detected", MB_YESNO | MB_ICONWARNING) == IDYES)
+                    return 1;
+                else
+                    return 0;
+		    }
+            else
+                return 1;
+        }
+		return 0;
 	}
 	if (found == false)
 	{
@@ -459,13 +490,13 @@ int fix_d2v(HWND hWnd, char *Input, int test_only)
 		// Copy the D2V file to *.d2v.bad version.
 		good = fopen(Input, "r");
 		if (good == 0)
-			return 1;
+			return 0;
 		sprintf(line, "%s.bad", Input);
 		bad = fopen(line, "w");
 		if (bad == 0)
 		{
 			fclose(good);
-			return 1;
+			return 0;
 		}
 		while ((c = fgetc(good)) != EOF) fputc(c, bad);
 		fclose(good);
@@ -473,7 +504,7 @@ int fix_d2v(HWND hWnd, char *Input, int test_only)
 		// Copy the *.d2v.fixed version to the D2V file.
 		good = fopen(Input, "w");
 		if (good == 0)
-			return 1;
+			return 0;
 		sprintf(line, "%s.fixed", Input);
 		fixed = fopen(line, "r");
 		while ((c = fgetc(fixed)) != EOF) fputc(c, good);
@@ -488,6 +519,6 @@ int fix_d2v(HWND hWnd, char *Input, int test_only)
 		}
 	}
 
-	return 1;
+	return 0;
 }
 

@@ -37,8 +37,6 @@ int dcount = 0;
 
 void CMPEG2Decoder::Decode_Picture(YV12PICT *dst)
 {
-	static int minqref, maxqref, avgqref;
-
 	if (picture_structure == FRAME_PICTURE && Second_Field)
 		Second_Field = 0;
 
@@ -55,53 +53,6 @@ void CMPEG2Decoder::Decode_Picture(YV12PICT *dst)
 	#endif
 
 	picture_data();
-
-	if (info == 1 || info == 2)
-	{
-		__asm emms;
-		int x, y, temp;
-		int minq, maxq;
-		int avgq = 0;
-		int height = picture_structure == FRAME_PICTURE ? this->mb_height : this->mb_height / 2;
-		int width = this->mb_width;
-		int quant;
-
-		minq = maxq = this->QP[0];
-		for(y=0; y<height; ++y)
-		{
-			temp = y*width;
-			for(x=0; x<width; ++x) 
-			{
-				quant = this->QP[x+temp];
-				if (quant > maxq) maxq = quant;
-				if (quant < minq) minq = quant;
-				avgq += quant;
-			}
-		}
-		avgq = (int)(((float)avgq/(float)(height*width)) + 0.5f);
-		// Reorder for display in info screen.
-		if (picture_coding_type == I_TYPE)
-		{
-			minqref = minq;
-			maxqref = maxq;
-			avgqref = avgq;
-		}
-		else if (picture_coding_type == P_TYPE)
-		{
-			minquant = minqref;
-			maxquant = maxqref;
-			avgquant = avgqref;
-			minqref = minq;
-			maxqref = maxq;
-			avgqref = avgq;
-		}
-		else
-		{
-			minquant = minq;
-			maxquant = maxq;
-			avgquant = avgq;
-		}
-	}
 
 	#ifdef PROFILING
 		stop_timer2(&tim.dec);
@@ -131,7 +82,9 @@ void CMPEG2Decoder::Update_Picture_Buffers()
 	{
 		/* B pictures  do not need to be save for future reference */
 		if (picture_coding_type==B_TYPE)
+		{
 			current_frame[cc] = auxframe[cc];
+		}
 		else
 		{
 			if (!Second_Field)
@@ -193,6 +146,7 @@ void CMPEG2Decoder::slice(int MBAmax, unsigned int code)
 	int macroblock_type, motion_type, dct_type = 0;
 	int dc_dct_pred[3], PMV[2][2][2], motion_vertical_field_select[2][2], dmvector[2];
 	int slice_vert_pos_ext;
+    int *qp;
 
 	MBA = MBAinc = 0;
 	
@@ -222,6 +176,14 @@ void CMPEG2Decoder::slice(int MBAmax, unsigned int code)
 	/* ISO/IEC 13818-2 section 7.6.3.4: Resetting motion vector predictors */
 	PMV[0][0][0]=PMV[0][0][1]=PMV[1][0][0]=PMV[1][0][1]=0;
 	PMV[0][1][0]=PMV[0][1][1]=PMV[1][1][0]=PMV[1][1][1]=0;
+
+    // Set up pointer for storing quants for info and showQ.
+    if (picture_coding_type == B_TYPE)
+        qp = auxQP;
+    else
+        qp = backwardQP;
+    if (picture_structure == BOTTOM_FIELD)
+        qp += mb_width*mb_height / 2;
 
 	// This while loop condition just prevents us from processing more than
 	// the maximum number of macroblocks possible in a picture. The loop is
@@ -255,8 +217,8 @@ void CMPEG2Decoder::slice(int MBAmax, unsigned int code)
 		if (Fault_Flag)
 			break;
 
-		QP[MBA] = quantizer_scale;
-
+        QP[MBA] = quantizer_scale;
+        qp[MBA] = quantizer_scale;
 
 		/* ISO/IEC 13818-2 section 7.6 */
 		motion_compensation(MBA, macroblock_type, motion_type, PMV,
@@ -289,11 +251,10 @@ void CMPEG2Decoder::macroblock_modes(int *pmacroblock_type, int *pmotion_type,
 		else
 			motion_type = Get_Bits(2);
     }
-	else if ((macroblock_type & MACROBLOCK_INTRA) && concealment_motion_vectors)
+	else
 	{
 		motion_type = (picture_structure==FRAME_PICTURE) ? MC_FRAME : MC_FIELD;
 	}
-	else motion_type = 0; // implied
 
 	/* derive motion_vector_count, mv_format and dmv, (table 6-17, 6-18) */
 	if (picture_structure==FRAME_PICTURE)

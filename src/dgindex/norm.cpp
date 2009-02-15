@@ -126,6 +126,7 @@ static void TwoPass(FILE *WaveIn, int WaveInPos, FILE *WaveOut, int WaveOutPos, 
 			SetDlgItemText(hDlg, IDC_REMAIN, szBuffer);
 		}
 
+	    InvalidateRect(hwndSelect, NULL, TRUE);
 		SendMessage(hTrack, TBM_SETPOS, (WPARAM)true, (int)(percent*TRACK_PITCH/100));
 	}
 }

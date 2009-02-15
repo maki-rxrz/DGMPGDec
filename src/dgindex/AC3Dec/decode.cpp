@@ -179,17 +179,17 @@ void InitialAC3()
 	if (AudioOnly_Flag)
 	{
 		MessageBox(hWnd, "The \'Demux Audio Only\' feature is intended for demuxing, not decoding.\nDeselect \'Decode AC3 Track to WAV\' in Audio/Output Method.", NULL, MB_OK | MB_ICONERROR);
-		ThreadKill();
+		ThreadKill(MISC_KILL);
 	}
-	for (i = 0, count = 0; i < 8; i++)
+	for (i = 0x80, count = 0; i < 0x88; i++)
 	{
-		if (Track_Flag & (1 << i))
+		if (audio[i].selected_for_demux)
 			count++;
 	}
 	if (count > 1)
 	{
 		MessageBox(hWnd, "Cannot decode multiple AC3 streams at the same time.\nMake sure only one track is selected.", NULL, MB_OK | MB_ICONERROR);
-		ThreadKill();
+		ThreadKill(MISC_KILL);
 	}
 
 	error_flag = buffer_size = 0;

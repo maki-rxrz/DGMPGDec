@@ -2,7 +2,7 @@
  *  Avisynth 2.5 API for MPEG2Dec3
  *
  *  Changes to fix frame dropping and random frame access are
- *  Copyright (C) 2003-2006 Donald A. Graft
+ *  Copyright (C) 2003-2008 Donald A. Graft
  *
  *	Copyright (C) 2002-2003 Marc Fauconneau <marc.fd@liberysurf.fr>
  *
@@ -31,7 +31,7 @@
 #include "utilities.h"
 #include <string.h>
 
-#define VERSION "DGDecode 1.4.9"
+#define VERSION "DGDecode 1.5.4"
 
 MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int moderate_h, int moderate_v, bool showQ, bool fastMC, const char* _cpu2, int _info, int _upConv, bool _i420, int iCC, IScriptEnvironment* env)
 {
@@ -83,6 +83,11 @@ MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int modera
 	fclose(f);
 
 	status = m_decoder.Open(path);
+    if (status != 0 && m_decoder.VF_File)
+    {
+        fclose(m_decoder.VF_File);
+        m_decoder.VF_File = NULL;
+    }
 	if (status == 1)
 		env->ThrowError("MPEG2Source: Invalid D2V file, it's empty!");
 	else if (status == 2)
@@ -386,7 +391,7 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
 	if (m_decoder.info == 1)
 	{
 		char msg1[1024];
-		sprintf(msg1,"%s (c) 2005 Donald A. Graft\n" \
+		sprintf(msg1,"%s (c) 2007 Donald A. Graft (et al)\n" \
 					 "---------------------------------------\n" \
 					 "Source:        %s\n" \
 					 "Frame Rate:    %3.6f fps (%u/%u) %s\n" \

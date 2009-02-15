@@ -241,7 +241,7 @@ int PATParser::AnalyzeRaw(void)
 			strcpy(description, "Other");
 		if (hDialog != NULL)
 		{
-			sprintf(listbox_line, "0x%x: %s", Pids[i].pid, description);
+			sprintf(listbox_line, "0x%x (%d): %s", Pids[i].pid, Pids[i].pid, description);
 			SendDlgItemMessage(hDialog, IDC_PID_LISTBOX, LB_ADDSTRING, 0, (LPARAM)listbox_line);
 		}
 	}
@@ -256,6 +256,14 @@ int PATParser::DumpPAT(HWND _hDialog, char *_filename)
 	hDialog = _hDialog;
 	filename = _filename;
 	return AnalyzePAT();
+}
+
+int PATParser::DumpPSIP(HWND _hDialog, char *_filename)
+{
+	op = Dump;
+	hDialog = _hDialog;
+	filename = _filename;
+	return AnalyzePSIP();
 }
 
 int PATParser::GetAudioType(char *_filename, unsigned int _audio_pid)
@@ -343,6 +351,141 @@ int PATParser::AnalyzePAT(void)
 	return 0;
 }
 
+int PATParser::AnalyzePSIP(void)
+{
+	char listbox_line[255];
+
+	first_pat = true;
+
+	// Open the input file for reading.
+	if ((fin = fopen(filename, "rb")) == NULL)
+	{
+		if (op == Dump)
+		{
+			sprintf(listbox_line, "Cannot open the input file!");
+			SendDlgItemMessage(hDialog, IDC_PID_LISTBOX, LB_ADDSTRING, 0, (LPARAM)listbox_line);
+		}
+		return 1;
+	}
+
+	if (SyncTransport() == 1)
+	{
+		fclose(fin);
+		return 1;
+	}
+
+	// Acquire and parse the PAT.
+	GetTable(PSIP_PID);
+
+	// Exit if we didn't find the PAT.
+	if (first_pat == true)
+	{
+		fclose(fin);
+		return 1;
+	}
+
+	fclose(fin);
+	return 0;
+}
+
+int PATParser::ProcessPSIPSection(void)
+{
+	unsigned int i, j, ndx, ndx2, program, num_channels_in_section, elements;
+	unsigned int descriptors_length, length, tag, pcrpid, type, pid;
+	char *stream_type;
+	char listbox_line[255];
+
+	// We want only current tables.
+	if (!(section[5] & 0x01))
+		return 0;
+
+	num_channels_in_section = section[9];
+	first_pat = false;
+
+	for (i = 0, ndx = 10; i < num_channels_in_section; i++)
+	{
+		program = (section[ndx+24] << 8) + section[ndx+25];
+		if (op == Dump)
+		{
+			sprintf(listbox_line, "Program %d", program);
+			SendDlgItemMessage(hDialog, IDC_PID_LISTBOX, LB_ADDSTRING, 0, (LPARAM)listbox_line);
+		}
+		descriptors_length = (section[ndx+30] << 8) + section[ndx+31];
+		descriptors_length &= 0x3ff;
+		ndx += 32;
+		ndx2 = ndx;
+		while (ndx2 < ndx + descriptors_length)
+		{
+			tag = section[ndx2];
+			length = section[ndx2+1];
+			pcrpid = (section[ndx2+2] << 8) + section[ndx2+3];
+			pcrpid &= 0x1fff;
+			if (op == Dump)
+			{
+				sprintf(listbox_line, "    PCR on PID 0x%x (%d)", pcrpid, pcrpid); 
+				SendDlgItemMessage(hDialog, IDC_PID_LISTBOX, LB_ADDSTRING, 0, (LPARAM)listbox_line);
+			}
+			elements = section[ndx2+4];
+			for (j = 0; j < elements; j++)
+			{
+				type = section[ndx2+5+j*6];
+				switch (type)
+				{
+				case 0x01:
+					stream_type = "MPEG1 Video";
+					break;
+				case 0x02:
+					stream_type = "MPEG2 Video";
+					break;
+				case 0x03:
+					stream_type = "MPEG1 Audio";
+					break;
+				case 0x04:
+					stream_type = "MPEG2 Audio";
+					break;
+				case 0x05:
+					stream_type = "Private Sections";
+					break;
+				case 0x07:
+					stream_type = "Teletext/Subtitling";
+					break;
+				case 0x0f:
+				case 0x11:
+					stream_type = "AAC Audio";
+					break;
+				case 0x80:
+					// This could be private stream video or LPCM audio.
+					stream_type = "Private Stream";
+					break;
+				case 0x81:
+					// This could be AC3 or DTS audio.
+					stream_type = "AC3/DTS Audio";
+					break;
+				// These are found on bluray disks.
+				case 0x85:
+				case 0x86:
+					stream_type = "DTS Audio";
+					break;
+				default:
+					stream_type = "Other";
+					break;
+				}
+				pid = (section[ndx2+5+j*6+1] << 8) + section[ndx2+5+j*6+2];
+				pid &= 0x1fff;
+				if (op == Dump)
+				{
+					sprintf(listbox_line, "    %s on PID 0x%x (%d)", stream_type, pid, pid);
+					SendDlgItemMessage(hDialog, IDC_PID_LISTBOX, LB_ADDSTRING, 0, (LPARAM)listbox_line);
+				}
+			}
+			ndx2 += length + 2;
+		}
+		ndx += descriptors_length;
+	}
+
+	return 1;
+}
+
 int PATParser::ProcessPATSection(void)
 {
 	unsigned int i, j, ndx, section_length, number, last, program, pmtpid;
@@ -427,7 +570,7 @@ int PATParser::ProcessPMTSection(void)
 		MPEG2_Transport_PCRPID = pcrpid;
 	else if (op == Dump)
 	{
-		sprintf(listbox_line, "    PCR on PID 0x%x", pcrpid); 
+		sprintf(listbox_line, "    PCR on PID 0x%x (%d)", pcrpid, pcrpid); 
 		SendDlgItemMessage(hDialog, IDC_PID_LISTBOX, LB_ADDSTRING, 0, (LPARAM)listbox_line);
 	}
 
@@ -446,28 +589,28 @@ int PATParser::ProcessPMTSection(void)
 			stream_type = "MPEG1 Video";
 			pid = (section[ndx++] & 0x1f) << 8;
 			pid |= section[ndx++];
-			if (op == InitialPids)
+			if (op == InitialPids && MPEG2_Transport_VideoPID == 0x02)
 				MPEG2_Transport_VideoPID = pid;
 			break;
 		case 0x02:
 			stream_type = "MPEG2 Video";
 			pid = (section[ndx++] & 0x1f) << 8;
 			pid |= section[ndx++];
-			if (op == InitialPids)
+			if (op == InitialPids && MPEG2_Transport_VideoPID == 0x02)
 				MPEG2_Transport_VideoPID = pid;
 			break;
 		case 0x03:
 			stream_type = "MPEG1 Audio";
 			pid = (section[ndx++] & 0x1f) << 8;
 			pid |= section[ndx++];
-			if (op == InitialPids)
+			if (op == InitialPids && MPEG2_Transport_AudioPID == 0x02)
 				MPEG2_Transport_AudioPID = pid;
 			break;
 		case 0x04:
 			stream_type = "MPEG2 Audio";
 			pid = (section[ndx++] & 0x1f) << 8;
 			pid |= section[ndx++];
-			if (op == InitialPids)
+			if (op == InitialPids && MPEG2_Transport_AudioPID == 0x02)
 				MPEG2_Transport_AudioPID = pid;
 			break;
 		case 0x05:
@@ -495,7 +638,7 @@ int PATParser::ProcessPMTSection(void)
 			stream_type = "AAC Audio";
 			pid = (section[ndx++] & 0x1f) << 8;
 			pid |= section[ndx++];
-			if (op == InitialPids)
+			if (op == InitialPids && MPEG2_Transport_AudioPID == 0x02)
 				MPEG2_Transport_AudioPID = pid;
 			break;
 		case 0x80:
@@ -509,7 +652,7 @@ int PATParser::ProcessPMTSection(void)
 			stream_type = "AC3/DTS Audio";
 			pid = (section[ndx++] & 0x1f) << 8;
 			pid |= section[ndx++];
-			if (op == InitialPids)
+			if (op == InitialPids && MPEG2_Transport_AudioPID == 0x02)
 				MPEG2_Transport_AudioPID = pid;
 			break;
 		// These are found on bluray disks.
@@ -519,7 +662,7 @@ int PATParser::ProcessPMTSection(void)
 			type = 0xfe;
 			pid = (section[ndx++] & 0x1f) << 8;
 			pid |= section[ndx++];
-			if (op == InitialPids)
+			if (op == InitialPids && MPEG2_Transport_AudioPID == 0x02)
 				MPEG2_Transport_AudioPID = pid;
 			break;
 		default:
@@ -569,13 +712,13 @@ int PATParser::ProcessPMTSection(void)
 				{
 					stream_type = "Private Stream Video";
 					type = 0x02;
-					if (op == InitialPids)
+					if (op == InitialPids && MPEG2_Transport_VideoPID == 0x02)
 						MPEG2_Transport_VideoPID = pid;
 				}
 				else if (hadAudio == 1)
 				{
 					stream_type = "LPCM Audio";
-					if (op == InitialPids)
+					if (op == InitialPids && MPEG2_Transport_AudioPID == 0x02)
 						MPEG2_Transport_AudioPID = pid;
 				}
 			}
@@ -608,14 +751,14 @@ int PATParser::ProcessPMTSection(void)
 				{
 					stream_type = "DTS Audio";
 					type = 0xfe;
-					if (op == InitialPids)
+					if (op == InitialPids && MPEG2_Transport_AudioPID == 0x02)
 						MPEG2_Transport_AudioPID = pid;
 				}
 				else
 				{
 					stream_type = "AC3 Audio";
 					type = 0x81;
-					if (op == InitialPids)
+					if (op == InitialPids && MPEG2_Transport_AudioPID == 0x02)
 						MPEG2_Transport_AudioPID = pid;
 				}
 			}
@@ -633,7 +776,7 @@ int PATParser::ProcessPMTSection(void)
 		}
 		if (op == Dump)
 		{
-			sprintf(listbox_line, "    %s on PID 0x%x", stream_type, pid);
+			sprintf(listbox_line, "    %s on PID 0x%x (%d)", stream_type, pid, pid);
 			SendDlgItemMessage(hDialog, IDC_PID_LISTBOX, LB_ADDSTRING, 0, (LPARAM)listbox_line);
 			if (encrypted == 1)
 			{
@@ -670,6 +813,7 @@ void PATParser::GetTable(unsigned int table_pid)
 	unsigned int pid, ndx, section_length;
 	int read;
 	int pkt_count;
+	int ret;
 
 	// Process the transport packets.
 	pkt_count = 0;
@@ -687,7 +831,7 @@ void PATParser::GetTable(unsigned int table_pid)
 			continue;
 
 		// Check for presence of a section start.
-		if ((first_pat == true) && !(buffer[1] & 0x40))
+		if ((section_ptr == section) && !(buffer[1] & 0x40))
 			continue;
 
 		// Skip if there is no payload.
@@ -719,7 +863,19 @@ void PATParser::GetTable(unsigned int table_pid)
 				memcpy(section_ptr, start, section_length);
 				section_ptr += section_length;
 				// Parse the table.
-				if (table_pid == PAT_PID ? ProcessPATSection() : ProcessPMTSection())
+				switch (table_pid)
+				{
+				case PAT_PID:
+					ret = ProcessPATSection();
+					break;
+				case PSIP_PID:
+					ret = ProcessPSIPSection();
+					break;
+				default:
+					ret = ProcessPMTSection();
+					break;
+				}
+				if (ret)
 					break;
 				// Get ready for collection of the next section.
 				section_ptr = section;
@@ -749,14 +905,22 @@ void PATParser::GetTable(unsigned int table_pid)
 		ndx += buffer[ndx] + 1;
 
 		// Now pointing to the start of the section. Check that the table id is correct.
-		if (buffer[ndx] != (table_pid == PAT_PID ? 0 : 2))
+		if (buffer[ndx] != (table_pid == PAT_PID ? 0 : (table_pid == PSIP_PID ? 0xc8 : 2)))
 			continue;
 
 another_section:
 
 		// Check the section syntax indicator.
-		if ((buffer[ndx+1] & 0xc0) != 0x80)
-			continue;
+		if (table_pid == PSIP_PID)
+		{
+			if ((buffer[ndx+1] & 0xf0) != 0xf0)
+				continue;
+		}
+		else
+		{
+			if ((buffer[ndx+1] & 0xc0) != 0x80)
+				continue;
+		}
 
 		// Check and get section length.
 		if ((buffer[ndx+1] & 0x0c) != 0)
@@ -777,7 +941,19 @@ another_section:
 			memcpy(section_ptr, &buffer[ndx], section_length);
 			section_ptr += section_length;
 			// Parse the section.
-			if (table_pid == PAT_PID ? ProcessPATSection() : ProcessPMTSection())
+			switch (table_pid)
+			{
+			case PAT_PID:
+				ret = ProcessPATSection();
+				break;
+			case PSIP_PID:
+				ret = ProcessPSIPSection();
+				break;
+			default:
+				ret = ProcessPMTSection();
+				break;
+			}
+			if (ret)
 				break;
 			// Get ready for collecting the next section.
 			section_ptr = section;
