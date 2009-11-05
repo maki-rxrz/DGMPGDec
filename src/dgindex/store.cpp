@@ -95,8 +95,11 @@ void Write_Frame(unsigned char *src[], D2VData d2v, DWORD frame)
 		RGB_DOWN1 = Clip_Width * (Clip_Height - 1) * 3;
 		RGB_DOWN2 = Clip_Width * (Clip_Height - 2) * 3;
 
-		if (Clip_Width > MAX_WINDOW_WIDTH || Clip_Height > MAX_WINDOW_HEIGHT)
+        if ((HDDisplay != HD_DISPLAY_FULL_SIZED) && (Clip_Width > MAX_WINDOW_WIDTH || Clip_Height > MAX_WINDOW_HEIGHT))
+		{
 			ResizeWindow(Clip_Width/2, Clip_Height/2);
+			ResizeWindow(Clip_Width/2, Clip_Height/2);
+		}
 		else
 		{
 			ResizeWindow(Clip_Width, Clip_Height);
@@ -497,7 +500,7 @@ void ShowFrame(bool move)
 
 	if (rgb24 && rgb24small && (move || Display_Flag))
 	{
-        if (Clip_Width > MAX_WINDOW_WIDTH || Clip_Height > MAX_WINDOW_HEIGHT)
+        if ((HDDisplay != HD_DISPLAY_FULL_SIZED) && (Clip_Width > MAX_WINDOW_WIDTH || Clip_Height > MAX_WINDOW_HEIGHT))
 		{
             if (HDDisplay == HD_DISPLAY_SHRINK_BY_HALF)
             {

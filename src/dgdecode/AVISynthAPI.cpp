@@ -31,7 +31,7 @@
 #include "utilities.h"
 #include <string.h>
 
-#define VERSION "DGDecode 1.5.4"
+#define VERSION "DGDecode 1.5.6"
 
 MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int moderate_h, int moderate_v, bool showQ, bool fastMC, const char* _cpu2, int _info, int _upConv, bool _i420, int iCC, IScriptEnvironment* env)
 {

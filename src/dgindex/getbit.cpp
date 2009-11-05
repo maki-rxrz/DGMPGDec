@@ -64,8 +64,8 @@ int check_audio_syncword(unsigned int audio_id, int layer, int bitrate, int samp
             return 1;
     }
     // Emphasis is almost never used. It's less likely than hitting an emulated header. :-)
-    if (emphasis != 0)
-        return 1;
+//    if (emphasis != 0)
+//        return 1;
 	// The header appears to be valid. Store the audio characteristics.
 	audio[audio_id].layer = layer;
 	audio[audio_id].rate = bitrate;
@@ -481,9 +481,9 @@ void Next_Transport_Packet()
         }
 retry_sync:
 		// Don't loop forever. If we don't get data
-		// in a reasonable time (3 secs) we exit.
+		// in a reasonable time (5 secs) we exit.
 		time = timeGetTime();
-		if (time - start > 3000)
+		if (time - start > 5000)
 		{
 			MessageBox(hWnd, "Cannot find audio or video data. Ensure that your PIDs\nare set correctly in the Stream menu. Refer to the\nUsers Manual for details.",
 					   NULL, MB_OK | MB_ICONERROR);
@@ -894,7 +894,7 @@ emulated3:
 				audio[0].type = FORMAT_LPCM_M2TS;
 				strcpy(ext, "pcm");
 				strcpy(EXT, "pcm");
-				strupr(EXT);
+				_strupr(EXT);
 				Get_Short(); // start code
 				Get_Short(); // rest of start code and stream id
 				Get_Short(); // packet length
@@ -2565,6 +2565,10 @@ emulated2:
 				else if (code>=SYSTEM_START_CODE)
 				{
 					Packet_Length = Get_Short();
+                    if (code == 0x1be && Packet_Length > 2048)
+                    {
+                        continue;
+                    }
 					Rdptr += Packet_Length;
 				}
 				break;
@@ -3007,7 +3011,7 @@ void StopVideoDemux(void)
 
 void VideoDemux(void)
 {
-	unsigned char buf[4];
+	unsigned char buf[8];
 
 	if (MuxFile == (FILE *) 0xffffffff || MuxFile <= 0)
 		return;
@@ -3017,19 +3021,23 @@ void VideoDemux(void)
 	buf[3] = CurrentBfr & 0xff;
     if (first_video_demux == 1)
     {
-        // We know that the first start code starts here but we don't
-        // know its byte alignment. We want to ditch bytes before the
-        // start code.
+        // Start demuxing at the first sequence header.
+	    buf[4] = NextBfr >> 24;
+	    buf[5] = (NextBfr >> 16) & 0xff;
+	    buf[6] = (NextBfr >> 8) & 0xff;
+	    buf[7] = NextBfr & 0xff;
         first_video_demux = 0;
-        if (buf[0] == 0 && buf[1] == 0 && buf[2] == 1)
+        if (buf[0] == 0 && buf[1] == 0 && buf[2] == 1 && buf[3] == 0xb3)
  	        fwrite(&buf[0], 1, 4, MuxFile);
-        else if (buf[1] == 0 && buf[2] == 0 && buf[3] == 1)
+        else if (buf[1] == 0 && buf[2] == 0 && buf[3] == 1 && buf[4] == 0xb3)
 	        fwrite(&buf[1], 1, 3, MuxFile);
-        else if (buf[2] == 0 && buf[3] == 0)
+        else if (buf[2] == 0 && buf[3] == 0 && buf[4] == 1 && buf[5] == 0xb3)
 	        fwrite(&buf[2], 1, 2, MuxFile);
-        else if (buf[3] == 0)
+        else if (buf[3] == 0 && buf[4] == 0 && buf[5] == 1 && buf[6] == 0xb3)
 	        fwrite(&buf[3], 1, 1, MuxFile);
+        else
+            first_video_demux = 1;
     }
     else
-	    fwrite(buf, 1, 4, MuxFile);
+	    fwrite(&buf[0], 1, 4, MuxFile);
 }

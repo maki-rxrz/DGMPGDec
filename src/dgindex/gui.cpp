@@ -29,7 +29,7 @@
 #define GLOBAL
 #include "global.h"
 
-static char Version[] = "DGIndex 1.5.4";
+static char Version[] = "DGIndex 1.5.6";
 
 #define TRACK_HEIGHT	32
 #define INIT_WIDTH		480
@@ -69,11 +69,7 @@ LRESULT CALLBACK AVSTemplate(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK BMPPath(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK DetectPids(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK About(HWND, UINT, WPARAM, LPARAM);
-static DWORD DDColorMatch(LPDIRECTDRAWSURFACE, COLORREF);
 static void ShowInfo(bool);
-static void CheckFlag(void);
-static void Recovery(void);
-static void RefreshWindow(bool);
 static void SaveBMP(void);
 static void CopyBMP(void);
 static void OpenVideoFile(HWND);
@@ -98,8 +94,6 @@ static RECT wrect, crect, info_wrect;
 static int SoundDelay[MAX_FILE_NUMBER];
 static char Outfilename[MAX_FILE_NUMBER][DG_MAX_PATH];
 
-char *ExitOnEnd;
-
 extern int fix_d2v(HWND hWnd, char *path, int test_only);
 extern int parse_d2v(HWND hWnd, char *path);
 extern int analyze_sync(HWND hWnd, char *path, int track);
@@ -111,13 +105,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	HACCEL hAccel;
 
 	int i;
-	char *ptr, *fptr, *ende;
-	char aFName[DG_MAX_PATH];
-	char suffix[DG_MAX_PATH];
-	char *p, *q;
-	int val;
+	char *ptr;
 	char ucCmdLine[4096];
-	char delimiter1[2], delimiter2[2], save;
 	char prog[DG_MAX_PATH];
 	char cwd[DG_MAX_PATH];
 
@@ -364,7 +353,7 @@ TEST_END:
 
 	// Command line init.
 	strcpy(ucCmdLine, lpCmdLine);
-	strupr(ucCmdLine);
+	_strupr(ucCmdLine);
 
 	// Show window normal, minimized, or hidden as appropriate.
 	if (*lpCmdLine == 0)
@@ -524,594 +513,28 @@ TEST_END:
 		}
 	}
 
-	// If command line parameters are present, enter command line interface (CLI) mode.
-	if(*lpCmdLine != 0)
+	if (*lpCmdLine)
 	{
-		int tmp;
-        int hadRGoption = 0;
-
-		NumLoadedFiles = 0;
-		delimiter1[0] = '[';
-		delimiter2[0] = ']';
-		delimiter1[1] = delimiter2[1] = 0;
-		if ((ptr = strstr(ucCmdLine,"-SET-DELIMITER=")) || (ptr = strstr(ucCmdLine,"-SD=")))
-		{
-			ptr = lpCmdLine + (ptr - ucCmdLine);
-            while (*ptr++ != '=');
-			delimiter1[0] = delimiter2[0] = *ptr;
-		}
-		if ((ptr = strstr(ucCmdLine,"-AUTO-INPUT-FILES=")) || (ptr = strstr(ucCmdLine,"-AIF=")))
-		{
-			ptr = lpCmdLine + (ptr - ucCmdLine);
-			ptr  = strstr(ptr, delimiter1) + 1;
-			ende = strstr(ptr + 1, delimiter2);
-			save = *ende;
-			*ende = 0;
-			strcpy(aFName, ptr);
-			*ende = save;
-			for (;;)
-			{
-				/* If the specified file does not include a path, use the
-				   current directory. */
-				if (!strstr(aFName, "\\"))
-				{
-					GetCurrentDirectory(sizeof(cwd) - 1, cwd);
-					strcat(cwd, "\\");
-					strcat(cwd, aFName);
-				}
-				else
-				{
-					strcpy(cwd, aFName);
-				}
-				if ((tmp = _open(cwd, _O_RDONLY | _O_BINARY | _O_SEQUENTIAL)) == -1) break;
-				strcpy(Infilename[NumLoadedFiles], cwd);
-				Infile[NumLoadedFiles] = tmp;
-				NumLoadedFiles++;
-
-				// First scan back from the end of the name for an _ character.
-				p = aFName+strlen(aFName);
-				while (*p != '_' && p >= aFName) p--;
-				if (*p != '_') break;
-				// Now pick up the number value and increment it.
-				p++;
-				if (*p < '0' || *p > '9') break;
-				sscanf(p, "%d", &val);
-				val++;
-				// Save the suffix after the number.
-				q = p;
-				while (*p >= '0' && *p <= '9') p++;
-				strcpy(suffix, p);
-				// Write the new incremented number.
-				sprintf(q, "%d", val);
-				// Append the saved suffix.
-				strcat(aFName, suffix);
-			}
-		}
-		else if ((ptr = strstr(ucCmdLine,"-INPUT-FILES=")) || (ptr = strstr(ucCmdLine,"-IF=")))
-		{
-		  ptr = lpCmdLine + (ptr - ucCmdLine);
-		  ptr  = strstr(ptr, delimiter1) + 1;
-		  ende = strstr(ptr + 1, delimiter2);
-  
-		  do
-		  {
-			i = 0;
-			if ((fptr = strstr(ptr, ",")) || (fptr = strstr(ptr + 1, delimiter2)))
-			{
-			  while (ptr < fptr)
-			  {
-				aFName[i] = *ptr;
-				ptr++;
-				i++;
-			  }
-			  aFName[i] = 0x00;
-			  ptr++;
-			}
-			else
-			{
-			  strcpy(aFName, ptr);
-			  ptr = ende;
-			}
-
-			/* If the specified file does not include a path, use the
-			   current directory. */
-			if (!strstr(aFName, "\\"))
-			{
-				GetCurrentDirectory(sizeof(cwd) - 1, cwd);
-				strcat(cwd, "\\");
-				strcat(cwd, aFName);
-			}
-			else
-			{
-				strcpy(cwd, aFName);
-			}
-			if ((tmp = _open(cwd, _O_RDONLY | _O_BINARY)) != -1)
-			{
-				strcpy(Infilename[NumLoadedFiles], cwd);
-				Infile[NumLoadedFiles] = tmp;
-				NumLoadedFiles++;
-			}
-		  }
-		  while (ptr < ende);
-		}
-		else if ((ptr = strstr(ucCmdLine,"-BATCH-FILES=")) || (ptr = strstr(ucCmdLine,"-BF=")))
-		{
-			FILE *bf;
-			char line[1024];
-
-			ptr = lpCmdLine + (ptr - ucCmdLine);
-			ptr  = strstr(ptr, delimiter1) + 1;
-			ende = strstr(ptr + 1, delimiter2);
-			save = *ende;
-			*ende = 0;
-			strcpy(aFName, ptr);
-			*ende = save;
-			/* If the specified batch file does not include a path, use the
-			   current directory. */
-			if (!strstr(aFName, "\\"))
-			{
-				GetCurrentDirectory(sizeof(cwd) - 1, cwd);
-				strcat(cwd, "\\");
-				strcat(cwd, aFName);
-			}
-			else
-			{
-				strcpy(cwd, aFName);
-			}
-			bf = fopen(cwd, "r");
-			if (bf != 0)
-			{
-				while (fgets(line, 1023, bf) != 0)
-				{
-					// Zap the newline.
-					line[strlen(line)-1] = 0;
-					/* If the specified batch file does not include a path, use the
-					   current directory. */
-					if (!strstr(line, "\\"))
-					{
-						GetCurrentDirectory(sizeof(cwd) - 1, cwd);
-						strcat(cwd, "\\");
-						strcat(cwd, line);
-					}
-					else
-					{
-						strcpy(cwd, line);
-					}
-					if ((tmp = _open(cwd, _O_RDONLY | _O_BINARY)) != -1)
-					{
-						strcpy(Infilename[NumLoadedFiles], cwd);
-						Infile[NumLoadedFiles] = tmp;
-						NumLoadedFiles++;
-					}
-				}
-			}
-		}
-		Recovery();
-		if ((ptr = strstr(ucCmdLine,"-RANGE=")) || (ptr = strstr(ucCmdLine,"-RG=")))
-		{
-            ptr = lpCmdLine + (ptr - ucCmdLine);
-            while (*ptr++ != '=');
-  
-            sscanf(ptr, "%d/%I64x/%d/%I64x\n",
-	            &process.leftfile, &process.leftlba, &process.rightfile, &process.rightlba);
-
-		    process.startfile = process.leftfile;
-		    process.startloc = process.leftlba * SECTOR_SIZE;
-		    process.endfile = process.rightfile;
-		    process.endloc = (process.rightlba - 1) * SECTOR_SIZE;
-
-			process.run = 0;
-			for (i=0; i<process.leftfile; i++)
-				process.run += Infilelength[i];
-			process.trackleft = ((process.run + process.leftlba * SECTOR_SIZE) * TRACK_PITCH / Infiletotal);
-
-            process.run = 0;
-			for (i=0; i<process.rightfile; i++)
-				process.run += Infilelength[i];
-			process.trackright = ((process.run + (__int64)process.rightlba*SECTOR_SIZE)*TRACK_PITCH/Infiletotal);
-
-		    process.end = 0;
-		    for (i=0; i<process.endfile; i++)
-			    process.end += Infilelength[i];
-		    process.end += process.endloc;
-
-//			SendMessage(hTrack, TBM_SETSEL, (WPARAM) true, (LPARAM) MAKELONG(process.trackleft, process.trackright));
-            hadRGoption = 1;
-        }
-
-		if (NumLoadedFiles == 0 && WindowMode == SW_HIDE)
-		{
-			MessageBox(hWnd, "Couldn't open input file in HIDE mode! Exiting.", NULL, MB_OK | MB_ICONERROR);
+		// CLI invocation.
+		if (parse_cli(lpCmdLine, ucCmdLine) != 0)
 			exit(0);
-		}
-
-		// Transport PIDs
-		if ((ptr = strstr(ucCmdLine,"-VIDEO-PID=")) || (ptr = strstr(ucCmdLine,"-VP=")))
-		{
-			ptr = lpCmdLine + (ptr - ucCmdLine);
-			sscanf(strstr(ptr,"=")+1, "%x", &MPEG2_Transport_VideoPID);
-		}
-		if ((ptr = strstr(ucCmdLine,"-AUDIO-PID=")) || (ptr = strstr(ucCmdLine,"-AP=")))
-		{
-			ptr = lpCmdLine + (ptr - ucCmdLine);
-			sscanf(strstr(ptr,"=")+1, "%x", &MPEG2_Transport_AudioPID);
-		}
-		if ((ptr = strstr(ucCmdLine,"-PCR-PID=")) || (ptr = strstr(ucCmdLine,"-PP=")))
-		{
-			ptr = lpCmdLine + (ptr - ucCmdLine);
-			sscanf(strstr(ptr,"=")+1, "%x", &MPEG2_Transport_PCRPID);
-		}
-
-		//iDCT Algorithm
-		if ((ptr = strstr(ucCmdLine,"-IDCT-ALGORITHM=")) || (ptr = strstr(ucCmdLine,"-IA=")))
-		{
-			ptr = lpCmdLine + (ptr - ucCmdLine);
-			CheckMenuItem(hMenu, IDM_IDCT_MMX, MF_UNCHECKED);
-			CheckMenuItem(hMenu, IDM_IDCT_SSEMMX, MF_UNCHECKED);
- 			CheckMenuItem(hMenu, IDM_IDCT_SSE2MMX, MF_UNCHECKED);
-			CheckMenuItem(hMenu, IDM_IDCT_FPU, MF_UNCHECKED);
-			CheckMenuItem(hMenu, IDM_IDCT_REF, MF_UNCHECKED);
-			CheckMenuItem(hMenu, IDM_IDCT_SKAL, MF_UNCHECKED);
-			CheckMenuItem(hMenu, IDM_IDCT_SIMPLE, MF_UNCHECKED);
-   
-			switch (*(strstr(ptr,"=")+1))
-			{
-			case '1':
-			  iDCT_Flag = IDCT_MMX;
-			  break;
-			case '2':
-			  iDCT_Flag = IDCT_SSEMMX;
-			  break;
-			default:
-			case '3':
-			  iDCT_Flag = IDCT_SSE2MMX;
-			  break;
-			case '4':
-			  iDCT_Flag = IDCT_FPU;
-			  break;
-			case '5':
-			  iDCT_Flag = IDCT_REF;
-			  break;
-			case '6':
-			  iDCT_Flag = IDCT_SKAL;
-			  break;
-			case '7':
-			  iDCT_Flag = IDCT_SIMPLE;
-			  break;
-			}
-			CheckFlag();
-		}
-
-		//Field-Operation
-		if ((ptr = strstr(ucCmdLine,"-FIELD-OPERATION=")) || (ptr = strstr(ucCmdLine,"-FO=")))
-		{
-			ptr = lpCmdLine + (ptr - ucCmdLine);
-			CheckMenuItem(hMenu, IDM_FO_NONE, MF_UNCHECKED);
-			CheckMenuItem(hMenu, IDM_FO_FILM, MF_UNCHECKED);
-			CheckMenuItem(hMenu, IDM_FO_RAW, MF_UNCHECKED);
-			SetDlgItemText(hDlg, IDC_INFO, "");
-
-			switch (*(strstr(ptr,"=")+1))
-			{
-			default:
-			case '0':
-			  FO_Flag = FO_NONE;
-			  CheckMenuItem(hMenu, IDM_FO_NONE, MF_CHECKED);
-			  break;
-			case '1':
-			  FO_Flag = FO_FILM;
-			  CheckMenuItem(hMenu, IDM_FO_FILM, MF_CHECKED);
-			  break;
-			case '2':
-			  FO_Flag = FO_RAW;
-			  CheckMenuItem(hMenu, IDM_FO_RAW, MF_CHECKED);
-			  break;
-			}
-		}
-
-		//YUV->RGB
-		if ((ptr = strstr(ucCmdLine,"-YUV-RGB=")) || (ptr = strstr(ucCmdLine,"-YR=")))
-		{
-			ptr = lpCmdLine + (ptr - ucCmdLine);    
-			CheckMenuItem(hMenu, IDM_TVSCALE, MF_UNCHECKED);
-			CheckMenuItem(hMenu, IDM_PCSCALE, MF_UNCHECKED);
-    
-			switch (*(strstr(ptr,"=")+1))
-			{
-			default:
-			case '1':
-			  Scale_Flag = true;
-			  setRGBValues();    
-			  CheckMenuItem(hMenu, IDM_PCSCALE, MF_CHECKED);
-			  break;
-      
-			case '2':
-			  Scale_Flag = false;
-			  setRGBValues();
-			  CheckMenuItem(hMenu, IDM_TVSCALE, MF_CHECKED);
-			  break;
-			}
-		}
-
-		// Luminance filter and cropping not implemented
-
-		//Track number
-		if ((ptr = strstr(ucCmdLine,"-TRACK-NUMBER=")) || (ptr = strstr(ucCmdLine,"-TN=")))
-		{
-            char track_list[1024], *p;
-            unsigned int i, audio_id;
-            // First get the track list into Track_List.
-			ptr = lpCmdLine + (ptr - ucCmdLine);
-			ptr = strstr(ptr,"=") + 1;
-            strcpy(track_list, ptr);
-            p = track_list;
-			while (*p != ' ' && *p != 0)
-				p++;
-            *p = 0;
-            strcpy(Track_List, track_list);
-            // Now parse it and enable the specified audio ids for demuxing.
-            for (i = 0; i < 0xc8; i++)
-                audio[i].selected_for_demux = false;
-            p = Track_List;
-            while ((*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f') || (*p >= 'A' && *p <= 'F'))
-            {
-                sscanf(p, "%x", &audio_id);
-                if (audio_id > 0xc7)
-                    break;
-                audio[audio_id].selected_for_demux = true;
-                while (*p != ',' && *p != 0) p++;
-                if (*p == 0)
-                    break;
-                p++;
-            }
-
-			Method_Flag = AUDIO_DEMUX;
-			CheckMenuItem(hMenu, IDM_AUDIO_NONE, MF_UNCHECKED);
-			CheckMenuItem(hMenu, IDM_DEMUX, MF_CHECKED);
-			CheckMenuItem(hMenu, IDM_DEMUXALL, MF_UNCHECKED);
-			CheckMenuItem(hMenu, IDM_DECODE, MF_UNCHECKED);
-			EnableMenuItem(GetSubMenu(hMenu, 3), 1, MF_BYPOSITION | MF_ENABLED);
-			EnableMenuItem(GetSubMenu(hMenu, 3), 3, MF_BYPOSITION | MF_GRAYED);
-			EnableMenuItem(GetSubMenu(hMenu, 3), 4, MF_BYPOSITION | MF_GRAYED);
-			EnableMenuItem(GetSubMenu(hMenu, 3), 5, MF_BYPOSITION | MF_GRAYED);
-		}
-
-		// Output Method
-		if ((ptr = strstr(ucCmdLine,"-OUTPUT-METHOD=")) || (ptr = strstr(ucCmdLine,"-OM=")))
-		{
-			ptr = lpCmdLine + (ptr - ucCmdLine);
-			CheckMenuItem(hMenu, IDM_AUDIO_NONE, MF_UNCHECKED);
-			CheckMenuItem(hMenu, IDM_DEMUX, MF_UNCHECKED);
-			CheckMenuItem(hMenu, IDM_DEMUXALL, MF_UNCHECKED);
-			CheckMenuItem(hMenu, IDM_DECODE, MF_UNCHECKED);
-			switch (*(strstr(ptr,"=")+1))
-			{
-			default:
-			case '0':
-				Method_Flag = AUDIO_NONE;
-				CheckMenuItem(hMenu, IDM_AUDIO_NONE, MF_CHECKED);
-				EnableMenuItem(GetSubMenu(hMenu, 3), 1, MF_BYPOSITION | MF_GRAYED);
-				EnableMenuItem(GetSubMenu(hMenu, 3), 3, MF_BYPOSITION | MF_GRAYED);
-				EnableMenuItem(GetSubMenu(hMenu, 3), 4, MF_BYPOSITION | MF_GRAYED);
-				EnableMenuItem(GetSubMenu(hMenu, 3), 5, MF_BYPOSITION | MF_GRAYED);
-				break;
-      
-			case '1':
-				Method_Flag = AUDIO_DEMUX;
-				CheckMenuItem(hMenu, IDM_DEMUX, MF_CHECKED);
-			    EnableMenuItem(GetSubMenu(hMenu, 3), 1, MF_BYPOSITION | MF_ENABLED);
-			    EnableMenuItem(GetSubMenu(hMenu, 3), 3, MF_BYPOSITION | MF_GRAYED);
-			    EnableMenuItem(GetSubMenu(hMenu, 3), 4, MF_BYPOSITION | MF_GRAYED);
-			    EnableMenuItem(GetSubMenu(hMenu, 3), 5, MF_BYPOSITION | MF_GRAYED);
-				break;
-     
-			case '2':
-				Method_Flag = AUDIO_DEMUXALL;
-				CheckMenuItem(hMenu, IDM_DEMUXALL, MF_CHECKED);
-				EnableMenuItem(GetSubMenu(hMenu, 3), 1, MF_BYPOSITION | MF_GRAYED);
-				EnableMenuItem(GetSubMenu(hMenu, 3), 3, MF_BYPOSITION | MF_GRAYED);
-				EnableMenuItem(GetSubMenu(hMenu, 3), 4, MF_BYPOSITION | MF_GRAYED);
-				EnableMenuItem(GetSubMenu(hMenu, 3), 5, MF_BYPOSITION | MF_GRAYED);
-				break;
-     
-			case '3':
-				Method_Flag = AUDIO_DECODE;
-				CheckMenuItem(hMenu, IDM_DECODE, MF_CHECKED);
-				EnableMenuItem(GetSubMenu(hMenu, 3), 1, MF_BYPOSITION | MF_ENABLED);
-				EnableMenuItem(GetSubMenu(hMenu, 3), 3, MF_BYPOSITION | MF_ENABLED);
-				EnableMenuItem(GetSubMenu(hMenu, 3), 4, MF_BYPOSITION | MF_ENABLED);
-				EnableMenuItem(GetSubMenu(hMenu, 3), 5, MF_BYPOSITION | MF_ENABLED);
-				break;
-			}
-		}
-
-		// Dynamic-Range-Control
-		if ((ptr = strstr(ucCmdLine,"-DYNAMIC-RANGE-CONTROL=")) || (ptr = strstr(ucCmdLine,"-DRC=")))
-		{
-			ptr = lpCmdLine + (ptr - ucCmdLine);
-			CheckMenuItem(hMenu, IDM_DRC_NONE, MF_UNCHECKED);
-			CheckMenuItem(hMenu, IDM_DRC_LIGHT, MF_UNCHECKED);
-			CheckMenuItem(hMenu, IDM_DRC_NORMAL, MF_UNCHECKED);
-			CheckMenuItem(hMenu, IDM_DRC_HEAVY, MF_UNCHECKED);
-			switch (*(strstr(ptr,"=")+1))
-			{
-			default:
-			case '0':
-			  CheckMenuItem(hMenu, IDM_DRC_NONE, MF_CHECKED);
-			  DRC_Flag = DRC_NONE;
-			  break;
-			case '1':
-			  CheckMenuItem(hMenu, IDM_DRC_LIGHT, MF_CHECKED);
-			  DRC_Flag = DRC_LIGHT;
-			  break;
-			case '2':
-			  CheckMenuItem(hMenu, IDM_DRC_NORMAL, MF_CHECKED);
-			  DRC_Flag = DRC_NORMAL;
-			  break;
-			case '3':
-			  CheckMenuItem(hMenu, IDM_DRC_HEAVY, MF_CHECKED);
-			  DRC_Flag = DRC_HEAVY;
-			  break;
-			}
-		}
-
-		// Dolby Surround Downmix
-		if ((ptr = strstr(ucCmdLine,"-DOLBY-SURROUND-DOWNMIX=")) || (ptr = strstr(ucCmdLine,"-DSD=")))
-		{
-			ptr = lpCmdLine + (ptr - ucCmdLine);
-			CheckMenuItem(hMenu, IDM_DSDOWN, MF_UNCHECKED);
-			DSDown_Flag = *(strstr(ptr,"=")+1) - '0';
-			if (DSDown_Flag)
-			  CheckMenuItem(hMenu, IDM_DSDOWN, MF_CHECKED);
-		}
-
-		// 48 -> 44 kHz
-		if ((ptr = strstr(ucCmdLine,"-DOWNSAMPLE-AUDIO=")) || (ptr = strstr(ucCmdLine,"-DSA=")))
-		{
-			ptr = lpCmdLine + (ptr - ucCmdLine);
-			CheckMenuItem(hMenu, IDM_SRC_NONE, MF_UNCHECKED);
-			CheckMenuItem(hMenu, IDM_SRC_LOW, MF_UNCHECKED);
-			CheckMenuItem(hMenu, IDM_SRC_MID, MF_UNCHECKED);
-			CheckMenuItem(hMenu, IDM_SRC_HIGH, MF_UNCHECKED);
-			CheckMenuItem(hMenu, IDM_SRC_UHIGH, MF_UNCHECKED);
-			switch (*(strstr(ptr,"=")+1))
-			{
-			default:
-			case '0':
-				SRC_Flag = SRC_NONE;
-				CheckMenuItem(hMenu, IDM_SRC_NONE, MF_CHECKED);
-				break;
-			case '1':
-				SRC_Flag = SRC_LOW;
-				CheckMenuItem(hMenu, IDM_SRC_LOW, MF_CHECKED);
-				break;
-			case '2':
-				SRC_Flag = SRC_MID;
-				CheckMenuItem(hMenu, IDM_SRC_MID, MF_CHECKED);
-				break;
-			case '3':
-				SRC_Flag = SRC_HIGH;
-				CheckMenuItem(hMenu, IDM_SRC_HIGH, MF_CHECKED);
-				break;
-			case '4':
-				SRC_Flag = SRC_UHIGH;
-				CheckMenuItem(hMenu, IDM_SRC_UHIGH, MF_CHECKED);
-				break;
-			}
-		}
-
-		// Normalization not implemented
-
-		RefreshWindow(true);
-
-		// AVS Template
-		if ((ptr = strstr(ucCmdLine,"-AVS-TEMPLATE=")) || (ptr = strstr(ucCmdLine,"-AT=")))
-		{
-			FILE *bf;
-
-			ptr = lpCmdLine + (ptr - ucCmdLine);
-			ptr  = strstr(ptr, delimiter1) + 1;
-			if (ptr == (char *) 1 || *ptr == delimiter2[0])
-			{
-				// A null file name specifies no template.
-				AVSTemplatePath[0] = 0;
-			}
-			else
-			{
-				ende = strstr(ptr + 1, delimiter2);
-				save = *ende;
-				*ende = 0;
-				strcpy(aFName, ptr);
-				*ende = save;
-				/* If the specified template file does not include a path, use the
-				   current directory. */
-				if (!strstr(aFName, "\\"))
-				{
-					GetCurrentDirectory(sizeof(cwd) - 1, cwd);
-					strcat(cwd, "\\");
-					strcat(cwd, aFName);
-				}
-				else
-				{
-					strcpy(cwd, aFName);
-				}
-				// Check that the specified template file exists and is readable.
-				bf = fopen(cwd, "r");
-				if (bf != 0)
-				{
-					// Looks good; save the path.
-					fclose(bf);
-					strcpy(AVSTemplatePath, cwd);
-				}
-				else
-				{
-					// Something is wrong, so don't use a template.
-					AVSTemplatePath[0] = 0;
-				}
-			}
-		}
-
-		// Output D2V file
-		if ((ptr = strstr(ucCmdLine,"-OUTPUT-FILE=")) || (ptr = strstr(ucCmdLine,"-OF=")) ||
-			(ptr = strstr(ucCmdLine,"-OUTPUT-FILE-DEMUX=")) || (ptr = strstr(ucCmdLine,"-OFD=")))
-		{
-			// Set up demuxing if requested.
-			if (strstr(ucCmdLine,"-OUTPUT-FILE-DEMUX=") || strstr(ucCmdLine,"-OFD="))
-			{
-				MuxFile = (FILE *) 0;
-			}
-
-			// Don't pop up warning boxes for automatic invocation.
-			crop1088_warned = true;
-			CLIActive = 1;
-			ExitOnEnd = strstr(ucCmdLine,"-EXIT");
-			ptr = lpCmdLine + (ptr - ucCmdLine);
-			ptr  = strstr(ptr, delimiter1) + 1;
-			ende = strstr(ptr + 1, delimiter2);
-			save = *ende;
-			*ende = 0;
-			strcpy(aFName, ptr);
-			*ende = save;
-            // We need to store the full path, so that all our path handling options work
-            // the same way as for GUI mode.
-			if (aFName[0] != '\\' && aFName[1] != ':')
-			{
-				GetCurrentDirectory(sizeof(szOutput) - 1, szOutput);
-				strcat(szOutput, "\\");
-				strcat(szOutput, aFName);
-			}
-			else
-			{
-				strcpy(szOutput, aFName);
-			}
-		}
-
-		// Preview mode for generating the Info log file
-		CLIPreview = strstr(ucCmdLine,"-PREVIEW");
-
-		if (!CLIActive && WindowMode == SW_HIDE)
-		{
-			MessageBox(hWnd, "No output file in HIDE mode! Exiting.", NULL, MB_OK | MB_ICONERROR);
-			exit(0);
-		}
-
 		if (NumLoadedFiles)
 		{
 			// Start a LOCATE_INIT thread. When it kills itself, it will start a
 			// LOCATE_RIP thread by sending a WM_USER message to the main window.
-		    PlaybackSpeed = SPEED_MAXIMUM;
-            // If the project range wasn't set with the RG option, set it to the entire timeline.
-            if (!hadRGoption)
-            {
-			    process.rightfile = NumLoadedFiles-1;
-			    process.rightlba = (int)(Infilelength[NumLoadedFiles-1]/SECTOR_SIZE);
-			    process.end = Infiletotal - SECTOR_SIZE;
-			    process.endfile = NumLoadedFiles - 1;
-			    process.endloc = (Infilelength[NumLoadedFiles-1]/SECTOR_SIZE - 1)*SECTOR_SIZE;
-            }
+			PlaybackSpeed = SPEED_MAXIMUM;
+			// If the project range wasn't set with the RG option, set it to the entire timeline.
+			if (!hadRGoption)
+			{
+				process.rightfile = NumLoadedFiles-1;
+				process.rightlba = (int)(Infilelength[NumLoadedFiles-1]/SECTOR_SIZE);
+				process.end = Infiletotal - SECTOR_SIZE;
+				process.endfile = NumLoadedFiles - 1;
+				process.endloc = (Infilelength[NumLoadedFiles-1]/SECTOR_SIZE - 1)*SECTOR_SIZE;
+			}
 			process.locate = LOCATE_INIT;
 			if (!threadId || WaitForSingleObject(hThread, INFINITE)==WAIT_OBJECT_0)
-			  hThread = CreateThread(NULL, 0, MPEG2Dec, 0, 0, &threadId);
+				hThread = CreateThread(NULL, 0, MPEG2Dec, 0, 0, &threadId);
 		}
 	}
 
@@ -1272,6 +695,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					fclose(avs);
 				}
 			}
+			if (ExitOnEnd)
+			{
+				if (Info_Flag)
+					DestroyWindow(hDlg);
+				exit(0);
+			}
+			else CLIActive = 0;
 			break;
 
 		case WM_CREATE:
@@ -1362,6 +792,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					        Infile[NumLoadedFiles] = tmp;
                             NumLoadedFiles = 1;
  			                Recovery();
+							MPEG2_Transport_VideoPID = 2;
+							MPEG2_Transport_AudioPID = 2;
+							MPEG2_Transport_PCRPID = 2;
 			                RefreshWindow(true);
 				            // Start a LOCATE_INIT thread. When it kills itself, it will start a
 				            // LOCATE_RIP thread by sending a WM_USER message to the main window.
@@ -1403,6 +836,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 						_close(Infile[NumLoadedFiles]);
 					}
 					Recovery();
+					MPEG2_Transport_VideoPID = 2;
+					MPEG2_Transport_AudioPID = 2;
+					MPEG2_Transport_PCRPID = 2;
 					break;
 
 				case IDM_PREVIEW_NO_INFO:
@@ -1490,7 +926,12 @@ proceed:
 						{
 							if ((D2VFile = fopen(szBuffer, "w+")) == 0)
 							{
-								if (ExitOnEnd) exit (0);
+								if (ExitOnEnd)
+								{
+									if (Info_Flag)
+										DestroyWindow(hDlg);
+									exit (0);
+								}
 								else CLIActive = 0;
 							}
 							strcpy(D2VFilePath, szBuffer);
@@ -1780,6 +1221,8 @@ D2V_PROCESS:
 					CheckMenuItem(hMenu, IDM_DEMUX, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_DEMUXALL, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_DECODE, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_NORM, MF_UNCHECKED);
+					Norm_Flag = false;
 					EnableMenuItem(GetSubMenu(hMenu, 3), 1, MF_BYPOSITION | MF_GRAYED);
 					EnableMenuItem(GetSubMenu(hMenu, 3), 3, MF_BYPOSITION | MF_GRAYED);
 					EnableMenuItem(GetSubMenu(hMenu, 3), 4, MF_BYPOSITION | MF_GRAYED);
@@ -1792,6 +1235,8 @@ D2V_PROCESS:
 					CheckMenuItem(hMenu, IDM_DEMUX, MF_CHECKED);
 					CheckMenuItem(hMenu, IDM_DEMUXALL, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_DECODE, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_NORM, MF_UNCHECKED);
+					Norm_Flag = false;
 					EnableMenuItem(GetSubMenu(hMenu, 3), 1, MF_BYPOSITION | MF_ENABLED);
 					EnableMenuItem(GetSubMenu(hMenu, 3), 3, MF_BYPOSITION | MF_GRAYED);
 					EnableMenuItem(GetSubMenu(hMenu, 3), 4, MF_BYPOSITION | MF_GRAYED);
@@ -1804,6 +1249,8 @@ D2V_PROCESS:
 					CheckMenuItem(hMenu, IDM_DEMUX, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_DEMUXALL, MF_CHECKED);
 					CheckMenuItem(hMenu, IDM_DECODE, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_NORM, MF_UNCHECKED);
+					Norm_Flag = false;
 					EnableMenuItem(GetSubMenu(hMenu, 3), 1, MF_BYPOSITION | MF_GRAYED);
 					EnableMenuItem(GetSubMenu(hMenu, 3), 3, MF_BYPOSITION | MF_GRAYED);
 					EnableMenuItem(GetSubMenu(hMenu, 3), 4, MF_BYPOSITION | MF_GRAYED);
@@ -2128,8 +1575,20 @@ D2V_PROCESS:
 					CheckMenuItem(hMenu, IDM_SPEED_MAXIMUM, MF_CHECKED);
 					break;
 
+				case IDM_FULL_SIZED:
+					HDDisplay = HD_DISPLAY_FULL_SIZED;
+					CheckMenuItem(hMenu, IDM_FULL_SIZED, MF_CHECKED);
+					CheckMenuItem(hMenu, IDM_SHRINK_BY_HALF, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_TOP_LEFT, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_TOP_RIGHT, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_BOTTOM_LEFT, MF_UNCHECKED);
+					CheckMenuItem(hMenu, IDM_BOTTOM_RIGHT, MF_UNCHECKED);
+                    RefreshWindow(TRUE);
+					break;
+
 				case IDM_SHRINK_BY_HALF:
 					HDDisplay = HD_DISPLAY_SHRINK_BY_HALF;
+					CheckMenuItem(hMenu, IDM_FULL_SIZED, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_SHRINK_BY_HALF, MF_CHECKED);
 					CheckMenuItem(hMenu, IDM_TOP_LEFT, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_TOP_RIGHT, MF_UNCHECKED);
@@ -2140,6 +1599,7 @@ D2V_PROCESS:
 
 				case IDM_TOP_LEFT:
 					HDDisplay = HD_DISPLAY_TOP_LEFT;
+					CheckMenuItem(hMenu, IDM_FULL_SIZED, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_SHRINK_BY_HALF, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_TOP_LEFT, MF_CHECKED);
 					CheckMenuItem(hMenu, IDM_TOP_RIGHT, MF_UNCHECKED);
@@ -2150,6 +1610,7 @@ D2V_PROCESS:
 
 				case IDM_TOP_RIGHT:
 					HDDisplay = HD_DISPLAY_TOP_RIGHT;
+					CheckMenuItem(hMenu, IDM_FULL_SIZED, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_SHRINK_BY_HALF, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_TOP_LEFT, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_TOP_RIGHT, MF_CHECKED);
@@ -2160,6 +1621,7 @@ D2V_PROCESS:
 
 				case IDM_BOTTOM_LEFT:
 					HDDisplay = HD_DISPLAY_BOTTOM_LEFT;
+					CheckMenuItem(hMenu, IDM_FULL_SIZED, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_SHRINK_BY_HALF, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_TOP_LEFT, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_TOP_RIGHT, MF_UNCHECKED);
@@ -2170,6 +1632,7 @@ D2V_PROCESS:
 
 				case IDM_BOTTOM_RIGHT:
 					HDDisplay = HD_DISPLAY_BOTTOM_RIGHT;
+					CheckMenuItem(hMenu, IDM_FULL_SIZED, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_SHRINK_BY_HALF, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_TOP_LEFT, MF_UNCHECKED);
 					CheckMenuItem(hMenu, IDM_TOP_RIGHT, MF_UNCHECKED);
@@ -2962,6 +2425,9 @@ LRESULT CALLBACK VideoList(HWND hVideoListDlg, UINT message, WPARAM wParam, LPAR
 					if (!NumLoadedFiles)
 					{
 						Recovery();
+						MPEG2_Transport_VideoPID = 2;
+						MPEG2_Transport_AudioPID = 2;
+						MPEG2_Transport_PCRPID = 2;
 					}
 					break;
 
@@ -3031,7 +2497,7 @@ static void OpenVideoFile(HWND hVideoListDlg)
 		char *tmp;
 
 		SystemStream_Flag = ELEMENTARY_STREAM;
-		getcwd(curPath, DG_MAX_PATH);
+		_getcwd(curPath, DG_MAX_PATH);
 		if (strlen(curPath) != strlen(szInput))
 		{
 			// Only one file specified.
@@ -3228,8 +2694,6 @@ void ThreadKill(int mode)
 		SetDlgItemText(hDlg, IDC_REMAIN, "FINISH");
 		if (D2V_Flag)
 			SendMessage(hWnd, D2V_DONE_MESSAGE, 0, 0);
-		if (ExitOnEnd) exit(0);
-		else CLIActive = 0;
 	}
     if (LoopPlayback && mode == END_OF_DATA_KILL && process.locate == LOCATE_RIP && !D2V_Flag)
     {
@@ -3398,7 +2862,7 @@ LRESULT CALLBACK Cropping(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPar
 			SetDlgItemInt(hDialog, IDC_BOTTOM, Clip_Bottom, 0);
 
 			SetDlgItemInt(hDialog, IDC_WIDTH, horizontal_size-Clip_Left-Clip_Right, 0);
-			SetDlgItemInt(hDialog, IDC_HEIGHT, vertical_size-Clip_Left-Clip_Right, 0);
+			SetDlgItemInt(hDialog, IDC_HEIGHT, vertical_size-Clip_Top-Clip_Bottom, 0);
 
 			ShowWindow(hDialog, SW_SHOW);
 
@@ -3732,7 +3196,7 @@ LRESULT CALLBACK SelectTracks(HWND hDialog, UINT message, WPARAM wParam, LPARAM 
 	unsigned int i;
     static char track_list[255];
     char *p;
-    unsigned char audio_id;
+    unsigned int audio_id;
 
 	switch (message)
 	{
@@ -4010,7 +3474,7 @@ static void ShowInfo(bool update)
     SetFocus(hWnd);
 }
 
-static void CheckFlag()
+void CheckFlag()
 {
 	CheckMenuItem(hMenu, IDM_IDCT_MMX, MF_UNCHECKED);
 	CheckMenuItem(hMenu, IDM_IDCT_SSEMMX, MF_UNCHECKED);
@@ -4106,7 +3570,7 @@ static void CheckFlag()
 			break;
 	}
 
-	switch (DRC_Flag)
+	if (Method_Flag == AUDIO_DECODE) switch (DRC_Flag)
 	{
 		case DRC_NONE:
 			CheckMenuItem(hMenu, IDM_DRC_NONE, MF_CHECKED);
@@ -4125,10 +3589,10 @@ static void CheckFlag()
 			break;
 	}
 
-	if (DSDown_Flag)
+	if (Method_Flag == AUDIO_DECODE && DSDown_Flag)
 		CheckMenuItem(hMenu, IDM_DSDOWN, MF_CHECKED);
 
-	switch (SRC_Flag)
+	if (Method_Flag == AUDIO_DECODE) switch (SRC_Flag)
 	{
 		case SRC_NONE:
 			CheckMenuItem(hMenu, IDM_SRC_NONE, MF_CHECKED);
@@ -4151,7 +3615,7 @@ static void CheckFlag()
 			break;
 	}
 
-	if (Norm_Ratio > 100)
+	if (Method_Flag == AUDIO_DECODE && Norm_Ratio > 100)
 	{
 		CheckMenuItem(hMenu, IDM_NORM, MF_CHECKED);
 		Norm_Flag = true;
@@ -4205,6 +3669,10 @@ static void CheckFlag()
 
 	switch (HDDisplay)
 	{
+		case HD_DISPLAY_FULL_SIZED:
+			CheckMenuItem(hMenu, IDM_FULL_SIZED, MF_CHECKED);
+			break;
+
 		case HD_DISPLAY_SHRINK_BY_HALF:
 			CheckMenuItem(hMenu, IDM_SHRINK_BY_HALF, MF_CHECKED);
 			break;
@@ -4242,7 +3710,7 @@ static void CheckFlag()
         CheckMenuItem(hMenu, IDM_INFO_LOG, MF_CHECKED);
 }
 
-static void Recovery()
+void Recovery()
 {
 	int i;
 
@@ -4333,7 +3801,7 @@ void ResizeWindow(int width, int height)
 	MoveWindow(hWnd, wrect.left, wrect.top, width+Edge_Width, height+Edge_Height+TRACK_HEIGHT+TRACK_HEIGHT/3, true);
 }
 
-static void RefreshWindow(bool update)
+void RefreshWindow(bool update)
 {
 	if (update)
 	{

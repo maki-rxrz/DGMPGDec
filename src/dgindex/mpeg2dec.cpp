@@ -184,6 +184,8 @@ do_rip_play:
 		// Skip any leading null characters, because some
 		// captured transport files were seen to start with a large
 		// number of nulls.
+
+		_lseeki64(Infile[0], 0, SEEK_SET);
         for (;;)
 		{
 			if (_read(Infile[0], buf, 1) == 0)
@@ -204,11 +206,14 @@ do_rip_play:
 		TransportPacketSize = 188;
 try_again:
         b = buf;
-	    while (b + 4 * TransportPacketSize < buf + Read)
+	    while (b + 4 * TransportPacketSize < buf + Read + 1)
 	    {
 		    if (*b == 0x47)
 		    {
-			    if ((b[TransportPacketSize] == 0x47) && b[2*TransportPacketSize] == 0x47 && b[3*TransportPacketSize] == 0x47 && b[4*TransportPacketSize] == 0x47)
+			    if ((b[TransportPacketSize] == 0x47) &&
+					(b[2*TransportPacketSize] == 0x47) &&
+					(b[3*TransportPacketSize] == 0x47) &&
+					(b[4*TransportPacketSize] == 0x47))
 			    {
 					SystemStream_Flag = TRANSPORT_STREAM;
 					// initial_parse is not called for transport streams, so

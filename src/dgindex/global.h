@@ -27,7 +27,6 @@
 #include <windows.h>
 #include <commctrl.h>
 #include <stdio.h>
-#include <ddraw.h>
 #include <vfw.h>
 #include <winreg.h>
 #include <direct.h>
@@ -321,7 +320,8 @@ XTN HDC hDC;
 
 /* Global Value */
 XTN int CLIActive;
-XTN char *CLIPreview;
+XTN char CLIPreview;
+XTN char ExitOnEnd;
 XTN char ExePath[DG_MAX_PATH];
 XTN FILE *D2VFile;
 XTN char D2VFilePath[DG_MAX_PATH];
@@ -330,6 +330,7 @@ XTN unsigned int LowestAudioId;
 XTN int VOB_ID, CELL_ID;
 XTN FILE *MuxFile;
 XTN int HadAddDialog;
+XTN int hadRGoption;
 #define D2V_FILE_VERSION 16
 
 XTN int WindowMode;
@@ -355,11 +356,12 @@ XTN bool RightArrowHit;
 #define SPEED_MAXIMUM		5
 
 XTN int HDDisplay;
-#define HD_DISPLAY_SHRINK_BY_HALF	0
-#define HD_DISPLAY_TOP_LEFT     	1
-#define HD_DISPLAY_TOP_RIGHT		2
-#define HD_DISPLAY_BOTTOM_LEFT		3
-#define HD_DISPLAY_BOTTOM_RIGHT		4
+#define HD_DISPLAY_FULL_SIZED       0
+#define HD_DISPLAY_SHRINK_BY_HALF	1
+#define HD_DISPLAY_TOP_LEFT     	2
+#define HD_DISPLAY_TOP_RIGHT		3
+#define HD_DISPLAY_BOTTOM_LEFT		4
+#define HD_DISPLAY_BOTTOM_RIGHT		5
 
 XTN unsigned int Frame_Number;
 XTN int Coded_Picture_Width, Coded_Picture_Height;
@@ -463,6 +465,12 @@ XTN int LogTimestamps_Flag;
 XTN int StartLogging_Flag;
 XTN FILE *Timestamps;
 XTN int InfoLog_Flag;
+
+/* gui */
+XTN void Recovery(void);
+XTN void RefreshWindow(bool);
+XTN void CheckFlag(void);
+XTN int parse_cli(LPSTR lpCmdLine, LPSTR ucCmdLine);
 
 /* idct */
 extern "C" void __fastcall MMX_IDCT(short *block);

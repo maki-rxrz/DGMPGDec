@@ -355,111 +355,84 @@ static void pack_parser(void)
 	}
 }
 
+unsigned char stream[2500000];
 static void determine_stream_type(void)
 {
-	int i;
 	unsigned char val;
-	int state, found = 0;
 	int num_sequence_header = 0;
 	int num_picture_header = 0;
+	unsigned char *p;
+	unsigned int code, Read;
 
 	// Start by assuming ES. Then look for a valid pack start. If one
 	// is found declare a program stream.
 	program_stream_type = ELEMENTARY_STREAM;
 
-	// Look for start codes.
-	state = NEED_FIRST_0;
-	// Look for a pack start in the first part of the file.
-	for (i = 0; i < 2500000; i++)
+	Read = _read(file, stream, 2500000);
+	p = stream;
+	code = (p[0] << 16) + (p[1] << 8) + p[2];
+	p += 3;
+	while (p < stream + Read)
 	{
-		if (_read(file, &val, 1) != 1) { EOF_reached = 1; return; }
-		switch (state)
+		code = ((code << 8) + *p++);
+		switch (code)
 		{
-		case NEED_FIRST_0:
-			if (val == 0)
-				state = NEED_SECOND_0;
-			break;
-		case NEED_SECOND_0:
-			if (val == 0)
-				state = NEED_1;
-			else
-				state = NEED_FIRST_0;
-			break;
-		case NEED_1:
-			if (val == 1)
+		case 0x1ba:
+			val = *p++;
+			if ((val & 0xf0) == 0x20)
 			{
-				found = 1;
-				state = NEED_FIRST_0;
+				// Check all the marker bits just to be sure.
+				if (!(val & 1)) continue;
+				val = *p++;
+				val = *p++;
+				if (!(val & 1)) continue;
+				val = *p++;
+				val = *p++;
+				if (!(val & 1)) continue;
+				val = *p++;
+				if (!(val & 0x80)) continue;
+				val = *p++;
+				val = *p++;
+				if (!(val & 1)) continue;
+				// MPEG1 program stream.
+				program_stream_type = MPEG1_PROGRAM_STREAM;
+				return;
 			}
-			else if (val != 0)
-				state = NEED_FIRST_0;
+			else if ((val & 0xc0) == 0x40)
+			{
+				// Check all the marker bits just to be sure.
+				if (!(val & 0x04)) continue;
+				val = *p++;
+				val = *p++;
+				if (!(val & 0x04)) continue;
+				val = *p++;
+				val = *p++;
+				if (!(val & 0x04)) continue;
+				val = *p++;
+				if (!(val & 0x01)) continue;
+				val = *p++;
+				val = *p++;
+				val = *p++;
+				if (!(val & 0x03)) continue;
+				// MPEG2 program stream.
+				program_stream_type = MPEG2_PROGRAM_STREAM;
+				return;
+			}
+			break;
+		case 0x1b3:
+			// Sequence header.
+			num_sequence_header++;
+			break;
+		case 0x100:
+			// Picture header.
+			num_picture_header++;
 			break;
 		}
-		if (found == 1)
+		if (num_sequence_header >= 2 && num_picture_header >= 2)
 		{
-			// Found a start code.
-			found = 0;
-			// Get the start code.
-			if (_read(file, &val, 1) != 1) { EOF_reached = 1; return; }
-			if (val == 0xba)
-			{
-				if (_read(file, &val, 1) != 1) { EOF_reached = 1; return; }
-				if ((val & 0xf0) == 0x20)
-				{
-					// Check all the marker bits just to be sure.
-					if (!(val & 1)) continue;
-					if (_read(file, &val, 1) != 1) { EOF_reached = 1; return; }
-					if (_read(file, &val, 1) != 1) { EOF_reached = 1; return; }
-					if (!(val & 1)) continue;
-					if (_read(file, &val, 1) != 1) { EOF_reached = 1; return; }
-					if (_read(file, &val, 1) != 1) { EOF_reached = 1; return; }
-					if (!(val & 1)) continue;
-					if (_read(file, &val, 1) != 1) { EOF_reached = 1; return; }
-					if (!(val & 0x80)) continue;
-					if (_read(file, &val, 1) != 1) { EOF_reached = 1; return; }
-					if (_read(file, &val, 1) != 1) { EOF_reached = 1; return; }
-					if (!(val & 1)) continue;
-					// MPEG1 program stream.
-					program_stream_type = MPEG1_PROGRAM_STREAM;
-					break;
-				}
-				else if ((val & 0xc0) == 0x40)
-				{
-					// Check all the marker bits just to be sure.
-					if (!(val & 0x04)) continue;
-					if (_read(file, &val, 1) != 1) { EOF_reached = 1; return; }
-					if (_read(file, &val, 1) != 1) { EOF_reached = 1; return; }
-					if (!(val & 0x04)) continue;
-					if (_read(file, &val, 1) != 1) { EOF_reached = 1; return; }
-					if (_read(file, &val, 1) != 1) { EOF_reached = 1; return; }
-					if (!(val & 0x04)) continue;
-					if (_read(file, &val, 1) != 1) { EOF_reached = 1; return; }
-					if (!(val & 0x01)) continue;
-					if (_read(file, &val, 1) != 1) { EOF_reached = 1; return; }
-					if (_read(file, &val, 1) != 1) { EOF_reached = 1; return; }
-					if (_read(file, &val, 1) != 1) { EOF_reached = 1; return; }
-					if (!(val & 0x03)) continue;
-					// MPEG2 program stream.
-					program_stream_type = MPEG2_PROGRAM_STREAM;
-					break;
-				}
-			}
-			else if (val == 0xb3)
-			{
-				// Sequence header.
-				num_sequence_header++;
-			}
-			else if (val == 0x00)
-			{
-				// Picture header.
-				num_picture_header++;
-			}
-			if (num_sequence_header >= 2 && num_picture_header >= 2)
-			{
-				// We're seeing a lot of elementary stream data but we haven't seen
-				// a pack header yet. Declare ES.
-				break;
-			}
+			// We're seeing a lot of elementary stream data but we haven't seen
+			// a pack header yet. Declare ES.
+			return;
 		}
 	}
 }

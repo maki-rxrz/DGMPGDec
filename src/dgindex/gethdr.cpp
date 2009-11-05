@@ -153,6 +153,9 @@ int Get_Hdr(int mode)
 		code = Show_Bits(32);
 		switch (code)
 		{
+            case 0x1be:
+                break;
+
 			case SEQUENCE_HEADER_CODE:
 				// Index the location of the sequence header for the D2V file.
 				// We prefer to index the sequence header corresponding to this

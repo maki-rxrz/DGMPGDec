@@ -176,7 +176,7 @@ int PATParser::AnalyzeRaw(void)
 			strcpy(description, "Null");
 		else if (Pids[i].stream_id == 0xbc)
 			strcpy(description, "Program Stream Map");
-		else if (Pids[i].stream_id == 0xbd)
+		else if (Pids[i].stream_id == 0xbd || Pids[i].stream_id == 0xfd)
 		{
 			if (!hDialog && Pids[i].pid == audio_pid)
 			{
@@ -973,7 +973,7 @@ another_section:
 			// second part from the next packet.
 			memcpy(section_ptr, &buffer[ndx], TransportPacketSize - ndx - (TransportPacketSize == 192 ? 4 : 0));
 			section_ptr += (TransportPacketSize - ndx - (TransportPacketSize == 192 ? 4 : 0));
-			section_length -= (TransportPacketSize - ndx - (TransportPacketSize == 192 ? 4 : 0));
+            section_length -= (TransportPacketSize - 3 - ndx - (TransportPacketSize == 192 ? 4 : 0));
 			continue;
 		}
 	}

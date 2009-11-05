@@ -477,7 +477,7 @@ int fix_d2v(HWND hWnd, char *Input, int test_only)
 	{
 		fprintf(dfp, "No errors found.\n");
 		fclose(dfp);
-		unlink(wfile);
+		_unlink(wfile);
 		MessageBox(hWnd, "No errors found.", "Fix D2V", MB_OK | MB_ICONINFORMATION);
 		return 0;
 	}
@@ -511,7 +511,7 @@ int fix_d2v(HWND hWnd, char *Input, int test_only)
 		fclose(good);
 		fclose(fixed);
 		// Ditch the *.d2v.fixed version.
-		unlink(line);
+		_unlink(line);
 		if (!CLIActive)
 		{
 			MessageBox(hWnd, "Field order corrected. The original version was\nsaved with the extension \".bad\".", "Correct Field Order", MB_OK | MB_ICONINFORMATION);
