@@ -192,7 +192,7 @@ void Write_Frame(unsigned char *src[], D2VData d2v, DWORD frame)
 		sprintf(szBuffer, "%d", field_repeats);
 		SetDlgItemText(hDlg, IDC_FIELD_REPEATS, szBuffer);
 
-        if (playback - Old_Playback == 30)
+        if (playback - Old_Playback >= 30)
 		{
 			double rate, rate_avg;
 			timing.ed = timeGetTime();

@@ -31,7 +31,7 @@
 #include "utilities.h"
 #include <string.h>
 
-#define VERSION "DGDecode 1.5.6"
+#define VERSION "DGDecode 1.5.8"
 
 MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int moderate_h, int moderate_v, bool showQ, bool fastMC, const char* _cpu2, int _info, int _upConv, bool _i420, int iCC, IScriptEnvironment* env)
 {
@@ -1368,8 +1368,10 @@ PVideoFrame __stdcall BlindPP::GetFrame(int n, IScriptEnvironment* env)
 		dst[0] = dstf->GetWritePtr(PLANAR_Y);
 		dst[1] = dstf->GetWritePtr(PLANAR_U);
 		dst[2] = dstf->GetWritePtr(PLANAR_V);
-		postprocess(src, cf->GetPitch(), dst, dstf->GetPitch(), vi.width, vi.height, QP, vi.width/16, 
-				PP_MODE, moderate_h, moderate_v, false, iPP);
+        postprocess(src, cf->GetPitch(PLANAR_Y), cf->GetPitch(PLANAR_U),
+                    dst, dstf->GetPitch(PLANAR_Y), dstf->GetPitch(PLANAR_U),
+                    vi.width, vi.height, QP, vi.width/16, 
+                    PP_MODE, moderate_h, moderate_v, false, iPP);
 	}
 	else
 	{
@@ -1379,8 +1381,10 @@ PVideoFrame __stdcall BlindPP::GetFrame(int n, IScriptEnvironment* env)
 		dst[0] = out->y;
 		dst[1] = out->u;
 		dst[2] = out->v;
-		postprocess(dst, out->ypitch, dst, out->ypitch, vi.width, vi.height, QP, vi.width/16, PP_MODE, 
-								moderate_h, moderate_v, true, iPP);
+        postprocess(dst, out->ypitch, out->uvpitch,
+                    dst, out->ypitch, out->uvpitch,
+                    vi.width, vi.height, QP, vi.width/16, PP_MODE, 
+                    moderate_h, moderate_v, true, iPP);
 		conv422toYUV422(out->y,out->u,out->v,dstf->GetWritePtr(),out->ypitch,out->uvpitch,
 			dstf->GetPitch(),vi.width,vi.height);  // 4:2:2 planar to 4:2:2 packed
 	}

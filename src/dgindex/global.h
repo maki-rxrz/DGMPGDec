@@ -48,10 +48,13 @@
 #define		true	TRUE
 #define		false	FALSE
 
+XTN bool bIsWindowsXPorLater;
+
 // Messages to the window procedure.
 #define CLI_RIP_MESSAGE				(WM_APP)
 #define D2V_DONE_MESSAGE			(WM_APP + 1)
 #define CLI_PREVIEW_DONE_MESSAGE	(WM_APP + 2)
+#define PROGRESS_MESSAGE			(WM_APP + 3)
 
 /* code definition */
 #define PICTURE_START_CODE			0x100

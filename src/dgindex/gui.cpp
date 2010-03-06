@@ -29,7 +29,7 @@
 #define GLOBAL
 #include "global.h"
 
-static char Version[] = "DGIndex 1.5.6";
+static char Version[] = "DGIndex 1.5.8";
 
 #define TRACK_HEIGHT	32
 #define INIT_WIDTH		480
@@ -75,6 +75,7 @@ static void CopyBMP(void);
 static void OpenVideoFile(HWND);
 static void OpenAudioFile(HWND);
 DWORD WINAPI ProcessWAV(LPVOID n);
+void OutputProgress(int);
 
 static void StartupEnables(void);
 static void FileLoadedEnables(void);
@@ -109,6 +110,39 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	char ucCmdLine[4096];
 	char prog[DG_MAX_PATH];
 	char cwd[DG_MAX_PATH];
+
+    OSVERSIONINFO osvi;
+
+    ZeroMemory(&osvi, sizeof(OSVERSIONINFO));
+    osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+
+    GetVersionEx(&osvi);
+
+    bIsWindowsXPorLater = 
+       ( (osvi.dwMajorVersion > 5) ||
+       ( (osvi.dwMajorVersion == 5) && (osvi.dwMinorVersion >= 1) ));
+
+    if(bIsWindowsXPorLater)
+	{
+		// Prepare status output (console/file).
+		if (GetStdHandle(STD_OUTPUT_HANDLE) == (HANDLE)0)
+		{
+			// No output handle. We'll try to attach a console.
+			AttachConsole( ATTACH_PARENT_PROCESS );
+		}
+		else
+		{
+			if (FlushFileBuffers(GetStdHandle(STD_OUTPUT_HANDLE)))
+			{
+				// Flush succeeded -> We are NOT writing to console (output redirected to file, etc.). No action required.
+			}
+			else
+			{
+				// Flush failed -> We are writing to console. AttachConsole to enable it.
+				AttachConsole( ATTACH_PARENT_PROCESS );
+			}
+		}
+	}
 
 	// Get the path to the DGIndex executable.
 	GetModuleFileName(NULL, ExePath, DG_MAX_PATH);
@@ -585,6 +619,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		case CLI_PREVIEW_DONE_MESSAGE:
 			// Destroy the Info dialog to generate the info log file.
 			DestroyWindow(hDlg);
+			if (ExitOnEnd)
+				exit(0);
 			break;
 
 		case D2V_DONE_MESSAGE:
@@ -702,6 +738,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				exit(0);
 			}
 			else CLIActive = 0;
+			break;
+
+		case PROGRESS_MESSAGE: 
+			OutputProgress(wParam);
 			break;
 
 		case WM_CREATE:
@@ -941,14 +981,13 @@ proceed:
 							if (D2VFile = fopen(szBuffer, "r"))
 							{
 								char line[255];
+
                                 fclose(D2VFile);
-                                if (!CLIActive)
-                                {
-								    sprintf(line, "%s already exists.\nDo you want to replace it?", szBuffer);
-								    if (MessageBox(hWnd, line, "Save D2V",
-									    MB_YESNO | MB_ICONWARNING) != IDYES)
-									    break;
-                                }
+							    sprintf(line, "%s already exists.\nDo you want to replace it?", szBuffer);
+							    if (MessageBox(hWnd, line, "Save D2V",
+								    MB_YESNO | MB_ICONWARNING) != IDYES)
+								    break;
+
 							}
 							D2VFile = fopen(szBuffer, "w+");
 							strcpy(D2VFilePath, szBuffer);
@@ -4114,9 +4153,17 @@ void UpdateWindowText(void)
 	if (remain && process.locate == LOCATE_RIP || process.locate == LOCATE_PLAY || process.locate == LOCATE_DEMUX_AUDIO)
 	{
 		if (elapsed + remain)
+		{
 			sprintf(szBuffer, "DGIndex[%d%%] - ", (elapsed * 100) / (elapsed + remain));
+			if(bIsWindowsXPorLater)
+				PostMessage(hWnd, PROGRESS_MESSAGE, (elapsed * 100) / (elapsed + remain), 0);
+		}
 		else
+		{
 			sprintf(szBuffer, "DGIndex[0%%] - ");
+			if(bIsWindowsXPorLater)
+				PostMessage(hWnd, PROGRESS_MESSAGE, 0, 0);
+		}
 	}
 	else
 		sprintf(szBuffer, "DGIndex - ");
@@ -4133,6 +4180,21 @@ void UpdateWindowText(void)
 		strcat(szBuffer, szTemp);
 	}
 	SetWindowText(hWnd, szBuffer);
+}
+
+void OutputProgress(int progr)
+{
+	static int lastprogress = -1;
+
+	if (progr != lastprogress)
+	{
+		char percent[20];
+		DWORD written;
+
+		sprintf(percent, "%d\n", progr);
+		WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), percent, strlen(percent), &written, NULL);
+		lastprogress = progr;
+	}
 }
 
 void DeleteMRUList(int index)

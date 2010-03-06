@@ -54,8 +54,9 @@ void fast_copy(unsigned char *src, int src_stride,
                int horizontal_size, int vertical_size);
 void dering( uint8_t *image, int width, int height, int stride, int *QP_store, int QP_stride, int chroma);
 
-void postprocess(unsigned char * src[], int src_stride,
-                 unsigned char * dst[], int dst_stride, 
+void postprocess(unsigned char * src[], int src_stride, int UVsrc_stride,
+                 unsigned char * dst[], int dst_stride, int UVdst_stride,
+
                  int horizontal_size,   int vertical_size, 
                  QP_STORE_T *QP_store,  int QP_stride,
 				 int mode, int moderate_h, int moderate_v, bool is422, bool iPP);

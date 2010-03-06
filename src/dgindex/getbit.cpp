@@ -2365,11 +2365,15 @@ emulated1:
 							code = Get_Byte();
 							code = (code & 0xff)<<8 | Get_Byte();
 							i = 0;
-							while (code < 0xfff0)
+							while (code < 0xfff0 && i < Packet_Length - 2)
 							{
 emulated2:
 								code = (code & 0xff)<<8 | Get_Byte();
 								i++;
+							}
+							if (i >= Packet_Length - 2)
+							{
+								break;
 							}
                             // Try to detect emulated sync words by enforcing semantics.
                             if (check_audio_syncword(AUDIO_ID, (code >> 1) & 3,  (Rdptr[0] >> 4) & 0xf, (Rdptr[0] >> 2) & 3, (Rdptr[1] >> 6) & 3, Rdptr[1] & 3))

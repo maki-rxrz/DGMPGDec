@@ -49,7 +49,7 @@ extern "C" HRESULT __stdcall vfGetPluginInfo(LPVF_PluginInfo info)
 	info->dwSupportStreamType = VF_STREAM_VIDEO;
 	info->dwSupportStreamType |= VF_STREAM_AUDIO;
 
-	strcpy(info->cPluginInfo, "DGMPGDec 1.5.6 D2V/AVS Reader");
+	strcpy(info->cPluginInfo, "DGMPGDec 1.5.8 D2V/AVS Reader");
 	strcpy(info->cFileType, "DGIndex or AviSynth File (*.d2v;*.avs)|*.d2v;*.avs");
 
 	return VF_OK;

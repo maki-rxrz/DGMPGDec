@@ -149,7 +149,8 @@ void CMPEG2Decoder::assembleFrame(unsigned char *src[], int pf, YV12PICT *dst)
 		bool iPPt;
 		if (iPP == 1 || (iPP == -1 && pf == 0)) iPPt = true;
 		else iPPt = false;
-		postprocess(src, this->Coded_Picture_Width, ppptr, dst->ypitch, this->Coded_Picture_Width,
+        postprocess(src, this->Coded_Picture_Width, this->Chroma_Width,
+                ppptr, dst->ypitch, dst->uvpitch, this->Coded_Picture_Width,
 				this->Coded_Picture_Height, this->QP, this->mb_width, pp_mode, moderate_h, moderate_v, 
 				chroma_format == 1 ? false : true, iPPt);
 		if (upConv > 0 && chroma_format == 1)

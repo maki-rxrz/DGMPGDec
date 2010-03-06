@@ -31,8 +31,8 @@
 #pragma warning( disable : 4799 )
 
 /* entry point for MMX postprocessing */
-void postprocess(unsigned char * src[], int src_stride,
-                 unsigned char * dst[], int dst_stride, 
+void postprocess(unsigned char * src[], int src_stride, int UVsrc_stride,
+                 unsigned char * dst[], int dst_stride, int UVdst_stride,
                  int horizontal_size,   int vertical_size,
                  QP_STORE_T *QP_store,  int QP_stride,
 				 int mode, int moderate_h, int moderate_v, bool is422, bool iPP) 
@@ -128,8 +128,9 @@ void postprocess(unsigned char * src[], int src_stride,
 	// adjust for chroma
 	if (!is422) vertical_size >>= 1;
 	horizontal_size >>= 1;
-	src_stride      >>= 1;
-	dst_stride      >>= 1;
+    src_stride = UVsrc_stride;
+    dst_stride = UVdst_stride;
+
 
 	/* loop U then V */
 	for (i=1; i<=2; i++) 

@@ -307,6 +307,7 @@ __try
 		Frame_Number++;
 	if (Info_Flag && process.locate==LOCATE_RIP && CLIPreview && Frame_Number >= 100)
 	{
+		CLIActive = 0;
 		SendMessage(hWnd, CLI_PREVIEW_DONE_MESSAGE, 0, 0);
 		ThreadKill(MISC_KILL);
 	}
