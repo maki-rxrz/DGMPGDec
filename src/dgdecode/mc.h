@@ -44,30 +44,6 @@ MCFunc MC_avg_x16_mmx;
 MCFunc MC_avg_y16_mmx;
 MCFunc MC_avg_xy16_mmx;
 
-MCFunc MC_put_8_3dnow;
-MCFunc MC_put_x8_3dnow;
-MCFunc MC_put_y8_3dnow;
-MCFunc MC_put_xy8_3dnow_AC;
-MCFunc MC_put_xy8_3dnow_FAST;
-
-MCFunc MC_put_16_3dnow;
-MCFunc MC_put_x16_3dnow;
-MCFunc MC_put_y16_3dnow;
-MCFunc MC_put_xy16_3dnow_AC;
-MCFunc MC_put_xy16_3dnow_FAST;
-
-MCFunc MC_avg_8_3dnow;
-MCFunc MC_avg_x8_3dnow;
-MCFunc MC_avg_y8_3dnow;
-MCFunc MC_avg_xy8_3dnow_AC;
-MCFunc MC_avg_xy8_3dnow_FAST;
-
-MCFunc MC_avg_16_3dnow;
-MCFunc MC_avg_x16_3dnow;
-MCFunc MC_avg_y16_3dnow;
-MCFunc MC_avg_xy16_3dnow_AC;
-MCFunc MC_avg_xy16_3dnow_FAST;
-
 extern "C" {
 
 MCFunc MC_put_8_mmxext;

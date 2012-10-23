@@ -144,7 +144,6 @@ int dprintf(char* fmt, ...);
 
 struct CPU {
 	BOOL					mmx;
-	BOOL					_3dnow;
 	BOOL					ssemmx;
 	BOOL					ssefpu;
 	BOOL					sse2mmx;

@@ -25,7 +25,7 @@ mc0:
 	cmp edi, 0x00
 	jg mc0
 
-	//emms
+	emms
 }}
 
  void MC_put_16_mmx (unsigned char * dest, unsigned char * ref,
@@ -45,7 +45,7 @@ mc0:
 	cmp edi, 0x00
 	jg mc0
 
-	//emms
+	emms
 
 }}
 
@@ -96,7 +96,7 @@ mc0:
 	cmp edi, 0x00
 	jg mc0
 
-	//emms
+	emms
 
 }}
 
@@ -171,7 +171,7 @@ mc0:
 	cmp edi, 0x00
 	jg mc0
 
-	//emms
+	emms
 }}
 
  void MC_put_x8_mmx (unsigned char * dest, unsigned char * ref,
@@ -216,7 +216,7 @@ mc0:
 	cmp edi, 0x00
 	jg mc0
 
-	//emms
+	emms
 }}
 
  void MC_put_y8_mmx (unsigned char * dest, unsigned char * ref,
@@ -264,7 +264,7 @@ mc0:
 	cmp edi, 0x00
 	jg mc0
 
-	//emms
+	emms
 }}
 
  void MC_put_x16_mmx (unsigned char * dest, unsigned char * ref,
@@ -337,7 +337,7 @@ mc0:
 	cmp edi, 0x00
 	jg mc0
 
-	//emms
+	emms
 
 }}
 
@@ -414,7 +414,7 @@ mc0:
 	cmp edi, 0x00
 	jg mc0
 
-	//emms
+	emms
 
 }}
 
@@ -472,7 +472,7 @@ mc0:
 	cmp edi, 0x00
 	jg mc0
 
-	//emms
+	emms
 }}
 
  void MC_avg_y8_mmx (unsigned char * dest, unsigned char * ref,
@@ -532,7 +532,7 @@ mc0:
 	cmp edi, 0x00
 	jg mc0
 
-	//emms
+	emms
 }}
 
  void MC_avg_x16_mmx (unsigned char * dest, unsigned char * ref,
@@ -629,7 +629,7 @@ mc0:
 	cmp edi, 0x00
 	jg mc0
 
-	//emms
+	emms
 }}
 
  void MC_avg_y16_mmx (unsigned char * dest, unsigned char * ref,
@@ -729,8 +729,7 @@ mc0:
 	cmp edi, 0x00
 	jg mc0
 
-	//emms
-
+	emms
 }}
 
 
@@ -800,7 +799,7 @@ mc0:
 	cmp edi, 0x00
 	jg mc0
 
-	//emms
+	emms
 
 }}
 
@@ -915,7 +914,7 @@ mc0:
 	cmp edi, 0x00
 	jg mc0
 
-	//emms
+	emms
 }}
 
 // Accurate function
@@ -995,7 +994,7 @@ mc0:
 	cmp edi, 0x00
 	jg mc0
 
-	//emms
+	emms
 
 }}
 
@@ -1134,7 +1133,7 @@ mc0:
 	cmp edi, 0x00
 	jg mc0
 
-	//emms
+	emms
 
 }}
 
