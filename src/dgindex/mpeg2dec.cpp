@@ -35,8 +35,8 @@ extern void StartVideoDemux(void);
 DWORD WINAPI MPEG2Dec(LPVOID n)
 {
     int i = (int) n; // Prevent compiler warning.
-    extern unsigned int VideoPTS;
-    extern unsigned int AudioPTS;
+    extern __int64 VideoPTS;
+    extern __int64 AudioPTS;
     extern FILE *mpafp, *mpvfp;
     __int64 saveloc;
     int savefile;
