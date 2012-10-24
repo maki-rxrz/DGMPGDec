@@ -570,6 +570,13 @@ another:
                         strcpy(szOutput, name);
                     }
                 }
+                else if (!strncmp(opt, "mergin", 5))
+                {
+                    while (*p == ' ' || *p == '\t') p++;
+                    sscanf(p, "%d", &TsParseMergin);
+                    while (*p != '-' && *p != 0) p++;
+                    p--;
+                }
             }
             else if (*p == 0)
                 break;
@@ -1159,6 +1166,12 @@ another:
 
         // Preview mode for generating the Info log file
         CLIPreview = strstr(ucCmdLine,"-PREVIEW") ? 1 : 0;
+
+        if (ptr = strstr(ucCmdLine,"-MERGIN="))
+        {
+            ptr = lpCmdLine + (ptr - ucCmdLine);
+            sscanf(strstr(ptr,"=")+1, "%d", &TsParseMergin);
+        }
 
         if (!CLIActive && WindowMode == SW_HIDE)
         {

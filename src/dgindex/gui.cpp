@@ -66,6 +66,7 @@ LRESULT CALLBACK Normalization(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK SelectTracks(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK SelectDelayTrack(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK SetPids(HWND, UINT, WPARAM, LPARAM);
+LRESULT CALLBACK SetMergin(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK AVSTemplate(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK BMPPath(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK DetectPids(HWND, UINT, WPARAM, LPARAM);
@@ -194,6 +195,7 @@ NEW_VERSION:
         BMPPathString[0] = 0;
         UseMPAExtensions = 0;
         NotifyWhenDone = 0;
+        TsParseMergin = 0;
     }
     else
     {
@@ -268,6 +270,8 @@ NEW_VERSION:
         strcpy(BMPPathString, p);
         fscanf(INIFile, "Use_MPA_Extensions=%d\n", &UseMPAExtensions);
         fscanf(INIFile, "Notify_When_Done=%d\n", &NotifyWhenDone);
+        TsParseMergin = 0;
+        fscanf(INIFile, "TS_Parse_Mergin=%d\n", &TsParseMergin);
         fclose(INIFile);
     }
 
@@ -1401,6 +1405,10 @@ D2V_PROCESS:
                     DialogBox(hInst, (LPCTSTR)IDD_SET_PIDS, hWnd, (DLGPROC) SetPids);
                     break;
 
+                case IDM_SET_MERGIN:
+                    DialogBox(hInst, (LPCTSTR)IDD_SET_MERGIN, hWnd, (DLGPROC) SetMergin);
+                    break;
+
                 case IDM_IDCT_MMX:
                     iDCT_Flag = IDCT_MMX;
                     CheckMenuItem(hMenu, IDM_IDCT_MMX, MF_CHECKED);
@@ -2232,6 +2240,7 @@ right_arrow:
                 fprintf(INIFile, "BMP_Path=%s\n", BMPPathString);
                 fprintf(INIFile, "Use_MPA_Extensions=%d\n", UseMPAExtensions);
                 fprintf(INIFile, "Notify_When_Done=%d\n", NotifyWhenDone);
+                fprintf(INIFile, "TS_Parse_Mergin=%d\n", TsParseMergin);
                 fclose(INIFile);
             }
 
@@ -3194,6 +3203,54 @@ LRESULT CALLBACK SetPids(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPara
 
                 case IDCANCEL:
                 case IDC_PIDS_CANCEL:
+                    EndDialog(hDialog, 0);
+                    return true;
+            }
+            break;
+    }
+    return false;
+}
+
+LRESULT CALLBACK SetMergin(HWND hDialog, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    char buf[80];
+
+    switch (message)
+    {
+        case WM_INITDIALOG:
+            sprintf(szTemp, "%d", TsParseMergin);
+            SetDlgItemText(hDialog, IDC_MERGIN, szTemp);
+            ShowWindow(hDialog, SW_SHOW);
+            return true;
+
+        case WM_COMMAND:
+            switch (LOWORD(wParam))
+            {
+                case IDC_MERGIN_OK:
+                    GetDlgItemText(hDialog, IDC_MERGIN, buf, 10);
+                    sscanf(buf, "%d", &TsParseMergin);
+                    EndDialog(hDialog, 0);
+                    Recovery();
+                    MPEG2_Transport_VideoPID = MPEG2_Transport_AudioPID = MPEG2_Transport_PCRPID = 0x02;
+                    if (NumLoadedFiles)
+                    {
+                        FileLoadedEnables();
+                        process.rightfile = NumLoadedFiles-1;
+                        process.rightlba = (int)(Infilelength[NumLoadedFiles-1]/SECTOR_SIZE);
+
+                        process.end = Infiletotal - SECTOR_SIZE;
+                        process.endfile = NumLoadedFiles - 1;
+                        process.endloc = (Infilelength[NumLoadedFiles-1]/SECTOR_SIZE - 1)*SECTOR_SIZE;
+
+                        process.locate = LOCATE_INIT;
+
+                        if (!threadId || WaitForSingleObject(hThread, INFINITE)==WAIT_OBJECT_0)
+                            hThread = CreateThread(NULL, 0, MPEG2Dec, 0, 0, &threadId);
+                    }
+                    return true;
+
+                case IDCANCEL:
+                case IDC_MERGIN_CANCEL:
                     EndDialog(hDialog, 0);
                     return true;
             }

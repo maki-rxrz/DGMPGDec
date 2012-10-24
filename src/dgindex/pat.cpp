@@ -347,6 +347,45 @@ int PATParser::AnalyzePAT(void)
         // Acquire and parse the PMT.
         GetTable(pmt_pids[entry]);
     }
+
+    // check margin.
+    int recheck_time = TsParseMergin;
+    int pmt_recheck = 0;
+    __int64 start_PCR, PCR;
+    if (recheck_time > 0)
+    {
+        fseek(fin, 0, SEEK_SET);
+        start_PCR = GetPCRValue();
+        if (start_PCR != 0)
+        {
+            while (1)
+            {
+                PCR = GetPCRValue();
+                if (PCR == 0)
+                    break;
+
+                if (start_PCR > PCR)
+                    PCR += (0x1FFFFFFFFLL / 90);
+                if (PCR - start_PCR < recheck_time)
+                    continue;
+
+                if (op == InitialPids)
+                    MPEG2_Transport_VideoPID = MPEG2_Transport_AudioPID = MPEG2_Transport_PCRPID = 0x02;
+                pmt_recheck = 1;
+                break;
+            }
+        }
+
+        if (pmt_recheck)
+        {
+            for (entry = 0, num_programs = 0; entry < num_pmt_pids; entry++)
+            {
+                // Acquire and parse the PMT.
+                GetTable(pmt_pids[entry]);
+            }
+        }
+    }
+
     fclose(fin);
     return 0;
 }
@@ -977,4 +1016,66 @@ another_section:
             continue;
         }
     }
+}
+
+__int64 PATParser::GetPCRValue( void )
+{
+    unsigned char byte, PCR_flag;
+    unsigned int pid;
+    int read;
+    int pkt_count;
+
+    __int64 PCR, PCRbase, PCRext, tmp;
+    PCR = 0;
+
+    // Process the transport packets.
+    pkt_count = 0;
+    section_ptr = section;
+    while ((pkt_count++ < MAX_PACKETS) && (read = fread(buffer, 1, TransportPacketSize, fin)) == TransportPacketSize)
+    {
+        // Check that this is the desired PID.
+        pid = ((buffer[1] & 0x1f) << 8) | buffer[2];
+        if (pid != MPEG2_Transport_PCRPID)
+            continue;
+
+        // We have a table packet.
+        // Check error indicator.
+        if (buffer[1] & 0x80)
+            continue;
+
+        // Skip if there is no adaptation field.
+        byte = (unsigned char) ((buffer[3] & 0x30) >> 4);
+        if (byte == 0 || byte == 1)
+            continue;
+
+        // Skip if there is small size, adaptation field.
+        if (buffer[4] < 7)
+            continue;
+
+        // Skip if there is small size, adaptation field.
+        PCR_flag = (unsigned char) ((buffer[5] >> 4) & 0x01);
+        if (!PCR_flag)
+            continue;
+
+        // Get PCR value.
+        tmp = (__int64) buffer[6];
+        PCRbase = tmp << 25;
+        tmp = (__int64) buffer[7];
+        PCRbase |= tmp << 17;
+        tmp = (__int64) buffer[8];
+        PCRbase |= tmp << 9;
+        tmp = (__int64) buffer[9];
+        PCRbase |= tmp << 1;
+        tmp = (__int64) buffer[10];
+        PCRbase |= tmp >> 7;
+        PCRext = (tmp & 0x01) << 8;
+        tmp = (__int64) buffer[11];
+        PCRext |= tmp;
+        PCR = 300 * PCRbase + PCRext;
+
+        PCR = PCR/27000;
+        break;
+    }
+
+    return PCR;
 }

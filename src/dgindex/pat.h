@@ -56,6 +56,7 @@ private:
     int ProcessPATSection(void);
     int ProcessPMTSection(void);
     int ProcessPSIPSection(void);
+    __int64 GetPCRValue( void );
 public:
     PATParser(void);
     int DumpPAT(HWND hDialog, char *filename);
