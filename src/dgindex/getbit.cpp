@@ -716,6 +716,8 @@ retry_sync:
 #endif
                             SKIP_TRANSPORT_PACKET_BYTES(Packet_Header_Length-5);
                     }
+                    else
+                        SKIP_TRANSPORT_PACKET_BYTES(Packet_Header_Length);
                 }
                 DEMUX_MPA_AAC(mpafp);
             }
@@ -881,6 +883,8 @@ emulated3:
                         Packet_Length -= 5;
                         SKIP_TRANSPORT_PACKET_BYTES(Packet_Header_Length-5);
                     }
+                    else
+                        SKIP_TRANSPORT_PACKET_BYTES(Packet_Header_Length);
                     // Now we're at the start of the audio.
                     code = Get_Byte();
                     code = Get_Byte();
