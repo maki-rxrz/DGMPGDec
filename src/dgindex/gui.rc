@@ -461,6 +461,11 @@ BEGIN
         MENUITEM "AVS Template",                IDM_AVS_TEMPLATE
         MENUITEM "BMP Save Path",               IDM_BMP_PATH
         MENUITEM "Enable Info Log",             IDM_INFO_LOG
+        POPUP "Correct D2V"
+        BEGIN
+            MENUITEM "Disable",                     IDM_CFOT_DISABLE
+            MENUITEM "Enable",                      IDM_CFOT_ENABLE
+        END
     END
     POPUP "&Tools"
     BEGIN

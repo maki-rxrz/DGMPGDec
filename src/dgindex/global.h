@@ -302,6 +302,7 @@ XTN int FusionAudio;
 XTN int UseMPAExtensions;
 XTN int NotifyWhenDone;
 XTN int TsParseMergin;
+XTN bool CorrectFieldOrderTrans;
 
 XTN bool Luminance_Flag;
 XTN bool Cropping_Flag;

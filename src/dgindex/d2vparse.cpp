@@ -453,6 +453,8 @@ int fix_d2v(HWND hWnd, char *Input, int test_only)
     if (!test_only) fclose(wfp);
     if (test_only)
     {
+        if (!CorrectFieldOrderTrans)
+            return 0;
         if (found == true)
         {
             if (!CLIActive)

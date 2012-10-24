@@ -224,6 +224,8 @@
 #define IDM_COPYFRAMETOCLIPBOARD        32884
 #define IDM_FULL_SIZED                  32885
 #define IDM_SET_MERGIN                  32886
+#define IDM_CFOT_DISABLE                32887
+#define IDM_CFOT_ENABLE                 32888
 #define ID_MRU_FILE0                    50000
 #define ID_MRU_FILE1                    50001
 #define ID_MRU_FILE2                    50002
@@ -236,7 +238,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_NEXT_RESOURCE_VALUE        28
-#define _APS_NEXT_COMMAND_VALUE         32887
+#define _APS_NEXT_COMMAND_VALUE         32889
 #define _APS_NEXT_CONTROL_VALUE         1102
 #define _APS_NEXT_SYMED_VALUE           101
 #endif

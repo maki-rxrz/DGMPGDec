@@ -577,6 +577,15 @@ another:
                     while (*p != '-' && *p != 0) p++;
                     p--;
                 }
+                else if (!strncmp(opt, "correct-d2v", 11) || !strncmp(opt, "cd", 2) || !strncmp(opt, "cfot", 4))
+                {
+                    while (*p == ' ' || *p == '\t') p++;
+                    sscanf(p, "%d", &CorrectFieldOrderTrans);
+                    while (*p != '-' && *p != 0) p++;
+                    p--;
+                    CheckMenuItem(hMenu, IDM_CFOT_DISABLE, (CorrectFieldOrderTrans) ? MF_UNCHECKED : MF_CHECKED);
+                    CheckMenuItem(hMenu, IDM_CFOT_ENABLE , (CorrectFieldOrderTrans) ? MF_CHECKED : MF_UNCHECKED);
+                }
             }
             else if (*p == 0)
                 break;
@@ -1171,6 +1180,13 @@ another:
         {
             ptr = lpCmdLine + (ptr - ucCmdLine);
             sscanf(strstr(ptr,"=")+1, "%d", &TsParseMergin);
+        }
+        if ((ptr = strstr(ucCmdLine,"-CORRECT-D2V=")) || (ptr = strstr(ucCmdLine,"-CD=")) || (ptr = strstr(ucCmdLine,"-CFOT=")))
+        {
+            ptr = lpCmdLine + (ptr - ucCmdLine);
+            sscanf(strstr(ptr,"=")+1, "%d", &CorrectFieldOrderTrans);
+            CheckMenuItem(hMenu, IDM_CFOT_DISABLE, (CorrectFieldOrderTrans) ? MF_UNCHECKED : MF_CHECKED);
+            CheckMenuItem(hMenu, IDM_CFOT_ENABLE , (CorrectFieldOrderTrans) ? MF_CHECKED : MF_UNCHECKED);
         }
 
         if (!CLIActive && WindowMode == SW_HIDE)

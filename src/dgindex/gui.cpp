@@ -196,6 +196,7 @@ NEW_VERSION:
         UseMPAExtensions = 0;
         NotifyWhenDone = 0;
         TsParseMergin = 0;
+        CorrectFieldOrderTrans = true;
     }
     else
     {
@@ -272,6 +273,8 @@ NEW_VERSION:
         fscanf(INIFile, "Notify_When_Done=%d\n", &NotifyWhenDone);
         TsParseMergin = 0;
         fscanf(INIFile, "TS_Parse_Mergin=%d\n", &TsParseMergin);
+        CorrectFieldOrderTrans = true;
+        fscanf(INIFile, "CorrectFieldOrderTrans=%d\n", &CorrectFieldOrderTrans);
         fclose(INIFile);
     }
 
@@ -1260,6 +1263,13 @@ D2V_PROCESS:
                     }
                     break;
 
+                case IDM_CFOT_DISABLE:
+                case IDM_CFOT_ENABLE:
+                    CorrectFieldOrderTrans ^= true;
+                    CheckMenuItem(hMenu, IDM_CFOT_DISABLE, (CorrectFieldOrderTrans) ? MF_UNCHECKED : MF_CHECKED);
+                    CheckMenuItem(hMenu, IDM_CFOT_ENABLE , (CorrectFieldOrderTrans) ? MF_CHECKED : MF_UNCHECKED);
+                    break;
+
                 case IDM_STOP:
                     Stop_Flag = true;
                     ExitOnEnd = 0;
@@ -2241,6 +2251,7 @@ right_arrow:
                 fprintf(INIFile, "Use_MPA_Extensions=%d\n", UseMPAExtensions);
                 fprintf(INIFile, "Notify_When_Done=%d\n", NotifyWhenDone);
                 fprintf(INIFile, "TS_Parse_Mergin=%d\n", TsParseMergin);
+                fprintf(INIFile, "CorrectFieldOrderTrans=%d\n", CorrectFieldOrderTrans);
                 fclose(INIFile);
             }
 
@@ -3827,6 +3838,9 @@ void CheckFlag()
 
     if (InfoLog_Flag)
         CheckMenuItem(hMenu, IDM_INFO_LOG, MF_CHECKED);
+
+    CheckMenuItem(hMenu, IDM_CFOT_DISABLE, (CorrectFieldOrderTrans) ? MF_UNCHECKED : MF_CHECKED);
+    CheckMenuItem(hMenu, IDM_CFOT_ENABLE , (CorrectFieldOrderTrans) ? MF_CHECKED : MF_UNCHECKED);
 }
 
 void Recovery()
