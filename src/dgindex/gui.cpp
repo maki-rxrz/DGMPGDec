@@ -2487,6 +2487,9 @@ LRESULT CALLBACK VideoList(HWND hVideoListDlg, UINT message, WPARAM wParam, LPAR
                 case IDCANCEL:
                     EndDialog(hVideoListDlg, 0);
                     Recovery();
+                    MPEG2_Transport_VideoPID = 2;
+                    MPEG2_Transport_AudioPID = 2;
+                    MPEG2_Transport_PCRPID = 2;
 
                     if (!HadAddDialog)
                     {
