@@ -1079,3 +1079,253 @@ __int64 PATParser::GetPCRValue( void )
 
     return PCR;
 }
+
+unsigned int PATParser::GetNumPMTpids( void )
+{
+    return num_pmt_pids;
+}
+
+void PATParser::InitializePMTCheckItems( void )
+{
+    check_pmt_selction_length = 0;
+    check_section_ptr = NULL;
+}
+
+int PATParser::CheckPMTSection( int pkt_pid, unsigned char *pkt_ptr, unsigned int pkt_length, int *read_size, int check_pmt_idx )
+{
+    int ret = -1;
+
+    if (pkt_pid != pmt_pids[check_pmt_idx])
+        return -1;
+
+    unsigned int ndx, section_length;
+
+    // Process the transport packets.
+    ndx = 0;
+    (*read_size) = 0;
+
+    if (check_section_ptr != NULL)
+    {
+        section_length = check_pmt_selction_length;
+        section_ptr = check_section_ptr;
+
+        // This equality will fail when we have started gathering a section,
+        // but it overflowed into the next transport packet. So here we collect
+        // the rest of the section.
+        if (section_ptr != section)
+        {
+            // Collect the section data.
+            if (section_length <= pkt_length)
+            {
+                // The remainder of the section is contained entirely
+                // in this packet. Skip the pointer field if one exists.
+                unsigned char *start;
+                start = &pkt_ptr[ndx];
+                if (pkt_ptr[1] & 0x40)
+                    start++;
+                memcpy(section_ptr, start, section_length);
+                section_ptr += section_length;
+
+                // Parse the table.
+                (*read_size) += section_length;
+                if (ParsePMTSection() > 0)
+                    return 1;
+
+                // Get ready for collection of the next section.
+                section_ptr = section;
+                // Check the section syntax indicator to see if another
+                // section follows in this packet.
+                if (!(pkt_ptr[1] & 0x40))
+                {
+                    // No more sections in this packet.
+                    ret = 2;
+                }
+                else
+                {
+                    // If we reach here, there is another section following
+                    // this one, so we fall through to the code below.
+                    goto check_pmt_another_section;
+                }
+            }
+            else
+            {
+                // The section is spilling over to the next packet.
+                // There can't be a pointer field, so there's no need to
+                // check for it.
+                memcpy(section_ptr, &pkt_ptr[ndx], pkt_length);
+                section_ptr += pkt_length;
+                section_length -= pkt_length;
+
+                check_pmt_selction_length = section_length;
+                check_section_ptr = section_ptr;
+                (*read_size) = pkt_length;
+                ret = 0;
+            }
+        }
+
+    }
+    else
+    {
+        section_ptr = section;
+
+        // Read the section pointer field and use it to skip to the start of the section.
+        ndx += pkt_ptr[ndx] + 1;
+
+        // Now pointing to the start of the section. Check that the table id is correct.
+        if (pkt_ptr[ndx] != 2)
+            return -1;
+
+check_pmt_another_section:
+
+        // Check the section syntax indicator.
+        if ((pkt_ptr[ndx+1] & 0xc0) != 0x80)
+            return -1;
+
+        // Check and get section length.
+        if ((pkt_ptr[ndx+1] & 0x0c) != 0)
+            return -1;
+        section_length = ((pkt_ptr[ndx+1] & 0x03) << 8);
+        section_length |= pkt_ptr[ndx+2];
+        if (section_length > 0x3fd)
+            return -1;
+
+        if (ndx + section_length + 3 <= pkt_length)
+        {
+            // The section is entirely contained in this packet.
+            // Collect the section data.
+            memcpy(section_ptr, &pkt_ptr[ndx], section_length);
+            section_ptr += section_length;
+
+            // Parse the section.
+            (*read_size) += section_length;
+            if (ParsePMTSection() > 0)
+                return 1;
+
+            // Get ready for collecting the next section.
+            section_ptr = section;
+            // Check to see if another section follows in this packet
+            // by looking for the table ID. It would be stuffing if
+            // there was no following section.
+            if (pkt_ptr[ndx+section_length+3] == 0x02)
+            {
+                ndx += section_length + 3;
+                goto check_pmt_another_section;
+            }
+            ret = 2;
+        }
+        else
+        {
+            // This section spills over to the next transport packet.
+            // Collect the first part and get ready to collect the
+            // second part from the next packet.
+            memcpy(section_ptr, &pkt_ptr[ndx], pkt_length - ndx);
+            section_ptr += (pkt_length - ndx);
+            section_length -= (pkt_length - 3 - ndx);
+
+            check_pmt_selction_length = section_length;
+            check_section_ptr = section_ptr;
+            (*read_size) = pkt_length;
+            ret = 0;
+        }
+    }
+
+    return ret;
+}
+
+int PATParser::ParsePMTSection( void )
+{
+    int ret = 0;
+
+    unsigned int ndx, section_length, pid;
+    unsigned int descriptors_length, es_descriptors_length, type, encrypted;
+
+    // We want only current tables.
+    if (!(section[5] & 0x01))
+        return 0;
+
+    section_length = ((section[1] & 0x03) << 8);
+    section_length |= section[2];
+
+    // Skip the descriptors (if any).
+    ndx = 10;
+    descriptors_length = (section[ndx++] & 0x0f) << 8;
+    descriptors_length |= section[ndx++];
+    ndx += descriptors_length;
+
+    // Now we have the actual program data.
+    while (ndx < section_length - 4)
+    {
+        type = section[ndx++];
+
+        pid = (section[ndx++] & 0x1f) << 8;
+        pid |= section[ndx++];
+
+        if (MPEG2_Transport_VideoPID == pid)
+        {
+            ret = 1;
+            break;
+        }
+
+        // Parse the ES descriptors if necessary.
+        es_descriptors_length = (section[ndx++] & 0x0f) << 8;
+        es_descriptors_length |= section[ndx++];
+        encrypted = 0;
+        if (es_descriptors_length)
+        {
+            unsigned int start = ndx, end = ndx + es_descriptors_length;
+            int tag, length;
+
+            // See if the ES is scrambled.
+            do
+            {
+                tag = section[ndx++];
+                if (tag == 0x09)
+                    encrypted = 1;
+                length = section[ndx++];
+                ndx += length;
+            } while (ndx < end);
+            ndx = start;
+
+            if (type == 0x80)
+            {
+                // This might be private stream video.
+                // Parse the descriptors for a video descriptor.
+                int hadVideo = 0, hadAudio = 0;
+                do
+                {
+                    tag = section[ndx++];
+                    if (tag == 0x02)
+                        hadVideo = 1;
+                    else if (tag == 0x05)
+                        hadAudio = 1;
+                    length = section[ndx++];
+                    ndx += length;
+                } while (ndx < end);
+                ndx = end;
+                if (hadVideo == 1)
+                {
+                    // "Private Stream Video";
+                    type = 0x02;
+                    if (MPEG2_Transport_VideoPID == pid)
+                    {
+                        ret = 1;
+                        break;
+                    }
+                }
+            }
+            else if (type == 0x06)
+            {
+                // Parse the descriptors for a DTS audio descriptor.
+                unsigned int end = ndx + es_descriptors_length;
+                ndx = end;
+            }
+            else
+            {
+                ndx += es_descriptors_length;
+            }
+        }
+
+    }
+
+    return ret;
+}

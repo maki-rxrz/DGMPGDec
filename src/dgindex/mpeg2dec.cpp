@@ -44,6 +44,8 @@ DWORD WINAPI MPEG2Dec(LPVOID n)
 
     extern int check_audio_packet_continue;
     check_audio_packet_continue = 0;
+    extern unsigned int num_pmt_pids;
+    num_pmt_pids = pat_parser.GetNumPMTpids();
 
     Pause_Flag = Stop_Flag = Start_Flag = HadAudioPTS = false;
     VideoPTS = AudioPTS = 0;

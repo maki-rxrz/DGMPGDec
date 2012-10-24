@@ -64,4 +64,13 @@ public:
     int DumpRaw(HWND hDialog, char *filename);
     int GetAudioType(char *filename, unsigned int audio_pid);
     int DoInitialPids(char *filename);
+private:
+    int check_pmt_selction_length;
+    unsigned char *check_section_ptr;
+public:
+    unsigned int GetNumPMTpids( void );
+    void InitializePMTCheckItems(void);
+    int CheckPMTSection( int pkt_pid, unsigned char *pkt_ptr, unsigned int pkt_length, int *read_size, int check_pmt_idx );
+private:
+    int ParsePMTSection( void );
 };

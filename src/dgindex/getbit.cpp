@@ -351,6 +351,7 @@ static char *MPARate[4][15] = {
 };
 
 int check_audio_packet_continue = 0;
+unsigned int num_pmt_pids = 0;
 
 __int64 VideoPTS, AudioPTS;
 static unsigned char PCM_Buffer[SECTOR_SIZE];
@@ -484,6 +485,8 @@ void Next_Transport_Packet()
     char ext[4], EXT[4];
 
     static unsigned int prev_code;
+    bool pmt_check = false;
+    unsigned int check_num_pmt = 0;
 
     start = timeGetTime();
     for (;;)
@@ -513,6 +516,11 @@ retry_sync:
             MessageBox(hWnd, "Cannot find audio or video data. Ensure that your PIDs\nare set correctly in the Stream menu. Refer to the\nUsers Manual for details.",
                        NULL, MB_OK | MB_ICONERROR);
             ThreadKill(MISC_KILL);
+        }
+        else if (!pmt_check && time - start > 500)
+        {
+            pat_parser.InitializePMTCheckItems();
+            pmt_check = true;
         }
 
         // Search for a sync byte. Gives some protection against emulation.
@@ -1398,6 +1406,37 @@ oops2:
             }
             if (AudioOnly_Flag && Info_Flag && !(AudioPktCount++ % 128))
                 UpdateInfo();
+        }
+        else if (pmt_check && num_pmt_pids)
+        {
+#if 1
+            int read_size = 0;
+            int parse_pmt = pat_parser.CheckPMTSection( tp.pid, Rdptr, Packet_Length, &read_size, check_num_pmt );
+
+            if (parse_pmt >= 0)
+            {
+                Packet_Length -= read_size;
+            }
+            if (parse_pmt > 0)
+            {
+                pat_parser.InitializePMTCheckItems();
+                if (parse_pmt == 1)
+                {
+                    pmt_check = false;
+                    check_num_pmt = 0;
+                }
+                else
+                {
+                    check_num_pmt++;
+                    if (check_num_pmt >= num_pmt_pids)
+                    {
+                        ThreadKill(MISC_KILL);
+                    }
+                }
+            }
+#else
+            ThreadKill(MISC_KILL);
+#endif
         }
         // fallthrough case
         // skip remaining bytes in current packet
