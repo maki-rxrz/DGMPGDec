@@ -96,6 +96,8 @@ static RECT wrect, crect, info_wrect;
 static int SoundDelay[MAX_FILE_NUMBER];
 static char Outfilename[MAX_FILE_NUMBER][DG_MAX_PATH];
 
+static char windowTitle[DG_MAX_PATH] = "";
+
 extern int fix_d2v(HWND hWnd, char *path, int test_only);
 extern int parse_d2v(HWND hWnd, char *path);
 extern int analyze_sync(HWND hWnd, char *path, int track);
@@ -3811,7 +3813,8 @@ void Recovery()
     PreScale_Ratio = 1.0;
     CheckMenuItem(hMenu, IDM_PRESCALE, MF_UNCHECKED);
 
-    SetWindowText(hWnd, "DGIndex");
+    strcpy(windowTitle, "DGIndex");
+    SetWindowText(hWnd, windowTitle);
 
     if (NumLoadedFiles)
     {
@@ -4200,7 +4203,11 @@ void UpdateWindowText(void)
         sprintf(szTemp, " [Vob %d] [Cell %d]", VOB_ID, CELL_ID);
         strcat(szBuffer, szTemp);
     }
-    SetWindowText(hWnd, szBuffer);
+    if (strcmp(szBuffer, windowTitle))
+    {
+        strcpy(windowTitle, szBuffer);
+        SetWindowText(hWnd, szBuffer);
+    }
 }
 
 void OutputProgress(int progr)
