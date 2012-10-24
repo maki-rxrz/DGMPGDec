@@ -42,6 +42,9 @@ DWORD WINAPI MPEG2Dec(LPVOID n)
     int savefile;
     int field;
 
+    extern int check_audio_packet_continue;
+    check_audio_packet_continue = 0;
+
     Pause_Flag = Stop_Flag = Start_Flag = HadAudioPTS = false;
     VideoPTS = AudioPTS = 0;
     Fault_Flag = 0;

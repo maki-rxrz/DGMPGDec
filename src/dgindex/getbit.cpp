@@ -46,6 +46,17 @@ int _donread(int fd, void *buffer, unsigned int count)
 #define SAMPLERESERVED 3
 #define BITRATERESERVED 0xf
 
+static int check_adts_aac_header(int layer, int profile, int sample)
+{
+    if (layer)
+        return 1;
+    if (profile == 3)
+        return 1;
+    if (sample > 12)
+        return 1;
+    return 0;
+}
+
 int check_audio_syncword(unsigned int audio_id, int layer, int bitrate, int sample, int mode, int emphasis)
 {
     // Try to validate this syncword by validating semantics of the audio header.
@@ -339,6 +350,8 @@ static char *MPARate[4][15] = {
     {   "free", "32", "64", "96", "128", "160", "192", "224", "256", "288", "320", "352", "384", "416", "448" }  // Layer 1
 };
 
+int check_audio_packet_continue = 0;
+
 __int64 VideoPTS, AudioPTS;
 static unsigned char PCM_Buffer[SECTOR_SIZE];
 static short *ptrPCM_Buffer = (short*)PCM_Buffer;
@@ -469,6 +482,8 @@ void Next_Transport_Packet()
     unsigned int time;
     double picture_period;
     char ext[4], EXT[4];
+
+    static unsigned int prev_code;
 
     start = timeGetTime();
     for (;;)
@@ -723,8 +738,15 @@ retry_sync:
                 }
                 DEMUX_MPA_AAC(mpafp);
             }
+            else if (!(tp.payload_unit_start_indicator) && check_audio_packet_continue)
+            {
+                check_audio_packet_continue = 0;
+                code = prev_code;
+                goto emulated3;
+            }
             else if (tp.payload_unit_start_indicator)
             {
+                check_audio_packet_continue = 0;
                 Get_Short(); // start code
                 Get_Short(); // rest of start code and stream id
                 Get_Short(); // packet length
@@ -757,33 +779,42 @@ retry_sync:
 
                     // Now we're at the start of the audio.
                     // Find the audio header.
-                    code = Get_Byte();
-                    code = ((code & 0xff) << 8) | Get_Byte();
-                    Packet_Length -= 2;
-                    while ((code & 0xfff8) != 0xfff8 && Packet_Length > 0)
+                    code = (Get_Byte() << 24) | (Get_Byte() << 16) | (Get_Byte() << 8) | Get_Byte();
+                    Packet_Length -= 4;
+                    while ((code & 0xfff80000) != 0xfff80000 && Packet_Length > 0)
                     {
 emulated3:
-                        code = ((code & 0xff) << 8) | Get_Byte();
+                        code = (code << 8) | Get_Byte();
                         Packet_Length--;
                     }
-                    if ((code & 0xfff8) != 0xfff8)
+                    if ((code & 0xfff80000) != 0xfff80000)
                     {
                         SKIP_TRANSPORT_PACKET_BYTES(Packet_Length);
+                        check_audio_packet_continue = 1;
+                        prev_code = code;
                         continue;
+                    }
+                    if ((MPEG2_Transport_AudioType == 4) && ((code & 0xfffe0000) != 0xfff80000))
+                    {
+                        goto emulated3;
                     }
                     // Found the audio header. Now check the layer field.
                     // For MPEG, layer is 1, 2, or 3. For AAC, it is 0.
                     // We demux the same for both; only the filename we create is different.
-                    if (((code & 6) >> 1) == 0x00)
+                    if (((code >> 17) & 3) == 0x00)
                     {
                         // AAC audio.
+                        if (check_adts_aac_header((code >> 17) & 3, (code >> 14) & 3, (code >> 10) & 0xf))
+                        {
+                            goto emulated3;
+                        }
                         audio[0].type = FORMAT_AAC;
                     }
                     else
                     {
                         // MPEG audio.
                         // Try to detect emulated sync words by enforcing semantics.
-                        if (check_audio_syncword(0, (code >> 1) & 3,  (Rdptr[0] >> 4) & 0xf, (Rdptr[0] >> 2) & 3, (Rdptr[1] >> 6) & 3, Rdptr[1] & 3))
+                        if (check_audio_syncword(0, (code >> 17) & 3,  (code >> 12) & 0xf, (code >> 10) & 3, (code >> 6) & 3, code & 3))
                         {
                             goto emulated3;
                         }
@@ -835,8 +866,6 @@ emulated3:
                                         UseMPAExtensions ? MPAExtension[0] : MPAExtension[audio[0].layer]);
                         }
                     }
-                    Packet_Length += 2;
-                    Rdptr -= 2;
                     if (D2V_Flag || AudioOnly_Flag)
                     {
                         mpafp = OpenAudio(szBuffer, "wb", 0);
@@ -847,6 +876,10 @@ emulated3:
                             SKIP_TRANSPORT_PACKET_BYTES(Packet_Length);
                             continue;
                         }
+                        fputc((code >> 24) & 0xff, mpafp);
+                        fputc((code >> 16) & 0xff, mpafp);
+                        fputc((code >>  8) & 0xff, mpafp);
+                        fputc((code      ) & 0xff, mpafp);
                         DEMUX_MPA_AAC(mpafp);
                     }
                 }
