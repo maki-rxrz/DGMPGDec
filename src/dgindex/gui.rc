@@ -35,113 +35,113 @@ CAPTION "Information"
 FONT 8, "Tahoma"
 BEGIN
     GROUPBOX        "Video",IDC_STATIC,3,5,119,226,BS_LEFT
-    RTEXT           "Frame Type",IDC_STATIC,13,105,40,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Frame Type",IDC_STATIC,13,105,40,9,SS_CENTERIMAGE | NOT
                     WS_GROUP
-    RTEXT           "Aspect Ratio",IDC_STATIC,9,55,44,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Aspect Ratio",IDC_STATIC,9,55,44,9,SS_CENTERIMAGE | NOT
                     WS_GROUP
-    RTEXT           "Coded #",IDC_STATIC,24,145,29,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Coded #",IDC_STATIC,24,145,29,9,SS_CENTERIMAGE | NOT
                     WS_GROUP
-    RTEXT           "Playback #",IDC_STATIC,13,155,40,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Playback #",IDC_STATIC,13,155,40,9,SS_CENTERIMAGE | NOT
                     WS_GROUP
-    RTEXT           "Frame Rate",IDC_STATIC,14,65,39,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Frame Rate",IDC_STATIC,14,65,39,9,SS_CENTERIMAGE | NOT
                     WS_GROUP
-    RTEXT           "Video Type",IDC_STATIC,13,75,40,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Video Type",IDC_STATIC,13,75,40,9,SS_CENTERIMAGE | NOT
                     WS_GROUP
-    CTEXT           "",IDC_CODED_NUMBER,56,145,59,9,SS_CENTERIMAGE | 
+    CTEXT           "",IDC_CODED_NUMBER,56,145,59,9,SS_CENTERIMAGE |
                     SS_SUNKEN | NOT WS_GROUP
     GROUPBOX        "Audio",IDC_STATIC,3,236,119,105
-    RTEXT           "Elapsed",IDC_STATIC,16,356,27,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Elapsed",IDC_STATIC,16,356,27,9,SS_CENTERIMAGE | NOT
                     WS_GROUP
-    RTEXT           "Remain",IDC_STATIC,18,366,27,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Remain",IDC_STATIC,18,366,27,9,SS_CENTERIMAGE | NOT
                     WS_GROUP
-    CTEXT           "",IDC_PLAYBACK_NUMBER,56,155,59,9,SS_CENTERIMAGE | 
+    CTEXT           "",IDC_PLAYBACK_NUMBER,56,155,59,9,SS_CENTERIMAGE |
                     SS_SUNKEN | NOT WS_GROUP
-    CTEXT           "",IDC_FRAME_RATE,56,65,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_FRAME_RATE,56,65,59,9,SS_CENTERIMAGE | SS_SUNKEN |
                     NOT WS_GROUP
-    CTEXT           "",IDC_VIDEO_TYPE,56,75,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_VIDEO_TYPE,56,75,59,9,SS_CENTERIMAGE | SS_SUNKEN |
                     NOT WS_GROUP
-    CTEXT           "",IDC_FRAME_TYPE,56,105,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_FRAME_TYPE,56,105,59,9,SS_CENTERIMAGE | SS_SUNKEN |
                     NOT WS_GROUP
-    CTEXT           "",IDC_ASPECT_RATIO,56,55,59,9,SS_CENTERIMAGE | 
+    CTEXT           "",IDC_ASPECT_RATIO,56,55,59,9,SS_CENTERIMAGE |
                     SS_SUNKEN | NOT WS_GROUP
-    CTEXT           "",IDC_REMAIN,46,366,69,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_REMAIN,46,366,69,9,SS_CENTERIMAGE | SS_SUNKEN |
                     NOT WS_GROUP
-    CTEXT           "",IDC_ELAPSED,46,356,69,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_ELAPSED,46,356,69,9,SS_CENTERIMAGE | SS_SUNKEN |
                     NOT WS_GROUP
-    CTEXT           "",IDC_FPS,46,376,69,9,SS_CENTERIMAGE | SS_SUNKEN | NOT 
+    CTEXT           "",IDC_FPS,46,376,69,9,SS_CENTERIMAGE | SS_SUNKEN | NOT
                     WS_GROUP
-    RTEXT           "FPS",IDC_STATIC,27,376,16,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "FPS",IDC_STATIC,27,376,16,9,SS_CENTERIMAGE | NOT
                     WS_GROUP
     CTEXT           "",IDC_INFO,46,386,69,9,SS_SUNKEN | NOT WS_GROUP
     RTEXT           "Info",IDC_STATIC,27,386,16,8,NOT WS_GROUP
-    RTEXT           "Timestamp",IDC_STATIC,6,326,39,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Timestamp",IDC_STATIC,6,326,39,9,SS_CENTERIMAGE | NOT
                     WS_GROUP
-    CTEXT           "",IDC_TIMESTAMP,47,326,68,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_TIMESTAMP,47,326,68,9,SS_CENTERIMAGE | SS_SUNKEN |
                     NOT WS_GROUP
     GROUPBOX        "Status",IDC_STATIC,3,347,119,55,BS_LEFT
-    RTEXT           "Vob Cell ID",IDC_STATIC,10,185,43,9,SS_CENTERIMAGE | 
+    RTEXT           "Vob Cell ID",IDC_STATIC,10,185,43,9,SS_CENTERIMAGE |
                     NOT WS_GROUP
-    CTEXT           "",IDC_VOB_ID,56,185,29,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_VOB_ID,56,185,29,9,SS_CENTERIMAGE | SS_SUNKEN |
                     NOT WS_GROUP
-    CTEXT           "",IDC_CELL_ID,87,185,28,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_CELL_ID,87,185,28,9,SS_CENTERIMAGE | SS_SUNKEN |
                     NOT WS_GROUP
-    RTEXT           "Bitrate",IDC_STATIC,10,194,43,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Bitrate",IDC_STATIC,10,194,43,9,SS_CENTERIMAGE | NOT
                     WS_GROUP
-    CTEXT           "",IDC_BITRATE,56,195,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_BITRATE,56,195,59,9,SS_CENTERIMAGE | SS_SUNKEN |
                     NOT WS_GROUP
-    RTEXT           "Frame Size",IDC_STATIC,9,35,44,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Frame Size",IDC_STATIC,9,35,44,9,SS_CENTERIMAGE | NOT
                     WS_GROUP
-    CTEXT           "",IDC_FRAME_SIZE,56,35,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_FRAME_SIZE,56,35,59,9,SS_CENTERIMAGE | SS_SUNKEN |
                     NOT WS_GROUP
-    RTEXT           "Profile",IDC_STATIC,9,25,44,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Profile",IDC_STATIC,9,25,44,9,SS_CENTERIMAGE | NOT
                     WS_GROUP
-    CTEXT           "",IDC_PROFILE,56,25,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_PROFILE,56,25,59,9,SS_CENTERIMAGE | SS_SUNKEN |
                     NOT WS_GROUP
-    RTEXT           "Frame Struct",IDC_STATIC,7,95,46,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Frame Struct",IDC_STATIC,7,95,46,9,SS_CENTERIMAGE | NOT
                     WS_GROUP
-    CTEXT           "",IDC_FRAME_STRUCTURE,56,95,59,9,SS_CENTERIMAGE | 
+    CTEXT           "",IDC_FRAME_STRUCTURE,56,95,59,9,SS_CENTERIMAGE |
                     SS_SUNKEN | NOT WS_GROUP
-    RTEXT           "Field Order",IDC_STATIC,7,135,46,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Field Order",IDC_STATIC,7,135,46,9,SS_CENTERIMAGE | NOT
                     WS_GROUP
-    CTEXT           "",IDC_FIELD_ORDER,56,135,59,9,SS_CENTERIMAGE | 
+    CTEXT           "",IDC_FIELD_ORDER,56,135,59,9,SS_CENTERIMAGE |
                     SS_SUNKEN | NOT WS_GROUP
-    RTEXT           "Colorimetry",IDC_STATIC,13,125,40,9,SS_CENTERIMAGE | 
+    RTEXT           "Colorimetry",IDC_STATIC,13,125,40,9,SS_CENTERIMAGE |
                     NOT WS_GROUP
-    CTEXT           "",IDC_COLORIMETRY,56,125,59,9,SS_CENTERIMAGE | 
+    CTEXT           "",IDC_COLORIMETRY,56,125,59,9,SS_CENTERIMAGE |
                     SS_SUNKEN | NOT WS_GROUP
-    RTEXT           "Bitrate (Avg)",IDC_STATIC,10,204,43,9,SS_CENTERIMAGE | 
+    RTEXT           "Bitrate (Avg)",IDC_STATIC,10,204,43,9,SS_CENTERIMAGE |
                     NOT WS_GROUP
-    CTEXT           "",IDC_BITRATE_AVG,56,205,59,9,SS_CENTERIMAGE | 
+    CTEXT           "",IDC_BITRATE_AVG,56,205,59,9,SS_CENTERIMAGE |
                     SS_SUNKEN | NOT WS_GROUP
-    RTEXT           "Stream Type",IDC_STATIC,9,15,44,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Stream Type",IDC_STATIC,9,15,44,9,SS_CENTERIMAGE | NOT
                     WS_GROUP
-    CTEXT           "",IDC_STREAM_TYPE,56,15,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_STREAM_TYPE,56,15,59,9,SS_CENTERIMAGE | SS_SUNKEN |
                     NOT WS_GROUP
-    RTEXT           "Frame Rpts",IDC_STATIC,9,164,44,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Frame Rpts",IDC_STATIC,9,164,44,9,SS_CENTERIMAGE | NOT
                     WS_GROUP
-    CTEXT           "",IDC_FRAME_REPEATS,56,165,59,9,SS_CENTERIMAGE | 
+    CTEXT           "",IDC_FRAME_REPEATS,56,165,59,9,SS_CENTERIMAGE |
                     SS_SUNKEN | NOT WS_GROUP
-    RTEXT           "Field Rpts",IDC_STATIC,9,175,44,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Field Rpts",IDC_STATIC,9,175,44,9,SS_CENTERIMAGE | NOT
                     WS_GROUP
-    CTEXT           "",IDC_FIELD_REPEATS,56,175,59,9,SS_CENTERIMAGE | 
+    CTEXT           "",IDC_FIELD_REPEATS,56,175,59,9,SS_CENTERIMAGE |
                     SS_SUNKEN | NOT WS_GROUP
-    LISTBOX         IDC_AUDIO_LIST,9,247,106,74,NOT LBS_NOTIFY | 
+    LISTBOX         IDC_AUDIO_LIST,9,247,106,74,NOT LBS_NOTIFY |
                     LBS_NOINTEGRALHEIGHT | LBS_DISABLENOSCROLL
-    RTEXT           "Coding Type",IDC_STATIC,13,115,40,9,SS_CENTERIMAGE | 
+    RTEXT           "Coding Type",IDC_STATIC,13,115,40,9,SS_CENTERIMAGE |
                     NOT WS_GROUP
-    CTEXT           "",IDC_CODING_TYPE,56,115,59,9,SS_CENTERIMAGE | 
+    CTEXT           "",IDC_CODING_TYPE,56,115,59,9,SS_CENTERIMAGE |
                     SS_SUNKEN | NOT WS_GROUP
-    RTEXT           "Bitrate (Max)",IDC_STATIC,10,214,43,9,SS_CENTERIMAGE | 
+    RTEXT           "Bitrate (Max)",IDC_STATIC,10,214,43,9,SS_CENTERIMAGE |
                     NOT WS_GROUP
-    CTEXT           "",IDC_BITRATE_MAX,56,215,59,9,SS_CENTERIMAGE | 
+    CTEXT           "",IDC_BITRATE_MAX,56,215,59,9,SS_CENTERIMAGE |
                     SS_SUNKEN | NOT WS_GROUP
-    RTEXT           "Display Size",IDC_STATIC,10,45,44,9,SS_CENTERIMAGE | 
+    RTEXT           "Display Size",IDC_STATIC,10,45,44,9,SS_CENTERIMAGE |
                     NOT WS_GROUP
-    CTEXT           "",IDC_DISPLAY_SIZE,56,45,59,9,SS_CENTERIMAGE | 
+    CTEXT           "",IDC_DISPLAY_SIZE,56,45,59,9,SS_CENTERIMAGE |
                     SS_SUNKEN | NOT WS_GROUP
-    RTEXT           "Sequence",IDC_STATIC,13,85,40,9,SS_CENTERIMAGE | NOT 
+    RTEXT           "Sequence",IDC_STATIC,13,85,40,9,SS_CENTERIMAGE | NOT
                     WS_GROUP
-    CTEXT           "",IDC_SEQUENCE,56,85,59,9,SS_CENTERIMAGE | SS_SUNKEN | 
+    CTEXT           "",IDC_SEQUENCE,56,85,59,9,SS_CENTERIMAGE | SS_SUNKEN |
                     NOT WS_GROUP
 END
 
@@ -151,7 +151,7 @@ CAPTION "Version"
 FONT 10, "System"
 BEGIN
     PUSHBUTTON      "OK",IDOK,143,8,22,15
-    CTEXT           "",IDC_VERSION,31,7,104,17,SS_CENTERIMAGE | WS_BORDER | 
+    CTEXT           "",IDC_VERSION,31,7,104,17,SS_CENTERIMAGE | WS_BORDER |
                     NOT WS_GROUP
     ICON            IDI_MOVIE,IDC_STATIC,5,6,20,20
     LTEXT           "DGIndex is an evolution of jackei's original work called DVD2AVI. The name was changed to prevent versioning nightmares and to reflect the significant divergence of functionality.",
@@ -171,7 +171,7 @@ BEGIN
     PUSHBUTTON      "DEL",ID_DEL,223,64,39,14
     PUSHBUTTON      "DEL ALL",ID_DELALL,223,83,39,14
     PUSHBUTTON      "OK",IDOK,223,132,39,14
-    LISTBOX         IDC_LIST,7,7,207,141,NOT LBS_NOTIFY | 
+    LISTBOX         IDC_LIST,7,7,207,141,NOT LBS_NOTIFY |
                     LBS_DISABLENOSCROLL | WS_VSCROLL | WS_HSCROLL
 END
 
@@ -199,7 +199,7 @@ FONT 10, "System"
 BEGIN
     CONTROL         "Enable Normalization",IDC_NORM_CHECK,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,6,5,93,8
-    CONTROL         "",IDC_NORM_SLIDER,"msctls_trackbar32",TBS_NOTICKS | 
+    CONTROL         "",IDC_NORM_SLIDER,"msctls_trackbar32",TBS_NOTICKS |
                     WS_TABSTOP,33,22,72,10
     LTEXT           "Volume",IDC_STATIC,7,22,25,8,NOT WS_GROUP
     CTEXT           "0",IDC_NORM,106,22,16,8,NOT WS_GROUP
@@ -233,7 +233,7 @@ BEGIN
                     114,14
     LTEXT           "Your current AVS template file is:",IDC_STATIC,10,9,129,
                     11
-    EDITTEXT        IDC_AVS_TEMPLATE,10,27,340,12,ES_AUTOHSCROLL | 
+    EDITTEXT        IDC_AVS_TEMPLATE,10,27,340,12,ES_AUTOHSCROLL |
                     WS_DISABLED | NOT WS_BORDER | NOT WS_TABSTOP
 END
 
@@ -245,7 +245,7 @@ BEGIN
     PUSHBUTTON      "OK",IDC_BMP_PATH_OK,258,51,47,14
     PUSHBUTTON      "Cancel",IDC_BMP_PATH_CANCEL,308,51,47,14
     LTEXT           "Your current BMP save path is:",IDC_STATIC,10,9,129,11
-    EDITTEXT        IDC_BMP_PATH,10,27,340,12,ES_AUTOHSCROLL | NOT 
+    EDITTEXT        IDC_BMP_PATH,10,27,340,12,ES_AUTOHSCROLL | NOT
                     WS_TABSTOP
 END
 
@@ -256,13 +256,13 @@ FONT 10, "System"
 BEGIN
     CONTROL         "Enable Cropping Filter",IDC_CROPPING_CHECK,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,8,8,106,8
-    CONTROL         "",IDC_LEFT_SLIDER,"msctls_trackbar32",TBS_NOTICKS | 
+    CONTROL         "",IDC_LEFT_SLIDER,"msctls_trackbar32",TBS_NOTICKS |
                     WS_TABSTOP,33,38,188,10
-    CONTROL         "",IDC_RIGHT_SLIDER,"msctls_trackbar32",TBS_NOTICKS | 
+    CONTROL         "",IDC_RIGHT_SLIDER,"msctls_trackbar32",TBS_NOTICKS |
                     WS_TABSTOP,33,52,188,10
-    CONTROL         "",IDC_TOP_SLIDER,"msctls_trackbar32",TBS_NOTICKS | 
+    CONTROL         "",IDC_TOP_SLIDER,"msctls_trackbar32",TBS_NOTICKS |
                     WS_TABSTOP,33,66,188,10
-    CONTROL         "",IDC_BOTTOM_SLIDER,"msctls_trackbar32",TBS_NOTICKS | 
+    CONTROL         "",IDC_BOTTOM_SLIDER,"msctls_trackbar32",TBS_NOTICKS |
                     WS_TABSTOP,33,80,188,10
     LTEXT           "Left",IDC_STATIC,7,38,13,8,NOT WS_GROUP
     LTEXT           "Right",IDC_STATIC,7,52,18,8,NOT WS_GROUP
@@ -322,7 +322,7 @@ END
 // Menu
 //
 
-IDC_GUI MENU DISCARDABLE 
+IDC_GUI MENU DISCARDABLE
 BEGIN
     POPUP "&File"
     BEGIN
@@ -533,7 +533,7 @@ END
 // Accelerator
 //
 
-IDR_ACCELERATOR ACCELERATORS MOVEABLE PURE 
+IDR_ACCELERATOR ACCELERATORS MOVEABLE PURE
 BEGIN
     "<",            ID_LEFT_ARROW,          ASCII,  NOINVERT
     ">",            ID_RIGHT_ARROW,         ASCII,  NOINVERT
@@ -561,12 +561,12 @@ END
 // TEXTINCLUDE
 //
 
-1 TEXTINCLUDE DISCARDABLE 
+1 TEXTINCLUDE DISCARDABLE
 BEGIN
     "resource.h\0"
 END
 
-2 TEXTINCLUDE DISCARDABLE 
+2 TEXTINCLUDE DISCARDABLE
 BEGIN
     "#include ""resource.h""\r\n"
     "#define APSTUDIO_HIDDEN_SYMBOLS\r\n"
@@ -575,7 +575,7 @@ BEGIN
     "\0"
 END
 
-3 TEXTINCLUDE DISCARDABLE 
+3 TEXTINCLUDE DISCARDABLE
 BEGIN
     "\r\n"
     "\0"
@@ -590,7 +590,7 @@ END
 //
 
 #ifdef APSTUDIO_INVOKED
-GUIDELINES DESIGNINFO DISCARDABLE 
+GUIDELINES DESIGNINFO DISCARDABLE
 BEGIN
     IDD_SELECT_TRACKS, DIALOG
     BEGIN
@@ -605,7 +605,7 @@ END
 // String Table
 //
 
-STRINGTABLE DISCARDABLE 
+STRINGTABLE DISCARDABLE
 BEGIN
     IDC_GUI                 "DGIndex"
 END
@@ -624,4 +624,3 @@ END
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
-

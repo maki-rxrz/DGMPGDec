@@ -9,9 +9,9 @@
 
 ;//////////////////////////////////////////////////////////////////////
 
-%macro cfastcall 1 
-		global @%1@4
-		%define %1 @%1@4
+%macro cfastcall 1
+        global @%1@4
+        %define %1 @%1@4
 %endmacro
 
 cfastcall Skl_IDct16_SSE
@@ -48,12 +48,12 @@ globl Skl_Dct16_MMX
 ; (see also Intel's Application Note 922:
 ;  http://developer.intel.com/vtune/cbts/strmsimd/922down.htm
 ;  Copyright (C) 1999 Intel Corporation)
-;  
+;
 ; Notes:
 ;  * tan(3pi/16) is greater than 0.5, and would use the
 ;    sign bit when turned into 16b fixed-point precision. So,
 ;    we use the trick: x*tan3 = x*(tan3-1)+x
-; 
+;
 ;  * There's only one SSE-specific instruction (pshufw).
 ;
 ;  * There's still 1 or 2 ticks to save in fLLM_PASS, but
@@ -78,7 +78,7 @@ globl Skl_Dct16_MMX
 ;   0.025 0.024 0.022 0.022 0.022 0.022 0.023 0.023    [0.023]
 ;   0.026 0.028 0.025 0.028 0.030 0.025 0.026 0.027    [0.027]
 ;   0.021 0.020 0.020 0.022 0.020 0.022 0.017 0.019    [0.020]
-;  
+;
 ;  == Abs Mean errors ==
 ;   0.000 0.000 0.000 0.000 0.000 0.000 0.000 0.000    [0.000]
 ;   0.020 0.001 0.003 0.003 0.000 0.004 0.002 0.003    [0.002]
@@ -117,7 +117,7 @@ globl Skl_Dct16_MMX
 ;   0.008 0.007 0.006 0.008 0.007 0.008 0.009 0.009    [0.008]
 ;   0.008 0.006 0.010 0.008 0.008 0.008 0.007 0.007    [0.008]
 ;   0.007 0.006 0.006 0.007 0.007 0.006 0.006 0.007    [0.006]
-;  
+;
 ;  == Abs Mean errors ==
 ;   0.001 0.000 0.000 0.001 0.001 0.000 0.000 0.000    [0.000]
 ;   0.000 0.002 0.002 0.000 0.001 0.001 0.000 0.002    [0.000]
@@ -466,7 +466,7 @@ TEXT
                       ; trashes mm0,mm4
   punpcklbw mm0, [%2]
   punpcklbw mm4, [%4]
-  psrlw     mm0, 8   ; will zero the high words  
+  psrlw     mm0, 8   ; will zero the high words
   psrlw     mm4, 8
   paddsw    mm0, %1
   paddsw    mm4, %3
@@ -752,7 +752,7 @@ TEXT
 ; Nic - Changed to fastcall convention
 align 16
 Skl_IDct16_SSE:  ; 249c
-  ; mov ecx, [esp+4]  ; Old cdecl way, ecx is the pointer anyway with 
+  ; mov ecx, [esp+4]  ; Old cdecl way, ecx is the pointer anyway with
   iMTX_MULT  0, iTab1, Idct_Rnd0, 11
   iMTX_MULT  1, iTab2, Idct_Rnd1, 11
   iMTX_MULT  2, iTab3, Idct_Rnd2, 11
@@ -794,7 +794,7 @@ Skl_IDct16_MMX:  ; 288c
   jz near %3
 %endmacro
 
-%macro IDCT_IMPL  4   ; %1: combine func (0:none, 1:Put,  2:Add)  
+%macro IDCT_IMPL  4   ; %1: combine func (0:none, 1:Put,  2:Add)
                       ; %2:HPASS macro, %3:HPASS-03 macro, %4:VPASS macro
 ;  mov ecx, [esp+ 4]  ; Src - Nic FastCall, ecx is pointer anyway
 
@@ -1020,7 +1020,7 @@ Skl_IDct16_Add_8x4_MMX:
   pmulhw mm5, mm6         ; tm12*tan2
   paddsw mm5, mm7         ; out2 = tm12*tan2 + tm03
 
-  movq   mm6, [sqrt2]  
+  movq   mm6, [sqrt2]
   movq   mm7, [MMX_One]
 
   pmulhw mm2, mm6         ; mm2: tp65 = (t6 + t5)*cos4
@@ -1033,7 +1033,7 @@ Skl_IDct16_Add_8x4_MMX:
   movq   mm5, mm3         ; save t4
   movq   [%1+6*16], mm4   ; => out6
   movq   mm4, mm0         ; save t7
-  
+
   psubsw mm3, mm1         ; mm3: tm465 = t4 - tm65
   psubsw mm0, mm2         ; mm0: tm765 = t7 - tp65
   paddsw mm2, mm4         ; mm2: tp765 = t7 + tp65
@@ -1121,9 +1121,9 @@ Skl_IDct16_Add_8x4_MMX:
 
   paddd   mm6, mm7            ;  [ out4 | out5 ]
   psrad   mm6, 16
-  paddd   mm0, mm1            ;  [ out6 | out7 ]  
+  paddd   mm0, mm1            ;  [ out6 | out7 ]
   psrad   mm0, 16
-  
+
   packssdw mm2, mm4           ;  [ out0|out1|out2|out3 ]
   paddsw   mm2, [%3]          ;  Round
   packssdw mm6, mm0           ;  [ out4|out5|out6|out7 ]
