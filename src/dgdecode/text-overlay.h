@@ -37,7 +37,7 @@
 #ifndef __Text_overlay_H__
 #define __Text_overlay_H__
 
-// commented out includes and pasted the needed code 
+// commented out includes and pasted the needed code
 // from internal.h and convert.h into this file
 
 //#include "internal.h"
@@ -47,7 +47,7 @@
 #include "avisynth2.h"
 
 
-// copy and pasted from internal.h 
+// copy and pasted from internal.h
 
 struct AVSFunction {
   const char* name;
@@ -60,7 +60,7 @@ class _PixelClip {
   enum { buffer=320 };
   BYTE clip[256+buffer*2];
 public:
-  _PixelClip() {  
+  _PixelClip() {
     memset(clip, 0, buffer);
     for (int i=0; i<256; ++i) clip[i+buffer] = i;
     memset(clip+buffer+256, 255, buffer);
@@ -77,7 +77,7 @@ static __inline BYTE ScaledPixelClip(int i) {
 
 // copy and pasted from convert.h
 
-inline void YUV2RGB(int y, int u, int v, BYTE* out) 
+inline void YUV2RGB(int y, int u, int v, BYTE* out)
 {
   const int crv = int(1.596*65536+0.5);
   const int cgv = int(0.813*65536+0.5);
@@ -93,7 +93,7 @@ inline void YUV2RGB(int y, int u, int v, BYTE* out)
   out[2] = ScaledPixelClip(scaled_y + (v-128) * crv); // red
 }
 
-inline int RGB2YUV(int rgb) 
+inline int RGB2YUV(int rgb)
 {
   const int cyb = int(0.114*219/255*65536+0.5);
   const int cyg = int(0.587*219/255*65536+0.5);
@@ -118,21 +118,21 @@ inline int RGB2YUV(int rgb)
 
 // from original text-overlay.h
 
-class Antialiaser 
+class Antialiaser
 /**
   * Helper class to anti-alias text
  **/
-{  
+{
 public:
   Antialiaser(int width, int height, const char fontname[], int size);
   virtual ~Antialiaser();
   HDC GetDC();
-  
+
   void Apply(const VideoInfo& vi, PVideoFrame* frame, int pitch, int textcolor, int halocolor);
   void ApplyYV12(BYTE* buf, int pitch, int textcolor, int halocolor, int UVpitch,BYTE* bufV,BYTE* bufU);
   void ApplyYUY2(BYTE* buf, int pitch, int textcolor, int halocolor);
   void ApplyRGB24(BYTE* buf, int pitch, int textcolor, int halocolor);
-  void ApplyRGB32(BYTE* buf, int pitch, int textcolor, int halocolor);  
+  void ApplyRGB32(BYTE* buf, int pitch, int textcolor, int halocolor);
 
 private:
   const int w, h;
@@ -151,7 +151,7 @@ private:
 
 /**** Helper functions ****/
 
-void ApplyMessage( PVideoFrame* frame, const VideoInfo& vi, const char* message, int size, 
+void ApplyMessage( PVideoFrame* frame, const VideoInfo& vi, const char* message, int size,
                    int textcolor, int halocolor, int bgcolor, IScriptEnvironment* env );
 
 
@@ -159,7 +159,7 @@ void ApplyMessage( PVideoFrame* frame, const VideoInfo& vi, const char* message,
 
 /**** Inline helper functions ****/
 
-inline static HFONT LoadFont(const char name[], int size, bool bold, bool italic) 
+inline static HFONT LoadFont(const char name[], int size, bool bold, bool italic)
 {
   return CreateFont( size, 0, 0, 0, bold ? FW_BOLD : FW_NORMAL,
                      italic, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,

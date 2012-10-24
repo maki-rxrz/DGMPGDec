@@ -31,7 +31,7 @@
 #define int16_t short
 #define uint16_t unsigned short
 #define int32_t int
-#define uint32_t unsigned int 
+#define uint32_t unsigned int
 #define int64_t __int64
 #define uint64_t unsigned __int64
 #define QP_STORE_T int
@@ -50,24 +50,24 @@ void deblock_vert_lpf9(uint64_t *v_local, uint64_t *p1p2, uint8_t *v, int stride
 void deblock_vert_default_filter(uint8_t *v, int stride, int QP);
 void deblock_vert( uint8_t *image, int width, int stride, QP_STORE_T *QP_store, int QP_stride, int chromaFlag, int moderate_v);
 void fast_copy(unsigned char *src, int src_stride,
-               unsigned char *dst, int dst_stride, 
+               unsigned char *dst, int dst_stride,
                int horizontal_size, int vertical_size);
 void dering( uint8_t *image, int width, int height, int stride, int *QP_store, int QP_stride, int chroma);
 
 void postprocess(unsigned char * src[], int src_stride, int UVsrc_stride,
                  unsigned char * dst[], int dst_stride, int UVdst_stride,
 
-                 int horizontal_size,   int vertical_size, 
+                 int horizontal_size,   int vertical_size,
                  QP_STORE_T *QP_store,  int QP_stride,
-				 int mode, int moderate_h, int moderate_v, bool is422, bool iPP);
+                 int mode, int moderate_h, int moderate_v, bool is422, bool iPP);
 int __cdecl dprintf(char* fmt, ...);
 void do_emms();
 
 // New Deringing Algo:
 struct DERING_INFO
 {
-	uint8_t	*rangearray;
-	uint8_t *thrarray;
+    uint8_t *rangearray;
+    uint8_t *thrarray;
 };
 
 

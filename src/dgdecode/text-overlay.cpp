@@ -93,7 +93,8 @@ Antialiaser::Antialiaser(int width, int height, const char fontname[], int size)
 }
 
 
-Antialiaser::~Antialiaser() {
+Antialiaser::~Antialiaser()
+{
   DeleteObject(SelectObject(hdcAntialias, hbmDefault));
   DeleteObject(SelectObject(hdcAntialias, hfontDefault));
   DeleteDC(hdcAntialias);
@@ -101,14 +102,15 @@ Antialiaser::~Antialiaser() {
 }
 
 
-HDC Antialiaser::GetDC() {
+HDC Antialiaser::GetDC()
+{
   dirty = true;
   return hdcAntialias;
 }
 
 
-void Antialiaser::Apply( const VideoInfo& vi, PVideoFrame* frame, int pitch, int textcolor, 
-                         int halocolor ) 
+void Antialiaser::Apply( const VideoInfo& vi, PVideoFrame* frame, int pitch, int textcolor,
+                         int halocolor )
 {
   if (vi.IsRGB32())
     ApplyRGB32((*frame)->GetWritePtr(), pitch, textcolor, halocolor);
@@ -120,7 +122,8 @@ void Antialiaser::Apply( const VideoInfo& vi, PVideoFrame* frame, int pitch, int
     ApplyYV12((*frame)->GetWritePtr(), pitch, textcolor, halocolor, (*frame)->GetPitch(PLANAR_U),(*frame)->GetWritePtr(PLANAR_U),(*frame)->GetWritePtr(PLANAR_V));
 }
 
-void Antialiaser::ApplyYV12(BYTE* buf, int pitch, int textcolor, int halocolor, int pitchUV, BYTE* bufU, BYTE* bufV) {
+void Antialiaser::ApplyYV12(BYTE* buf, int pitch, int textcolor, int halocolor, int pitchUV, BYTE* bufU, BYTE* bufV)
+{
   if (dirty) GetAlphaRect();
   int Ytext = ((textcolor>>16)&255), Utext = ((textcolor>>8)&255), Vtext = (textcolor&255);
   int Yhalo = ((halocolor>>16)&255), Uhalo = ((halocolor>>8)&255), Vhalo = (halocolor&255);
@@ -153,7 +156,8 @@ void Antialiaser::ApplyYV12(BYTE* buf, int pitch, int textcolor, int halocolor, 
 }
 
 
-void Antialiaser::ApplyYUY2(BYTE* buf, int pitch, int textcolor, int halocolor) {
+void Antialiaser::ApplyYUY2(BYTE* buf, int pitch, int textcolor, int halocolor)
+{
   if (dirty) GetAlphaRect();
   int Ytext = ((textcolor>>16)&255), Utext = ((textcolor>>8)&255), Vtext = (textcolor&255);
   int Yhalo = ((halocolor>>16)&255), Uhalo = ((halocolor>>8)&255), Vhalo = (halocolor&255);
@@ -175,7 +179,8 @@ void Antialiaser::ApplyYUY2(BYTE* buf, int pitch, int textcolor, int halocolor) 
 }
 
 
-void Antialiaser::ApplyRGB24(BYTE* buf, int pitch, int textcolor, int halocolor) {
+void Antialiaser::ApplyRGB24(BYTE* buf, int pitch, int textcolor, int halocolor)
+{
   if (dirty) GetAlphaRect();
   int Rtext = ((textcolor>>16)&255), Gtext = ((textcolor>>8)&255), Btext = (textcolor&255);
   int Rhalo = ((halocolor>>16)&255), Ghalo = ((halocolor>>8)&255), Bhalo = (halocolor&255);
@@ -196,7 +201,8 @@ void Antialiaser::ApplyRGB24(BYTE* buf, int pitch, int textcolor, int halocolor)
 }
 
 
-void Antialiaser::ApplyRGB32(BYTE* buf, int pitch, int textcolor, int halocolor) {
+void Antialiaser::ApplyRGB32(BYTE* buf, int pitch, int textcolor, int halocolor)
+{
   if (dirty) GetAlphaRect();
   int Rtext = ((textcolor>>16)&255), Gtext = ((textcolor>>8)&255), Btext = (textcolor&255);
   int Rhalo = ((halocolor>>16)&255), Ghalo = ((halocolor>>8)&255), Bhalo = (halocolor&255);
@@ -217,7 +223,8 @@ void Antialiaser::ApplyRGB32(BYTE* buf, int pitch, int textcolor, int halocolor)
 }
 
 
-void Antialiaser::GetAlphaRect() {
+void Antialiaser::GetAlphaRect()
+{
 
   dirty = false;
 
@@ -382,8 +389,8 @@ void Antialiaser::GetAlphaRect() {
  ***********************************/
 
 
-void ApplyMessage( PVideoFrame* frame, const VideoInfo& vi, const char* message, int size, 
-                   int textcolor, int halocolor, int bgcolor, IScriptEnvironment* env ) 
+void ApplyMessage( PVideoFrame* frame, const VideoInfo& vi, const char* message, int size,
+                   int textcolor, int halocolor, int bgcolor, IScriptEnvironment* env )
 {
   Antialiaser antialiaser(vi.width, vi.height, "Courier New", size);
   HDC hdcAntialias = antialiaser.GetDC();

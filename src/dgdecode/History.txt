@@ -14,8 +14,8 @@ This is a 1.0.13b4 version of dgdecode but with the following changes:
 1.) added info option to mpeg2source() to display info on frames
       - example usage:  mpeg2source(info=true)
 
-2.) iPP is a bool again.  If it is not explicitly set to true or false then it 
-       defaults to auto which switches between field/frame based pp based on the 
+2.) iPP is a bool again.  If it is not explicitly set to true or false then it
+       defaults to auto which switches between field/frame based pp based on the
        progressive_frame flag
 
 3.) 4:2:2 input support
@@ -114,7 +114,7 @@ MPEG-2 transport stream demuxing
 
 2) If you want to use avisynth with DVD2AVI, you will need the updated MPEG2DEC.DLL.  The updated DLL has added support for transport-stream demuxing.  If you want to use DVD2AVI as a VFAPI frameserver, you will need the updated DVD2AVI.VFP (for the same reason.)
 
-3) Do NOT mix MPEG-2 program streams (*.vob, *.mpg) and MPEG-2 transport streams (*.trp, *.ts) in the same d2v project-file!  
+3) Do NOT mix MPEG-2 program streams (*.vob, *.mpg) and MPEG-2 transport streams (*.trp, *.ts) in the same d2v project-file!
 
 4) DVD2AVI is sensitive to bitstream errors.  Your broadcast DTV recordings may contain errors, which will manifest as distortion, image breakup, and other visual artifacts.  At worst, mpeg2dec.dll can crash.  Unfortunately, there is no way to guard against this except to routinely check your DTV-receiver's quality-monitor and adjust accordingly.
 
@@ -141,4 +141,3 @@ These source-files are changes to the mpeg2dec_dll.zip file from www.davetech.or
 
 liaor@iname.com
 http://members.tripod.com/~liaor
-

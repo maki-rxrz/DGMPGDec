@@ -26,7 +26,7 @@
  * mc3dnow.c : Created by vlad59 - 04/05/2002
  * Based on the VideoLan project
  *****************************************************************************
- * Change list : 
+ * Change list :
  *
  * - Renamed from motion3dnow.c to mc3dnow.c (I prefer 8.3 files)
  * - Changes the nasm code to masm
@@ -34,7 +34,7 @@
  * - Some cleanup of unused function
  * - Removed //femms (we don't need that)
  *
- * Todo : 
+ * Todo :
  *
  * - Change this file to pure asm
  * - Or simply try the __fastcall mode
@@ -47,270 +47,286 @@
 
 void MC_put_8_3dnow (unsigned char * dest, unsigned char * ref,
                               int stride, int offs, int height)
-{__asm {
-	mov			eax, [ref]
-	mov			ebx, [dest]
-	mov			edi, [height]
-mc0:
-	movq mm0, [eax]
-	movq [ebx], mm0
-	add eax, [stride]
-	add ebx, [stride]
-	dec edi
-	cmp edi, 0x00
-	jg mc0
+{
+    __asm {
+        mov         eax, [ref]
+        mov         ebx, [dest]
+        mov         edi, [height]
+    mc0:
+        movq mm0, [eax]
+        movq [ebx], mm0
+        add eax, [stride]
+        add ebx, [stride]
+        dec edi
+        cmp edi, 0x00
+        jg mc0
 
-	//femms
-}}
+        //femms
+    }
+}
 
 void MC_put_16_3dnow (unsigned char * dest, unsigned char * ref,
                                int stride, int offs, int height)
-{__asm {
-	mov			eax, [ref]
-	mov			ebx, [dest]
-	mov			edi, [height]
-mc0:
-	movq mm0, [eax]
-	movq mm1, [eax+8]
-	add eax, [stride]
-	movq [ebx], mm0
-	movq [ebx+8], mm1
-	add ebx, [stride]
-	dec edi
-	cmp edi, 0x00
-	jg mc0
+{
+    __asm {
+        mov         eax, [ref]
+        mov         ebx, [dest]
+        mov         edi, [height]
+    mc0:
+        movq mm0, [eax]
+        movq mm1, [eax+8]
+        add eax, [stride]
+        movq [ebx], mm0
+        movq [ebx+8], mm1
+        add ebx, [stride]
+        dec edi
+        cmp edi, 0x00
+        jg mc0
 
-	//femms
-
-}}
+        //femms
+    }
+}
 
 void MC_avg_8_3dnow (unsigned char * dest, unsigned char * ref,
                               int stride, int offs, int height)
-{__asm {
-	mov			eax, [ref]
-	mov			ebx, [dest]
-	mov			edi, [height]
-mc0:
-	movq mm0, [eax]
-	pavgusb mm0, [ebx]
-	add eax, [stride]
-	movq [ebx], mm0
-	add ebx, [stride]
-	dec edi
-	cmp edi, 0x00
-	jg mc0
+{
+    __asm {
+        mov         eax, [ref]
+        mov         ebx, [dest]
+        mov         edi, [height]
+    mc0:
+        movq mm0, [eax]
+        pavgusb mm0, [ebx]
+        add eax, [stride]
+        movq [ebx], mm0
+        add ebx, [stride]
+        dec edi
+        cmp edi, 0x00
+        jg mc0
 
-	//femms
-
-}}
+        //femms
+    }
+}
 
 void MC_avg_16_3dnow (unsigned char * dest, unsigned char * ref,
                                int stride, int offs, int height)
-{__asm {
-	mov			eax, [ref]
-	mov			ebx, [dest]
-	mov			edi, [height]
-mc0:
-	movq mm0, [eax]
-	movq mm1, [eax+8]
-	pavgusb mm0, [ebx]
-	pavgusb mm1, [ebx+8]
-	movq [ebx], mm0
-	add eax, [stride]
-	movq [ebx+8], mm1
-	add ebx, [stride]
-	dec edi
-	cmp edi, 0x00
-	jg mc0
+{
+    __asm {
+        mov         eax, [ref]
+        mov         ebx, [dest]
+        mov         edi, [height]
+    mc0:
+        movq mm0, [eax]
+        movq mm1, [eax+8]
+        pavgusb mm0, [ebx]
+        pavgusb mm1, [ebx+8]
+        movq [ebx], mm0
+        add eax, [stride]
+        movq [ebx+8], mm1
+        add ebx, [stride]
+        dec edi
+        cmp edi, 0x00
+        jg mc0
 
-	//femms
-
-}}
+        //femms
+    }
+}
 
 void MC_put_x8_3dnow (unsigned char * dest, unsigned char * ref,
                               int stride, int offs, int height)
-{__asm {
-	mov			eax, [ref]
-	mov			ebx, [dest]
-	mov			edi, [height]
-mc0:
-	movq mm0, [eax]
-	pavgusb mm0, [eax+1]
-	add eax, [stride]
-	movq [ebx], mm0
-	add ebx, [stride]
-	dec edi
-	cmp edi, 0x00
-	jg mc0
+{
+    __asm {
+        mov         eax, [ref]
+        mov         ebx, [dest]
+        mov         edi, [height]
+    mc0:
+        movq mm0, [eax]
+        pavgusb mm0, [eax+1]
+        add eax, [stride]
+        movq [ebx], mm0
+        add ebx, [stride]
+        dec edi
+        cmp edi, 0x00
+        jg mc0
 
-	//femms
-}}
+        //femms
+    }
+}
 
 void MC_put_y8_3dnow (unsigned char * dest, unsigned char * ref,
                               int stride, int offs, int height)
-{__asm {
-	mov			eax, [ref]
-	mov			ecx, eax
-	add			ecx, [offs]
-	mov			ebx, [dest]
-	mov			edi, [height]
-mc0:
-	movq mm0, [eax]
-	pavgusb mm0, [ecx]
-	add eax, [stride]
-	add ecx, [stride]
-	movq [ebx], mm0
-	add ebx, [stride]
-	dec edi
-	cmp edi, 0x00
-	jg mc0
+{
+    __asm {
+        mov         eax, [ref]
+        mov         ecx, eax
+        add         ecx, [offs]
+        mov         ebx, [dest]
+        mov         edi, [height]
+    mc0:
+        movq mm0, [eax]
+        pavgusb mm0, [ecx]
+        add eax, [stride]
+        add ecx, [stride]
+        movq [ebx], mm0
+        add ebx, [stride]
+        dec edi
+        cmp edi, 0x00
+        jg mc0
 
-	//femms
-}}
+        //femms
+    }
+}
 
 void MC_put_x16_3dnow (unsigned char * dest, unsigned char * ref,
                                int stride, int offs, int height)
-{__asm {
-	mov			eax, [ref]
-	mov			ebx, [dest]
-	mov			edi, [height]
-mc0:
-	movq mm0, [eax]
-	movq mm1, [eax+8]
-	pavgusb mm0, [eax+1]
-	pavgusb mm1, [eax+9]
-	movq [ebx], mm0
-	add eax, [stride]
-	movq [ebx+8], mm1
-	add ebx, [stride]
-	dec edi
-	cmp edi, 0x00
-	jg mc0
+{
+    __asm {
+        mov         eax, [ref]
+        mov         ebx, [dest]
+        mov         edi, [height]
+    mc0:
+        movq mm0, [eax]
+        movq mm1, [eax+8]
+        pavgusb mm0, [eax+1]
+        pavgusb mm1, [eax+9]
+        movq [ebx], mm0
+        add eax, [stride]
+        movq [ebx+8], mm1
+        add ebx, [stride]
+        dec edi
+        cmp edi, 0x00
+        jg mc0
 
-	//femms
-
-}}
+        //femms
+    }
+}
 
 void MC_put_y16_3dnow (unsigned char * dest, unsigned char * ref,
                                int stride, int offs, int height)
-{__asm {
-	mov			eax, [ref]
-	mov			ebx, [dest]
-	mov			ecx, eax
-	add			ecx, [offs]
-	mov			edi, [height]
-mc0:
-	movq mm0, [eax]
-	movq mm1, [eax+8]
-	pavgusb mm0, [ecx]
-	pavgusb mm1, [ecx+8]
-	movq [ebx], mm0
-	add eax, [stride]
-	add ecx, [stride]
-	movq [ebx+8], mm1
-	add ebx, [stride]
-	dec edi
-	cmp edi, 0x00
-	jg mc0
+{
+    __asm {
+        mov         eax, [ref]
+        mov         ebx, [dest]
+        mov         ecx, eax
+        add         ecx, [offs]
+        mov         edi, [height]
+    mc0:
+        movq mm0, [eax]
+        movq mm1, [eax+8]
+        pavgusb mm0, [ecx]
+        pavgusb mm1, [ecx+8]
+        movq [ebx], mm0
+        add eax, [stride]
+        add ecx, [stride]
+        movq [ebx+8], mm1
+        add ebx, [stride]
+        dec edi
+        cmp edi, 0x00
+        jg mc0
 
-	//femms
-
-}}
+        //femms
+    }
+}
 
 void MC_avg_x8_3dnow (unsigned char * dest, unsigned char * ref,
                               int stride, int offs, int height)
-{__asm {
-	mov			eax, [ref]
-	mov			ebx, [dest]
-	mov			edi, [height]
-mc0:
-	movq mm0, [eax]
-	pavgusb mm0, [eax+1]
-	pavgusb mm0, [ebx]
-	add eax, [stride]
-	movq [ebx], mm0
-	add ebx, [stride]
-	dec edi
-	cmp edi, 0x00
-	jg mc0
+{
+    __asm {
+        mov         eax, [ref]
+        mov         ebx, [dest]
+        mov         edi, [height]
+    mc0:
+        movq mm0, [eax]
+        pavgusb mm0, [eax+1]
+        pavgusb mm0, [ebx]
+        add eax, [stride]
+        movq [ebx], mm0
+        add ebx, [stride]
+        dec edi
+        cmp edi, 0x00
+        jg mc0
 
-	//femms
-}}
+        //femms
+    }
+}
 
 void MC_avg_y8_3dnow (unsigned char * dest, unsigned char * ref,
                               int stride, int offs, int height)
-{__asm {
-	mov			eax, [ref]
-	mov			ebx, [dest]
-	mov			ecx, eax
-	add			ecx, [offs]
-	mov			edi, [height]
-mc0:
-	movq mm0, [eax]
-	pavgusb mm0, [ecx]
-	pavgusb mm0, [ebx]
-	add eax, [stride]
-	add ecx, [stride]
-	movq [ebx], mm0
-	add ebx, [stride]
-	dec edi
-	cmp edi, 0x00
-	jg mc0
+{
+    __asm {
+        mov         eax, [ref]
+        mov         ebx, [dest]
+        mov         ecx, eax
+        add         ecx, [offs]
+        mov         edi, [height]
+    mc0:
+        movq mm0, [eax]
+        pavgusb mm0, [ecx]
+        pavgusb mm0, [ebx]
+        add eax, [stride]
+        add ecx, [stride]
+        movq [ebx], mm0
+        add ebx, [stride]
+        dec edi
+        cmp edi, 0x00
+        jg mc0
 
-	//femms
-}}
+        //femms
+    }
+}
 
 void MC_avg_x16_3dnow (unsigned char * dest, unsigned char * ref,
                                int stride, int offs, int height)
-{__asm {
-	mov			eax, [ref]
-	mov			ebx, [dest]
-	mov			edi, [height]
-mc0:
-	movq mm0, [eax]
-	movq mm1, [eax+8]
-	pavgusb mm0, [eax+1]
-	pavgusb mm1, [eax+9]
-	pavgusb mm0, [ebx]
-	pavgusb mm1, [ebx+8]
-	add eax, [stride]
-	movq [ebx], mm0
-	movq [ebx+8], mm1
-	add ebx, [stride]
-	dec edi
-	cmp edi, 0x00
-	jg mc0
+{
+    __asm {
+        mov         eax, [ref]
+        mov         ebx, [dest]
+        mov         edi, [height]
+    mc0:
+        movq mm0, [eax]
+        movq mm1, [eax+8]
+        pavgusb mm0, [eax+1]
+        pavgusb mm1, [eax+9]
+        pavgusb mm0, [ebx]
+        pavgusb mm1, [ebx+8]
+        add eax, [stride]
+        movq [ebx], mm0
+        movq [ebx+8], mm1
+        add ebx, [stride]
+        dec edi
+        cmp edi, 0x00
+        jg mc0
 
-	//femms
-}}
+        //femms
+    }}
 
-void MC_avg_y16_3dnow (unsigned char * dest, unsigned char * ref,
-                               int stride, int offs, int height)
-{__asm {
-	mov			eax, [ref]
-	mov			ebx, [dest]
-	mov			ecx, eax
-	add			ecx, [offs]
-	mov			edi, [height]
-mc0:
-	movq mm0, [eax]
-	movq mm1, [eax+8]
-	pavgusb mm0, [ecx]
-	pavgusb mm1, [ecx+8]
-	pavgusb mm0, [ebx]
-	pavgusb mm1, [ebx+8]
-	add eax, [stride]
-	add ecx, [stride]
-	movq [ebx], mm0
-	movq [ebx+8], mm1
-	add ebx, [stride]
-	dec edi
-	cmp edi, 0x00
-	jg mc0
+    void MC_avg_y16_3dnow (unsigned char * dest, unsigned char * ref,
+                                   int stride, int offs, int height)
+    {__asm {
+        mov         eax, [ref]
+        mov         ebx, [dest]
+        mov         ecx, eax
+        add         ecx, [offs]
+        mov         edi, [height]
+    mc0:
+        movq mm0, [eax]
+        movq mm1, [eax+8]
+        pavgusb mm0, [ecx]
+        pavgusb mm1, [ecx+8]
+        pavgusb mm0, [ebx]
+        pavgusb mm1, [ebx+8]
+        add eax, [stride]
+        add ecx, [stride]
+        movq [ebx], mm0
+        movq [ebx+8], mm1
+        add ebx, [stride]
+        dec edi
+        cmp edi, 0x00
+        jg mc0
 
-	//femms
-
-}}
+        //femms
+    }
+}
 
 
 static const __int64 mask_one = 0x0101010101010101;
@@ -318,362 +334,371 @@ static const __int64 mask_one = 0x0101010101010101;
 // Accurate function
 void MC_put_xy8_3dnow_AC (unsigned char * dest, unsigned char * ref,
                               int stride, int offs, int height)
-{__asm {
-	mov			eax, [ref]
-	mov			ebx, [dest]
-	mov			ecx, eax
-	add			ecx, [offs]
-	mov			edi, [height]
-	
-mc0:
+{
+    __asm {
+        mov         eax, [ref]
+        mov         ebx, [dest]
+        mov         ecx, eax
+        add         ecx, [offs]
+        mov         edi, [height]
 
-	movq mm0, [eax]
-	movq mm1, [ecx+1]
-	movq mm7, mm0
-	movq mm2, [eax+1]
-	pxor mm7, mm1
-	movq mm3, [ecx]
-	movq mm6, mm2
-	pxor mm6, mm3
-	pavgusb mm0, mm1
-	pavgusb mm2, mm3
-	por mm7, mm6
-	movq mm6, mm0
-	pxor mm6, mm2
-	pand mm7, mm6
-	pand mm7, [mask_one]
-	pavgusb mm0, mm2
-	psubusb mm0, mm7
+    mc0:
 
-	add eax, [stride]
-	add ecx, [stride]
-	movq [ebx], mm0
-	add ebx, [stride]
+        movq mm0, [eax]
+        movq mm1, [ecx+1]
+        movq mm7, mm0
+        movq mm2, [eax+1]
+        pxor mm7, mm1
+        movq mm3, [ecx]
+        movq mm6, mm2
+        pxor mm6, mm3
+        pavgusb mm0, mm1
+        pavgusb mm2, mm3
+        por mm7, mm6
+        movq mm6, mm0
+        pxor mm6, mm2
+        pand mm7, mm6
+        pand mm7, [mask_one]
+        pavgusb mm0, mm2
+        psubusb mm0, mm7
 
-	dec edi
-	cmp edi, 0x00
-	jg mc0
+        add eax, [stride]
+        add ecx, [stride]
+        movq [ebx], mm0
+        add ebx, [stride]
 
-	//femms
+        dec edi
+        cmp edi, 0x00
+        jg mc0
 
-}}
+        //femms
+    }
+}
 
 // Fast function
 void MC_put_xy8_3dnow_FAST (unsigned char * dest, unsigned char * ref,
                               int stride, int offs, int height)
-{__asm {
-	mov			eax, [ref]
-	mov			ebx, [dest]
-	mov			ecx, eax
-	add			ecx, [offs]
-	mov			edi, [height]
-	
-mc0:
+{
+    __asm {
+        mov         eax, [ref]
+        mov         ebx, [dest]
+        mov         ecx, eax
+        add         ecx, [offs]
+        mov         edi, [height]
 
-	movq mm0, [eax]
-	movq mm1, [ecx+1]
-	movq mm2, [eax+1]
-	movq mm3, [ecx]
-	pavgusb mm0, mm1
-	pavgusb mm2, mm3
-	pavgusb mm0, mm2
-	psubusb mm0, [mask_one]
+    mc0:
 
-	add eax, [stride]
-	add ecx, [stride]
-	movq [ebx], mm0
-	add ebx, [stride]
+        movq mm0, [eax]
+        movq mm1, [ecx+1]
+        movq mm2, [eax+1]
+        movq mm3, [ecx]
+        pavgusb mm0, mm1
+        pavgusb mm2, mm3
+        pavgusb mm0, mm2
+        psubusb mm0, [mask_one]
 
-	dec edi
-	cmp edi, 0x00
-	jg mc0
+        add eax, [stride]
+        add ecx, [stride]
+        movq [ebx], mm0
+        add ebx, [stride]
 
-	//femms
-}}
+        dec edi
+        cmp edi, 0x00
+        jg mc0
+
+        //femms
+    }
+}
 
 // Accurate function
 void MC_put_xy16_3dnow_AC (unsigned char * dest, unsigned char * ref,
                                int stride, int offs, int height)
-{__asm {
-	mov			eax, [ref]
-	mov			ebx, [dest]
-	mov			ecx, eax
-	add			ecx, [offs]
-	mov			edi, [height]
-mc0:
-	movq mm0, [eax]
-	movq mm1, [ecx+1]
-	movq mm7, mm0
-	movq mm2, [eax+1]
-	pxor mm7, mm1
-	movq mm3, [ecx]
-	movq mm6, mm2
-	pxor mm6, mm3
-	pavgusb mm0, mm1
-	pavgusb mm2, mm3
-	por mm7, mm6
-	movq mm6, mm0
-	pxor mm6, mm2
-	pand mm7, mm6
-	pand mm7, [mask_one]
-	pavgusb mm0, mm2
-	psubusb mm0, mm7
-	movq [ebx], mm0
+{
+    __asm {
+        mov         eax, [ref]
+        mov         ebx, [dest]
+        mov         ecx, eax
+        add         ecx, [offs]
+        mov         edi, [height]
+    mc0:
+        movq mm0, [eax]
+        movq mm1, [ecx+1]
+        movq mm7, mm0
+        movq mm2, [eax+1]
+        pxor mm7, mm1
+        movq mm3, [ecx]
+        movq mm6, mm2
+        pxor mm6, mm3
+        pavgusb mm0, mm1
+        pavgusb mm2, mm3
+        por mm7, mm6
+        movq mm6, mm0
+        pxor mm6, mm2
+        pand mm7, mm6
+        pand mm7, [mask_one]
+        pavgusb mm0, mm2
+        psubusb mm0, mm7
+        movq [ebx], mm0
 
-	movq mm0, [eax+8]
-	movq mm1, [ecx+9]
-	movq mm7, mm0
-	movq mm2, [eax+9]
-	pxor mm7, mm1
-	movq mm3, [ecx+8]
-	movq mm6, mm2
-	pxor mm6, mm3
-	pavgusb mm0, mm1
-	pavgusb mm2, mm3
-	por mm7, mm6
-	movq mm6, mm0
-	pxor mm6, mm2
-	pand mm7, mm6
-	pand mm7, [mask_one]
-	pavgusb mm0, mm2
-	psubusb mm0, mm7	
-	add eax, [stride]
-	add ecx, [stride]
-	movq [ebx+8], mm0
-	add ebx, [stride]
+        movq mm0, [eax+8]
+        movq mm1, [ecx+9]
+        movq mm7, mm0
+        movq mm2, [eax+9]
+        pxor mm7, mm1
+        movq mm3, [ecx+8]
+        movq mm6, mm2
+        pxor mm6, mm3
+        pavgusb mm0, mm1
+        pavgusb mm2, mm3
+        por mm7, mm6
+        movq mm6, mm0
+        pxor mm6, mm2
+        pand mm7, mm6
+        pand mm7, [mask_one]
+        pavgusb mm0, mm2
+        psubusb mm0, mm7
+        add eax, [stride]
+        add ecx, [stride]
+        movq [ebx+8], mm0
+        add ebx, [stride]
 
-	dec edi
-	cmp edi, 0x00
-	jg mc0
+        dec edi
+        cmp edi, 0x00
+        jg mc0
 
-	//femms
-
-
-}}
+        //femms
+    }
+}
 
 // Fast function
 void MC_put_xy16_3dnow_FAST (unsigned char * dest, unsigned char * ref,
                                int stride, int offs, int height)
-{__asm {
-	mov			eax, [ref]
-	mov			ebx, [dest]
-	mov			ecx, eax
-	add			ecx, [offs]
-	mov			edi, [height]
-mc0:
-	movq mm0, [eax]
-	movq mm1, [ecx+1]
-	movq mm2, [eax+1]
-	movq mm3, [ecx]
-	pavgusb mm0, mm1
-	pavgusb mm2, mm3
-	pavgusb mm0, mm2
-	psubusb mm0, [mask_one]
-	movq [ebx], mm0
+{
+    __asm {
+        mov         eax, [ref]
+        mov         ebx, [dest]
+        mov         ecx, eax
+        add         ecx, [offs]
+        mov         edi, [height]
+    mc0:
+        movq mm0, [eax]
+        movq mm1, [ecx+1]
+        movq mm2, [eax+1]
+        movq mm3, [ecx]
+        pavgusb mm0, mm1
+        pavgusb mm2, mm3
+        pavgusb mm0, mm2
+        psubusb mm0, [mask_one]
+        movq [ebx], mm0
 
-	movq mm0, [eax+8]
-	movq mm1, [ecx+9]
-	movq mm2, [eax+9]
-	movq mm3, [ecx+8]
-	pavgusb mm0, mm1
-	pavgusb mm2, mm3
-	pavgusb mm0, mm2
-	psubusb mm0, [mask_one]
-	
-	add eax, [stride]
-	add ecx, [stride]
-	movq [ebx+8], mm0
-	add ebx, [stride]
+        movq mm0, [eax+8]
+        movq mm1, [ecx+9]
+        movq mm2, [eax+9]
+        movq mm3, [ecx+8]
+        pavgusb mm0, mm1
+        pavgusb mm2, mm3
+        pavgusb mm0, mm2
+        psubusb mm0, [mask_one]
 
-	dec edi
-	cmp edi, 0x00
-	jg mc0
+        add eax, [stride]
+        add ecx, [stride]
+        movq [ebx+8], mm0
+        add ebx, [stride]
 
-	//femms
-}}
+        dec edi
+        cmp edi, 0x00
+        jg mc0
+
+        //femms
+    }
+}
 
 
 // Accurate function
 void MC_avg_xy8_3dnow_AC (unsigned char * dest, unsigned char * ref,
                               int stride, int offs, int height)
-{__asm {
-	mov			eax, [ref]
-	mov			ebx, [dest]
-	mov			ecx, eax
-	add			ecx, [offs]
-	mov			edi, [height]
-mc0:
-	movq mm0, [eax]
-	movq mm1, [ecx+1]
-	movq mm7, mm0
-	movq mm2, [eax+1]
-	pxor mm7, mm1
-	movq mm3, [ecx]
-	movq mm6, mm2
-	pxor mm6, mm3
-	pavgusb mm0, mm1
-	pavgusb mm2, mm3
-	por mm7, mm6
-	movq mm6, mm0
-	pxor mm6, mm2
-	pand mm7, mm6
-	pand mm7, [mask_one]
-	pavgusb mm0, mm2
-	psubusb mm0, mm7
-	movq mm1, [ebx]
-	pavgusb mm0, mm1
+{
+    __asm {
+        mov         eax, [ref]
+        mov         ebx, [dest]
+        mov         ecx, eax
+        add         ecx, [offs]
+        mov         edi, [height]
+    mc0:
+        movq mm0, [eax]
+        movq mm1, [ecx+1]
+        movq mm7, mm0
+        movq mm2, [eax+1]
+        pxor mm7, mm1
+        movq mm3, [ecx]
+        movq mm6, mm2
+        pxor mm6, mm3
+        pavgusb mm0, mm1
+        pavgusb mm2, mm3
+        por mm7, mm6
+        movq mm6, mm0
+        pxor mm6, mm2
+        pand mm7, mm6
+        pand mm7, [mask_one]
+        pavgusb mm0, mm2
+        psubusb mm0, mm7
+        movq mm1, [ebx]
+        pavgusb mm0, mm1
 
-	add eax, [stride]
-	add ecx, [stride]
-	movq [ebx], mm0
-	add ebx, [stride]
+        add eax, [stride]
+        add ecx, [stride]
+        movq [ebx], mm0
+        add ebx, [stride]
 
-	dec edi
-	cmp edi, 0x00
-	jg mc0
+        dec edi
+        cmp edi, 0x00
+        jg mc0
 
-	//femms
-
-}}
+        //femms
+    }
+}
 
 // Fast function
 void MC_avg_xy8_3dnow_FAST (unsigned char * dest, unsigned char * ref,
                               int stride, int offs, int height)
-{__asm {
-	mov			eax, [ref]
-	mov			ebx, [dest]
-	mov			ecx, eax
-	add			ecx, [offs]
-	mov			edi, [height]
-mc0:
-	movq mm0, [eax]
-	movq mm1, [ecx+1]
-	movq mm2, [eax+1]
-	movq mm3, [ecx]
-	pavgusb mm0, mm1
-	pavgusb mm2, mm3
-	pavgusb mm0, mm2
-	psubusb mm0, [mask_one]
-	movq mm1, [ebx]
-	pavgusb mm0, mm1
+{
+    __asm {
+        mov         eax, [ref]
+        mov         ebx, [dest]
+        mov         ecx, eax
+        add         ecx, [offs]
+        mov         edi, [height]
+    mc0:
+        movq mm0, [eax]
+        movq mm1, [ecx+1]
+        movq mm2, [eax+1]
+        movq mm3, [ecx]
+        pavgusb mm0, mm1
+        pavgusb mm2, mm3
+        pavgusb mm0, mm2
+        psubusb mm0, [mask_one]
+        movq mm1, [ebx]
+        pavgusb mm0, mm1
 
-	add eax, [stride]
-	add ecx, [stride]
-	movq [ebx], mm0
-	add ebx, [stride]
+        add eax, [stride]
+        add ecx, [stride]
+        movq [ebx], mm0
+        add ebx, [stride]
 
-	dec edi
-	cmp edi, 0x00
-	jg mc0
+        dec edi
+        cmp edi, 0x00
+        jg mc0
 
-	//femms
-}}
+        //femms
+    }
+}
 
 // Accurate function
 void MC_avg_xy16_3dnow_AC (unsigned char * dest, unsigned char * ref,
                                int stride, int offs, int height)
-{__asm {
-	mov			eax, [ref]
-	mov			ebx, [dest]
-	mov			ecx, eax
-	add			ecx, [offs]
-	mov			edi, [height]
-mc0:
-	movq mm0, [eax]
-	movq mm1, [ecx+1]
-	movq mm7, mm0
-	movq mm2, [eax+1]
-	pxor mm7, mm1
-	movq mm3, [ecx]
-	movq mm6, mm2
-	pxor mm6, mm3
-	pavgusb mm0, mm1
-	pavgusb mm2, mm3
-	por mm7, mm6
-	movq mm6, mm0
-	pxor mm6, mm2
-	pand mm7, mm6
-	pand mm7, [mask_one]
-	pavgusb mm0, mm2
-	psubusb mm0, mm7
-	movq mm1, [ebx]
-	pavgusb mm0, mm1
-	movq [ebx], mm0
+{
+    __asm {
+        mov         eax, [ref]
+        mov         ebx, [dest]
+        mov         ecx, eax
+        add         ecx, [offs]
+        mov         edi, [height]
+    mc0:
+        movq mm0, [eax]
+        movq mm1, [ecx+1]
+        movq mm7, mm0
+        movq mm2, [eax+1]
+        pxor mm7, mm1
+        movq mm3, [ecx]
+        movq mm6, mm2
+        pxor mm6, mm3
+        pavgusb mm0, mm1
+        pavgusb mm2, mm3
+        por mm7, mm6
+        movq mm6, mm0
+        pxor mm6, mm2
+        pand mm7, mm6
+        pand mm7, [mask_one]
+        pavgusb mm0, mm2
+        psubusb mm0, mm7
+        movq mm1, [ebx]
+        pavgusb mm0, mm1
+        movq [ebx], mm0
 
-	movq mm0, [eax+8]
-	movq mm1, [ecx+9]
-	movq mm7, mm0
-	movq mm2, [eax+9]
-	pxor mm7, mm1
-	movq mm3, [ecx+8]
-	movq mm6, mm2
-	pxor mm6, mm3
-	pavgusb mm0, mm1
-	pavgusb mm2, mm3
-	por mm7, mm6
-	movq mm6, mm0
-	pxor mm6, mm2
-	pand mm7, mm6
-	pand mm7, [mask_one]
-	pavgusb mm0, mm2
-	psubusb mm0, mm7
-	movq mm1, [ebx+8]
-	pavgusb mm0, mm1
-	add eax, [stride]
-	add ecx, [stride]
-	movq [ebx+8], mm0
-	add ebx, [stride]
+        movq mm0, [eax+8]
+        movq mm1, [ecx+9]
+        movq mm7, mm0
+        movq mm2, [eax+9]
+        pxor mm7, mm1
+        movq mm3, [ecx+8]
+        movq mm6, mm2
+        pxor mm6, mm3
+        pavgusb mm0, mm1
+        pavgusb mm2, mm3
+        por mm7, mm6
+        movq mm6, mm0
+        pxor mm6, mm2
+        pand mm7, mm6
+        pand mm7, [mask_one]
+        pavgusb mm0, mm2
+        psubusb mm0, mm7
+        movq mm1, [ebx+8]
+        pavgusb mm0, mm1
+        add eax, [stride]
+        add ecx, [stride]
+        movq [ebx+8], mm0
+        add ebx, [stride]
 
-	dec edi
-	cmp edi, 0x00
-	jg mc0
+        dec edi
+        cmp edi, 0x00
+        jg mc0
 
-	//femms
-
-}}
+        //femms
+    }
+}
 
 // Fast function
 void MC_avg_xy16_3dnow_FAST (unsigned char * dest, unsigned char * ref,
                                int stride, int offs, int height)
-{__asm {
-	mov			eax, [ref]
-	mov			ebx, [dest]
-	mov			ecx, eax
-	add			ecx, [offs]
-	mov			edi, [height]
-mc0:
-	movq mm0, [eax]
-	movq mm1, [ecx+1]
-	movq mm2, [eax+1]
-	movq mm3, [ecx]
-	pavgusb mm0, mm1
-	pavgusb mm2, mm3
-	pavgusb mm0, mm2
-	psubusb mm0, [mask_one]
-	movq mm1, [ebx]
-	pavgusb mm0, mm1
-	movq [ebx], mm0
+{
+    __asm {
+        mov         eax, [ref]
+        mov         ebx, [dest]
+        mov         ecx, eax
+        add         ecx, [offs]
+        mov         edi, [height]
+    mc0:
+        movq mm0, [eax]
+        movq mm1, [ecx+1]
+        movq mm2, [eax+1]
+        movq mm3, [ecx]
+        pavgusb mm0, mm1
+        pavgusb mm2, mm3
+        pavgusb mm0, mm2
+        psubusb mm0, [mask_one]
+        movq mm1, [ebx]
+        pavgusb mm0, mm1
+        movq [ebx], mm0
 
-	movq mm0, [eax+8]
-	movq mm1, [ecx+9]
-	movq mm2, [eax+9]
-	movq mm3, [ecx+8]
-	pavgusb mm0, mm1
-	pavgusb mm2, mm3
-	pavgusb mm0, mm2
-	psubusb mm0, [mask_one]
-	movq mm1, [ebx+8]
-	pavgusb mm0, mm1
-	add eax, [stride]
-	add ecx, [stride]
-	movq [ebx+8], mm0
-	add ebx, [stride]
+        movq mm0, [eax+8]
+        movq mm1, [ecx+9]
+        movq mm2, [eax+9]
+        movq mm3, [ecx+8]
+        pavgusb mm0, mm1
+        pavgusb mm2, mm3
+        pavgusb mm0, mm2
+        psubusb mm0, [mask_one]
+        movq mm1, [ebx+8]
+        pavgusb mm0, mm1
+        add eax, [stride]
+        add ecx, [stride]
+        movq [ebx+8], mm0
+        add ebx, [stride]
 
-	dec edi
-	cmp edi, 0x00
-	jg mc0
+        dec edi
+        cmp edi, 0x00
+        jg mc0
 
-	//femms
-}}
-
-
+        //femms
+    }
+}

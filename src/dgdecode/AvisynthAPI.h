@@ -1,9 +1,9 @@
 /*
  *  Avisynth 2.5 API for MPEG2Dec3
  *
- *	Copyright (C) 2002-2003 Marc Fauconneau <marc.fd@liberysurf.fr>
+ *  Copyright (C) 2002-2003 Marc Fauconneau <marc.fd@liberysurf.fr>
  *
- *	based of the intial MPEG2Dec Avisytnh API Copyright (C) Mathias Born - May 2001
+ *  based of the intial MPEG2Dec Avisytnh API Copyright (C) Mathias Born - May 2001
  *
  *  This file is part of MPEG2Dec3, a free MPEG-2 decoder
  *
@@ -11,15 +11,15 @@
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2, or (at your option)
  *  any later version.
- *   
+ *
  *  MPEG2Dec3 is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *  GNU General Public License for more details.
- *   
+ *
  *  You should have received a copy of the GNU General Public License
  *  along with GNU Make; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. 
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 
@@ -36,7 +36,7 @@ protected:
   int _PP_MODE;
   YV12PICT *out;
   unsigned char *bufY, *bufU, *bufV; // for 4:2:2 input support
-  unsigned char *u444, *v444;		 // for RGB24 output
+  unsigned char *u444, *v444;        // for RGB24 output
 
 public:
   MPEG2Source(const char* d2v, int _upConv);
@@ -52,39 +52,39 @@ public:
   const VideoInfo& __stdcall GetVideoInfo() { return vi; }
   void __stdcall SetCacheHints(int cachehints,int frame_range) { } ;  // We do not pass cache requests upwards, only to the next filter.
   void override(int ovr_idct);
-  void conv422toYUV422(const unsigned char *py, unsigned char *pu, unsigned char *pv, unsigned char *dst, 
-					   int pitch1Y, int pitch1UV, int pitch2, int width, int height);
+  void conv422toYUV422(const unsigned char *py, unsigned char *pu, unsigned char *pv, unsigned char *dst,
+                       int pitch1Y, int pitch1UV, int pitch2, int width, int height);
 
   CMPEG2Decoder m_decoder;
 };
 
 class BlindPP : public GenericVideoFilter {
-	int* QP;
-	bool iPP;
-	int PP_MODE;
-	int moderate_h, moderate_v;
-	YV12PICT *out;
+    int* QP;
+    bool iPP;
+    int PP_MODE;
+    int moderate_h, moderate_v;
+    YV12PICT *out;
 public:
-	BlindPP(AVSValue args, IScriptEnvironment* env);
+    BlindPP(AVSValue args, IScriptEnvironment* env);
     PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
-	~BlindPP();
-	void BlindPP::convYUV422to422(const unsigned char *src, unsigned char *py, unsigned char *pu, unsigned char *pv,
+    ~BlindPP();
+    void BlindPP::convYUV422to422(const unsigned char *src, unsigned char *py, unsigned char *pu, unsigned char *pv,
        int pitch1, int pitch2y, int pitch2uv, int width, int height);
-	void BlindPP::conv422toYUV422b(const unsigned char *py, unsigned char *pu, unsigned char *pv, unsigned char *dst, 
-					   int pitch1Y, int pitch1UV, int pitch2, int width, int height);
+    void BlindPP::conv422toYUV422b(const unsigned char *py, unsigned char *pu, unsigned char *pv, unsigned char *dst,
+                       int pitch1Y, int pitch1UV, int pitch2, int width, int height);
 };
 
 void conv420to422(const unsigned char *src, unsigned char *dst, int frame_type, int src_pitch,
-				  int dst_pitch, int width, int height);
+                  int dst_pitch, int width, int height);
 void conv420to422P_iSSE(const unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch,
-						int width, int height);
-void conv422to444(const unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch, 
-			int width, int height);
-void conv422to444_iSSE(const unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch, 
-			int width, int height);
-void conv444toRGB24(const unsigned char *py, const unsigned char *pu, const unsigned char *pv, 
-				unsigned char *dst, int src_pitchY, int src_pitchUV, int dst_pitch, int width, 
-				int height, int matrix, int pc_scale);
+                        int width, int height);
+void conv422to444(const unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch,
+            int width, int height);
+void conv422to444_iSSE(const unsigned char *src, unsigned char *dst, int src_pitch, int dst_pitch,
+            int width, int height);
+void conv444toRGB24(const unsigned char *py, const unsigned char *pu, const unsigned char *pv,
+                unsigned char *dst, int src_pitchY, int src_pitchUV, int dst_pitch, int width,
+                int height, int matrix, int pc_scale);
 
 /* Macros for accessing easily frame pointers and pitch */
 #define YRPLAN(a) (a)->GetReadPtr(PLANAR_Y)
@@ -117,8 +117,8 @@ public:
    static void DeblockPicture(unsigned char *srcp, int srcPitch, int w, int h,
                               int q, int aOff, int bOff);
 
-	Deblock(PClip _child, int q, int aOff, int bOff, bool _mmx, bool _isse, 
+    Deblock(PClip _child, int q, int aOff, int bOff, bool _mmx, bool _isse,
            IScriptEnvironment* env);
    ~Deblock();
-	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
+    PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
 };

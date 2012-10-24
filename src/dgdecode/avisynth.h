@@ -145,7 +145,7 @@ public:
   int GetRowSize() const { return row_size; }
   int GetHeight() const { return height; }
 
-  // generally you shouldn't use these two 
+  // generally you shouldn't use these two
   VideoFrameBuffer* GetFrameBuffer() const { return vfb; }
   int GetOffset() const { return offset; }
 
@@ -345,14 +345,14 @@ public:
 
 // For GetCPUFlags.  These are the same as in VirtualDub.
 enum {
-  CPUF_FORCE			= 0x01,
-  CPUF_FPU			= 0x02,
-  CPUF_MMX			= 0x04,
-  CPUF_INTEGER_SSE	= 0x08,		// Athlon MMX extensions or Intel SSE
-  CPUF_SSE			= 0x10,		// Full SSE (PIII)
-  CPUF_SSE2			= 0x20,		// (PIV)
-  CPUF_3DNOW			= 0x40,
-  CPUF_3DNOW_EXT		= 0x80,		// Athlon 3DNow! extensions
+  CPUF_FORCE        = 0x01,
+  CPUF_FPU          = 0x02,
+  CPUF_MMX          = 0x04,
+  CPUF_INTEGER_SSE  = 0x08,     // Athlon MMX extensions or Intel SSE
+  CPUF_SSE          = 0x10,     // Full SSE (PIII)
+  CPUF_SSE2         = 0x20,     // (PIV)
+  CPUF_3DNOW        = 0x40,
+  CPUF_3DNOW_EXT    = 0x80,     // Athlon 3DNow! extensions
 };
 
 
