@@ -23,7 +23,7 @@
 #define _WIN32_WINNT 0x0501 // Needed for WM_MOUSEWHEEL
 
 #include <windows.h>
-#include <mbstring.h>
+#include <tchar.h>
 #include "resource.h"
 #include "Shlwapi.h"
 
@@ -152,7 +152,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     GetModuleFileName(NULL, ExePath, DG_MAX_PATH);
 
     // Find first char after last backslash.
-    if ((ptr = (char *)_mbsrchr((const unsigned char *)ExePath,'\\')) != 0) ptr++;
+    if ((ptr = _tcsrchr(ExePath,'\\')) != 0) ptr++;
     else ptr = ExePath;
     *ptr = 0;
 
@@ -181,7 +181,7 @@ NEW_VERSION:
         // Get the path to the DGIndex executable.
         GetModuleFileName(NULL, AVSTemplatePath, 255);
         // Find first char after last backslash.
-        if ((ptr = (char *)_mbsrchr((const unsigned char *)AVSTemplatePath,'\\')) != 0) ptr++;
+        if ((ptr = _tcsrchr(AVSTemplatePath,'\\')) != 0) ptr++;
         else ptr = AVSTemplatePath;
         *ptr = 0;
         strcat(AVSTemplatePath, "template.avs");
@@ -668,7 +668,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                                 else
                                 {
                                     char *p;
-                                    if ((p = (char *)_mbsrchr((const unsigned char *)D2VFilePath,'\\')) != 0) p++;
+                                    if ((p = _tcsrchr(D2VFilePath,'\\')) != 0) p++;
                                     else p = D2VFilePath;
                                     strcat(prog_p, p);
                                     prog_p = &prog[strlen(prog)];
@@ -690,7 +690,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                                 else
                                 {
                                     char *p;
-                                    if ((p = (char *)_mbsrchr((const unsigned char *)AudioFilePath,'\\')) != 0) p++;
+                                    if ((p = _tcsrchr(AudioFilePath,'\\')) != 0) p++;
                                     else p = AudioFilePath;
                                     strcat(prog_p, p);
                                     prog_p = &prog[strlen(prog)];
@@ -838,7 +838,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         NumLoadedFiles = 0;
                         if ((tmp = _open(mMRUList[wmId - ID_MRU_FILE0], _O_RDONLY | _O_BINARY)) != -1)
                         {
-                            char *p = (char *)_mbsrchr((const unsigned char *)mMRUList[wmId - ID_MRU_FILE0], '\\');
+                            char *p = _tcsrchr(mMRUList[wmId - ID_MRU_FILE0], '\\');
                             if( p )
                             {
                                 size_t num = (size_t)(p - mMRUList[wmId - ID_MRU_FILE0]) + 1;
@@ -2150,7 +2150,7 @@ right_arrow:
 
             // Set the output directory for a Save D2V operation to the
             // same path as these input files.
-            tmp = (char *)_mbsrchr((const unsigned char *)szInput, '\\');
+            tmp = _tcsrchr(szInput, '\\');
             if( tmp )
             {
                 size_t num = (size_t)(tmp - szInput) + 1;
@@ -2586,7 +2586,7 @@ static void OpenVideoFile(HWND hVideoListDlg)
             NumLoadedFiles++;
             // Set the output directory for a Save D2V operation to the
             // same path as this input files.
-            p = (char *)_mbsrchr((const unsigned char *)szInput, '\\');
+            p = _tcsrchr(szInput, '\\');
             if( p )
             {
                 size_t num = (size_t)(p - szInput) + 1;
@@ -4262,7 +4262,7 @@ void UpdateWindowText(void)
     }
     else
         sprintf(szBuffer, "DGIndex - ");
-    ext = (char *)_mbsrchr((const unsigned char *)Infilename[CurrentFile], '\\');
+    ext = _tcsrchr(Infilename[CurrentFile], '\\');
     if (ext)
         strncat(szBuffer, ext+1, strlen(Infilename[CurrentFile])-(int)(ext-Infilename[CurrentFile]));
     else
