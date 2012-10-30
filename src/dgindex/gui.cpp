@@ -66,7 +66,7 @@ LRESULT CALLBACK Normalization(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK SelectTracks(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK SelectDelayTrack(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK SetPids(HWND, UINT, WPARAM, LPARAM);
-LRESULT CALLBACK SetMergin(HWND, UINT, WPARAM, LPARAM);
+LRESULT CALLBACK SetMargin(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK AVSTemplate(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK BMPPath(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK DetectPids(HWND, UINT, WPARAM, LPARAM);
@@ -195,7 +195,7 @@ NEW_VERSION:
         BMPPathString[0] = 0;
         UseMPAExtensions = 0;
         NotifyWhenDone = 0;
-        TsParseMergin = 0;
+        TsParseMargin = 0;
         CorrectFieldOrderTrans = true;
     }
     else
@@ -271,8 +271,8 @@ NEW_VERSION:
         strcpy(BMPPathString, p);
         fscanf(INIFile, "Use_MPA_Extensions=%d\n", &UseMPAExtensions);
         fscanf(INIFile, "Notify_When_Done=%d\n", &NotifyWhenDone);
-        TsParseMergin = 0;
-        fscanf(INIFile, "TS_Parse_Mergin=%d\n", &TsParseMergin);
+        TsParseMargin = 0;
+        fscanf(INIFile, "TS_Parse_Margin=%d\n", &TsParseMargin);
         CorrectFieldOrderTrans = true;
         fscanf(INIFile, "CorrectFieldOrderTrans=%d\n", &CorrectFieldOrderTrans);
         fclose(INIFile);
@@ -1415,8 +1415,8 @@ D2V_PROCESS:
                     DialogBox(hInst, (LPCTSTR)IDD_SET_PIDS, hWnd, (DLGPROC) SetPids);
                     break;
 
-                case IDM_SET_MERGIN:
-                    DialogBox(hInst, (LPCTSTR)IDD_SET_MERGIN, hWnd, (DLGPROC) SetMergin);
+                case IDM_SET_MARGIN:
+                    DialogBox(hInst, (LPCTSTR)IDD_SET_MARGIN, hWnd, (DLGPROC) SetMargin);
                     break;
 
                 case IDM_IDCT_MMX:
@@ -2250,7 +2250,7 @@ right_arrow:
                 fprintf(INIFile, "BMP_Path=%s\n", BMPPathString);
                 fprintf(INIFile, "Use_MPA_Extensions=%d\n", UseMPAExtensions);
                 fprintf(INIFile, "Notify_When_Done=%d\n", NotifyWhenDone);
-                fprintf(INIFile, "TS_Parse_Mergin=%d\n", TsParseMergin);
+                fprintf(INIFile, "TS_Parse_Margin=%d\n", TsParseMargin);
                 fprintf(INIFile, "CorrectFieldOrderTrans=%d\n", CorrectFieldOrderTrans);
                 fclose(INIFile);
             }
@@ -3222,24 +3222,24 @@ LRESULT CALLBACK SetPids(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPara
     return false;
 }
 
-LRESULT CALLBACK SetMergin(HWND hDialog, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK SetMargin(HWND hDialog, UINT message, WPARAM wParam, LPARAM lParam)
 {
     char buf[80];
 
     switch (message)
     {
         case WM_INITDIALOG:
-            sprintf(szTemp, "%d", TsParseMergin);
-            SetDlgItemText(hDialog, IDC_MERGIN, szTemp);
+            sprintf(szTemp, "%d", TsParseMargin);
+            SetDlgItemText(hDialog, IDC_MARGIN, szTemp);
             ShowWindow(hDialog, SW_SHOW);
             return true;
 
         case WM_COMMAND:
             switch (LOWORD(wParam))
             {
-                case IDC_MERGIN_OK:
-                    GetDlgItemText(hDialog, IDC_MERGIN, buf, 10);
-                    sscanf(buf, "%d", &TsParseMergin);
+                case IDC_MARGIN_OK:
+                    GetDlgItemText(hDialog, IDC_MARGIN, buf, 10);
+                    sscanf(buf, "%d", &TsParseMargin);
                     EndDialog(hDialog, 0);
                     Recovery();
                     MPEG2_Transport_VideoPID = MPEG2_Transport_AudioPID = MPEG2_Transport_PCRPID = 0x02;
@@ -3261,7 +3261,7 @@ LRESULT CALLBACK SetMergin(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPa
                     return true;
 
                 case IDCANCEL:
-                case IDC_MERGIN_CANCEL:
+                case IDC_MARGIN_CANCEL:
                     EndDialog(hDialog, 0);
                     return true;
             }

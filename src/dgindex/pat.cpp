@@ -349,7 +349,7 @@ int PATParser::AnalyzePAT(void)
     }
 
     // check margin.
-    int recheck_time = TsParseMergin;
+    int recheck_time = TsParseMargin;
     int pmt_recheck = 0;
     __int64 start_PCR, PCR;
     if (recheck_time > 0)

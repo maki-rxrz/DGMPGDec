@@ -28,7 +28,7 @@
 #define IDD_SELECT_TRACKS               24
 #define IDD_BMP_PATH                    25
 #define IDD_SELECT_DELAY_TRACK          26
-#define IDD_SET_MERGIN                  27
+#define IDD_SET_MARGIN                  27
 #define IDC_CODED_NUMBER                1016
 #define IDC_PLAYBACK_NUMBER             1017
 #define IDC_FRAME_RATE                  1018
@@ -112,9 +112,9 @@
 #define IDC_DELAY_LIST                  1096
 #define IDC_DELAY_OK                    1097
 #define IDC_SEQUENCE                    1098
-#define IDC_MERGIN                      1099
-#define IDC_MERGIN_OK                   1100
-#define IDC_MERGIN_CANCEL               1101
+#define IDC_MARGIN                      1099
+#define IDC_MARGIN_OK                   1100
+#define IDC_MARGIN_CANCEL               1101
 #define IDM_ABOUT                       32769
 #define IDM_EXIT                        32770
 #define IDM_OPEN                        32771
@@ -223,7 +223,7 @@
 #define IDM_CLOSE                       32883
 #define IDM_COPYFRAMETOCLIPBOARD        32884
 #define IDM_FULL_SIZED                  32885
-#define IDM_SET_MERGIN                  32886
+#define IDM_SET_MARGIN                  32886
 #define IDM_CFOT_DISABLE                32887
 #define IDM_CFOT_ENABLE                 32888
 #define ID_MRU_FILE0                    50000

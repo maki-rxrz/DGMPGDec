@@ -570,10 +570,10 @@ another:
                         strcpy(szOutput, name);
                     }
                 }
-                else if (!strncmp(opt, "mergin", 5))
+                else if (!strncmp(opt, "margin", 5))
                 {
                     while (*p == ' ' || *p == '\t') p++;
-                    sscanf(p, "%d", &TsParseMergin);
+                    sscanf(p, "%d", &TsParseMargin);
                     while (*p != '-' && *p != 0) p++;
                     p--;
                 }
@@ -1176,10 +1176,10 @@ another:
         // Preview mode for generating the Info log file
         CLIPreview = strstr(ucCmdLine,"-PREVIEW") ? 1 : 0;
 
-        if (ptr = strstr(ucCmdLine,"-MERGIN="))
+        if (ptr = strstr(ucCmdLine,"-MARGIN="))
         {
             ptr = lpCmdLine + (ptr - ucCmdLine);
-            sscanf(strstr(ptr,"=")+1, "%d", &TsParseMergin);
+            sscanf(strstr(ptr,"=")+1, "%d", &TsParseMargin);
         }
         if ((ptr = strstr(ucCmdLine,"-CORRECT-D2V=")) || (ptr = strstr(ucCmdLine,"-CD=")) || (ptr = strstr(ucCmdLine,"-CFOT=")))
         {
