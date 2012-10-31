@@ -586,18 +586,64 @@ another:
                     CheckMenuItem(hMenu, IDM_CFOT_DISABLE, (CorrectFieldOrderTrans) ? MF_UNCHECKED : MF_CHECKED);
                     CheckMenuItem(hMenu, IDM_CFOT_ENABLE , (CorrectFieldOrderTrans) ? MF_CHECKED : MF_UNCHECKED);
                 }
+                else if (!strncmp(opt, "pdas", 3))
+                {
+                    /* Parse d2v to after saving. */
+                    CLIParseD2V |= PARSE_D2V_AFTER_SAVING;
+                }
+                else if (!strncmp(opt, "parse-d2v", 9) || !strncmp(opt, "pd", 2))
+                {
+                    while (*p == ' ' || *p == '\t') p++;
+                    f = name;
+                    while (1)
+                    {
+                        if ((in_quote == 0) && (*p == ' ' || *p == '\t' || *p == 0))
+                            break;
+                        if ((in_quote == 1) && (*p == 0))
+                            break;
+                        if (*p == '"')
+                        {
+                            if (in_quote == 0)
+                            {
+                                in_quote = 1;
+                                p++;
+                            }
+                            else
+                            {
+                                in_quote = 0;
+                                p++;
+                                break;
+                            }
+                        }
+                        *f++ = *p++;
+                    }
+                    *f = 0;
+                    /* If the specified file does not include a path, use the
+                       current directory. */
+                    if (name[0] != '\\' && name[1] != ':')
+                    {
+                        GetCurrentDirectory(sizeof(szInput) - 1, szInput);
+                        strcat(szInput, "\\");
+                        strcat(szInput, name);
+                    }
+                    else
+                    {
+                        strcpy(szInput, name);
+                    }
+                    CLIParseD2V |= PARSE_D2V_INPUT_FILE;
+                }
             }
             else if (*p == 0)
                 break;
             else
                 break;
         }
-        if (NumLoadedFiles == 0 && WindowMode == SW_HIDE)
+        if (NumLoadedFiles == 0 && WindowMode == SW_HIDE && CLIParseD2V == PARSE_D2V_NONE)
         {
             MessageBox(hWnd, "Couldn't open input file in HIDE mode! Exiting.", NULL, MB_OK | MB_ICONERROR);
             return -1;
         }
-        if (!CLIActive && WindowMode == SW_HIDE)
+        if (!CLIActive && WindowMode == SW_HIDE && CLIParseD2V == PARSE_D2V_NONE)
         {
             MessageBox(hWnd, "No output file in HIDE mode! Exiting.", NULL, MB_OK | MB_ICONERROR);
             return -1;
@@ -806,7 +852,37 @@ another:
             hadRGoption = 1;
         }
 
-        if (NumLoadedFiles == 0 && WindowMode == SW_HIDE)
+        if (ptr = strstr(ucCmdLine,"-PDAS"))
+        {
+            /* Parse d2v to after saving. */
+            CLIParseD2V |= PARSE_D2V_AFTER_SAVING;
+        }
+        if ((ptr = strstr(ucCmdLine,"-PARSE-D2V=")) || (ptr = strstr(ucCmdLine,"-PD=")))
+        {
+            ExitOnEnd = strstr(ucCmdLine,"-EXIT") ? 1 : 0;
+            ptr = lpCmdLine + (ptr - ucCmdLine);
+            ptr  = strstr(ptr, delimiter1) + 1;
+            ende = strstr(ptr + 1, delimiter2);
+            save = *ende;
+            *ende = 0;
+            strcpy(aFName, ptr);
+            *ende = save;
+            // We need to store the full path, so that all our path handling options work
+            // the same way as for GUI mode.
+            if (aFName[0] != '\\' && aFName[1] != ':')
+            {
+                GetCurrentDirectory(sizeof(szInput) - 1, szInput);
+                strcat(szInput, "\\");
+                strcat(szInput, aFName);
+            }
+            else
+            {
+                strcpy(szInput, aFName);
+            }
+            CLIParseD2V |= PARSE_D2V_INPUT_FILE;
+        }
+
+        if (NumLoadedFiles == 0 && WindowMode == SW_HIDE && CLIParseD2V == PARSE_D2V_NONE)
         {
             MessageBox(hWnd, "Couldn't open input file in HIDE mode! Exiting.", NULL, MB_OK | MB_ICONERROR);
             return -1;
@@ -1189,7 +1265,7 @@ another:
             CheckMenuItem(hMenu, IDM_CFOT_ENABLE , (CorrectFieldOrderTrans) ? MF_CHECKED : MF_UNCHECKED);
         }
 
-        if (!CLIActive && WindowMode == SW_HIDE)
+        if (!CLIActive && WindowMode == SW_HIDE && CLIParseD2V == PARSE_D2V_NONE)
         {
             MessageBox(hWnd, "No output file in HIDE mode! Exiting.", NULL, MB_OK | MB_ICONERROR);
             return -1;

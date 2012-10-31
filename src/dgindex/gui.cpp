@@ -416,6 +416,7 @@ NEW_VERSION:
     StartupEnables();
     CheckFlag();
     CLIActive = 0;
+    CLIParseD2V = PARSE_D2V_NONE;
 
     // First check whether we have "Open With" invocation.
     if (*lpCmdLine != 0)
@@ -562,6 +563,8 @@ NEW_VERSION:
         // CLI invocation.
         if (parse_cli(lpCmdLine, ucCmdLine) != 0)
             exit(0);
+        if (CLIParseD2V & PARSE_D2V_INPUT_FILE)
+            SendMessage(hWnd, CLI_PARSE_D2V_MESSAGE, 0, 0);
         if (NumLoadedFiles)
         {
             // Start a LOCATE_INIT thread. When it kills itself, it will start a
@@ -622,7 +625,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             // The CLI-invoked LOCATE_INIT thread is finished.
             // Kick off a LOCATE_RIP thread.
             if (CLIPreview)
+            {
+                CLIParseD2V = PARSE_D2V_NONE;
                 goto preview;
+            }
             else
                 goto proceed;
 
@@ -741,13 +747,35 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     fclose(avs);
                 }
             }
+            if (CLIParseD2V & PARSE_D2V_AFTER_SAVING)
+            {
+                strcpy(szInput, D2VFilePath);
+                goto cli_parse_d2v;
+            }
             if (ExitOnEnd)
             {
                 if (Info_Flag)
                     DestroyWindow(hDlg);
                 exit(0);
             }
-            else CLIActive = 0;
+            else
+            {
+                CLIActive = 0;
+                CLIParseD2V = PARSE_D2V_NONE;
+            }
+            break;
+
+        case CLI_PARSE_D2V_MESSAGE:
+cli_parse_d2v:
+            parse_d2v(hWnd, szInput);
+            if (CLIParseD2V == PARSE_D2V_AFTER_SAVING)
+                CLIActive = 0;
+            if (ExitOnEnd && !CLIActive)
+                exit(0);
+            if (CLIParseD2V & PARSE_D2V_INPUT_FILE)
+                CLIParseD2V &= ~PARSE_D2V_INPUT_FILE;
+            else
+                CLIParseD2V = PARSE_D2V_NONE;
             break;
 
         case PROGRESS_MESSAGE:
@@ -991,7 +1019,11 @@ proceed:
                                         DestroyWindow(hDlg);
                                     exit (0);
                                 }
-                                else CLIActive = 0;
+                                else
+                                {
+                                    CLIActive = 0;
+                                    CLIParseD2V = PARSE_D2V_NONE;
+                                }
                             }
                             strcpy(D2VFilePath, szBuffer);
                         }
@@ -1274,6 +1306,7 @@ D2V_PROCESS:
                     Stop_Flag = true;
                     ExitOnEnd = 0;
                     CLIActive = 0;
+                    CLIParseD2V = PARSE_D2V_NONE;
                     FileLoadedEnables();
 
                     if (Pause_Flag)

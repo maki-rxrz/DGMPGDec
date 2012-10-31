@@ -55,6 +55,7 @@ XTN bool bIsWindowsXPorLater;
 #define D2V_DONE_MESSAGE            (WM_APP + 1)
 #define CLI_PREVIEW_DONE_MESSAGE    (WM_APP + 2)
 #define PROGRESS_MESSAGE            (WM_APP + 3)
+#define CLI_PARSE_D2V_MESSAGE       (WM_APP + 4)
 
 /* code definition */
 #define PICTURE_START_CODE          0x100
@@ -192,6 +193,10 @@ XTN bool bIsWindowsXPorLater;
 #define SRC_HIGH        3
 #define SRC_UHIGH       4
 
+#define PARSE_D2V_NONE          0x00
+#define PARSE_D2V_INPUT_FILE    0x01
+#define PARSE_D2V_AFTER_SAVING  0x02
+
 #define TRACK_PITCH     30000
 
 #define DG_MAX_PATH 2048
@@ -324,6 +329,7 @@ XTN HMENU hMenu;
 XTN HDC hDC;
 
 /* Global Value */
+XTN unsigned int CLIParseD2V;
 XTN int CLIActive;
 XTN char CLIPreview;
 XTN char ExitOnEnd;
