@@ -488,6 +488,10 @@ void Next_Transport_Packet()
     static unsigned int prev_code;
     bool pmt_check = false;
     unsigned int check_num_pmt = 0;
+    unsigned int time_limit = 5000;
+#ifdef _DEBUG
+    time_limit = 300000;    /* Change 5 minutes. */
+#endif
 
     start = timeGetTime();
     for (;;)
@@ -512,7 +516,7 @@ retry_sync:
         // Don't loop forever. If we don't get data
         // in a reasonable time (5 secs) we exit.
         time = timeGetTime();
-        if (time - start > 5000)
+        if (time - start > time_limit)
         {
             MessageBox(hWnd, "Cannot find audio or video data. Ensure that your PIDs\nare set correctly in the Stream menu. Refer to the\nUsers Manual for details.",
                        NULL, MB_OK | MB_ICONERROR);
