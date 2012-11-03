@@ -86,6 +86,7 @@ int check_audio_syncword(unsigned int audio_id, int layer, int bitrate, int samp
 }
 
 #define MPEG_TIMESTAMP_MAX_VALUE                (0x1FFFFFFFFLL)
+#define MPEG_TIMESTAMP_WRAPAROUND_VALUE         (0x200000000LL)
 #define TIMESTAMP_WRAP_AROUND_CHECK_VALUE       (0x0FFFFFFFFLL)
 
 int PTSDifference(__int64 apts, __int64 vpts, int *result)
@@ -99,7 +100,7 @@ int PTSDifference(__int64 apts, __int64 vpts, int *result)
     }
     diff = apts - vpts;
     if (_abs64(diff) > TIMESTAMP_WRAP_AROUND_CHECK_VALUE)
-        diff += MPEG_TIMESTAMP_MAX_VALUE * ((diff > 0) ? -1 : 1);
+        diff += MPEG_TIMESTAMP_WRAPAROUND_VALUE * ((diff > 0) ? -1 : 1);
     diff /= 90;
     *result = (int) diff;
     if (_abs64(diff) > 1000 && (D2V_Flag || AudioOnly_Flag) && !CLIActive)
