@@ -522,7 +522,7 @@ retry_sync:
                        NULL, MB_OK | MB_ICONERROR);
             ThreadKill(MISC_KILL);
         }
-        else if (!pmt_check && time - start > 500)
+        else if (Start_Flag && !pmt_check && time - start > 500)
         {
             pat_parser.InitializePMTCheckItems();
             pmt_check = true;
@@ -1412,7 +1412,7 @@ oops2:
             if (AudioOnly_Flag && Info_Flag && !(AudioPktCount++ % 128))
                 UpdateInfo();
         }
-        else if (pmt_check && num_pmt_pids)
+        else if (Start_Flag && pmt_check && num_pmt_pids)
         {
 #if 1
             int read_size = 0;
