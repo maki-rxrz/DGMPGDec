@@ -330,6 +330,7 @@ XTN HDC hDC;
 
 /* Global Value */
 XTN unsigned int CLIParseD2V;
+XTN int CLINoProgress;
 XTN int CLIActive;
 XTN char CLIPreview;
 XTN char ExitOnEnd;

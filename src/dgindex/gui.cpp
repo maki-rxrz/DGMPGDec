@@ -417,6 +417,7 @@ NEW_VERSION:
     CheckFlag();
     CLIActive = 0;
     CLIParseD2V = PARSE_D2V_NONE;
+    CLINoProgress = 0;
 
     // First check whether we have "Open With" invocation.
     if (*lpCmdLine != 0)
@@ -779,7 +780,8 @@ cli_parse_d2v:
             break;
 
         case PROGRESS_MESSAGE:
-            OutputProgress(wParam);
+            if (CLINoProgress == 0)
+                OutputProgress(wParam);
             break;
 
         case WM_CREATE:

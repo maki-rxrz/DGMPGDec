@@ -632,6 +632,10 @@ another:
                     }
                     CLIParseD2V |= PARSE_D2V_INPUT_FILE;
                 }
+                else if (!strncmp(opt, "no-progress", 11))
+                {
+                    CLINoProgress = 1;
+                }
             }
             else if (*p == 0)
                 break;
@@ -1264,6 +1268,7 @@ another:
             CheckMenuItem(hMenu, IDM_CFOT_DISABLE, (CorrectFieldOrderTrans) ? MF_UNCHECKED : MF_CHECKED);
             CheckMenuItem(hMenu, IDM_CFOT_ENABLE , (CorrectFieldOrderTrans) ? MF_CHECKED : MF_UNCHECKED);
         }
+        CLINoProgress = strstr(ucCmdLine,"-NO-PROGRESS") ? 1 : 0;
 
         if (!CLIActive && WindowMode == SW_HIDE && CLIParseD2V == PARSE_D2V_NONE)
         {
