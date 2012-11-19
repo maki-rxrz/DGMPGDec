@@ -570,7 +570,7 @@ another:
                         strcpy(szOutput, name);
                     }
                 }
-                else if (!strncmp(opt, "margin", 5))
+                else if (!strncmp(opt, "margin", 6))
                 {
                     while (*p == ' ' || *p == '\t') p++;
                     sscanf(p, "%d", &TsParseMargin);
@@ -586,7 +586,7 @@ another:
                     CheckMenuItem(hMenu, IDM_CFOT_DISABLE, (CorrectFieldOrderTrans) ? MF_UNCHECKED : MF_CHECKED);
                     CheckMenuItem(hMenu, IDM_CFOT_ENABLE , (CorrectFieldOrderTrans) ? MF_CHECKED : MF_UNCHECKED);
                 }
-                else if (!strncmp(opt, "pdas", 3))
+                else if (!strncmp(opt, "pdas", 4))
                 {
                     /* Parse d2v to after saving. */
                     CLIParseD2V |= PARSE_D2V_AFTER_SAVING;
