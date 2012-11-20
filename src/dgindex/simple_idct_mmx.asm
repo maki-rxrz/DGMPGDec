@@ -49,7 +49,7 @@ d40000  dd      0x40000, 0
 %define C6 8867     ;cos(i*M_PI/16)*sqrt(2)*(1<<14) + 0.5 = 8866.956905
 %define C7 4520     ;cos(i*M_PI/16)*sqrt(2)*(1<<14) + 0.5 = 4520.335430
 
-coeffs
+coeffs:
     dw  1<<(ROW_SHIFT-1), 0, 1<<(ROW_SHIFT-1), 0,       ; 0
     dw  1<<(ROW_SHIFT-1), 1, 1<<(ROW_SHIFT-1), 0,       ; 8
 
@@ -162,7 +162,7 @@ section .text
     packssdw mm4,mm0            ; A2-B2 a2-b2   A3-B3   a3-b3
     movq [ dst + 16],mm4
     jmp short .skip2
-.skip1
+.skip1:
     pslld mm0,16
     paddd mm0,[d40000]
     psrad mm0,13
@@ -171,7 +171,7 @@ section .text
     movq [ dst + 8],mm0
     movq [ dst + 16],mm0
     movq [ dst + 24],mm0
-.skip2
+.skip2:
 %undef  src0
 %undef  src4
 %undef  src1
@@ -1035,7 +1035,7 @@ section .text
 align 16
 cfastcall simple_idct_mmx
 
-simple_idct_mmx
+simple_idct_mmx:
     sub esp, 128
 
     PERMUTEP ecx            ; permute parm list in place
@@ -1053,7 +1053,7 @@ simple_idct_mmx
     jmp .retP
 
 align 16
-.fourP
+.fourP:
     Z_COND_IDCT ecx+64, ecx+72, ecx+80, ecx+88, esp+64, paddd,  [coeffs],   11,     .sixP
     Z_COND_IDCT ecx+96, ecx+104,ecx+112,ecx+120,esp+96, paddd,  [coeffs],   11,     .fiveP
     IDCT4       esp,    esp+64, esp+32, esp+96, ecx,    nop,    0,          20
@@ -1063,7 +1063,7 @@ align 16
     jmp .retP
 
 align 16
-.sixP
+.sixP:
     Z_COND_IDCT ecx+96, ecx+104,ecx+112,ecx+120,esp+96, paddd,  [coeffs],   11,     .sevenP
     IDCT6       esp,    esp+64, esp+32, esp+96, ecx,    nop,    0,          20
     IDCT6       esp+8,  esp+72, esp+40, esp+104,ecx+4,  nop,    0,          20
@@ -1072,7 +1072,7 @@ align 16
     jmp .retP
 
 align 16
-.twoP
+.twoP:
     Z_COND_IDCT ecx+96, ecx+104,ecx+112,ecx+120,esp+96, paddd,  [coeffs],   11,     .threeP
     IDCT2       esp,    esp+64, esp+32, esp+96, ecx,    nop,    0,          20
     IDCT2       esp+8,  esp+72, esp+40, esp+104,ecx+4,  nop,    0,          20
@@ -1081,7 +1081,7 @@ align 16
     jmp .retP
 
 align 16
-.threeP
+.threeP:
     IDCT3       esp,    esp+64, esp+32, esp+96, ecx,    nop,    0,          20
     IDCT3       esp+8,  esp+72, esp+40, esp+104,ecx+4,  nop,    0,          20
     IDCT3       esp+16, esp+80, esp+48, esp+112,ecx+8,  nop,    0,          20
@@ -1089,7 +1089,7 @@ align 16
     jmp .retP
 
 align 16
-.fiveP
+.fiveP:
     IDCT5       esp,    esp+64, esp+32, esp+96, ecx,    nop,    0,          20
     ; IDCT5     esp+8,  esp+72, esp+40, esp+104,ecx+4,  nop,    0,          20
     IDCT5       esp+16, esp+80, esp+48, esp+112,ecx+8,  nop,    0,          20
@@ -1097,7 +1097,7 @@ align 16
     jmp .retP
 
 align 16
-.oneP
+.oneP:
     IDCT1       esp,    esp+64, esp+32, esp+96, ecx,    nop,    0,          20
     IDCT1       esp+8,  esp+72, esp+40, esp+104,ecx+4,  nop,    0,          20
     IDCT1       esp+16, esp+80, esp+48, esp+112,ecx+8,  nop,    0,          20
@@ -1105,12 +1105,12 @@ align 16
     jmp .retP
 
 align 16
-.sevenP
+.sevenP:
             IDCT7       esp,    esp+64, esp+32, esp+96, ecx,    nop,    0,          20
             ; IDCT7     esp+8,  esp+72, esp+40, esp+104,ecx+4,  nop,    0,          20
             IDCT7       esp+16, esp+80, esp+48, esp+112,ecx+8,  nop,    0,          20
             ; IDCT7     esp+24, esp+88, esp+56, esp+120,ecx+12, nop,    0,          20
 
-.retP
+.retP:
     add esp, 128
     ret

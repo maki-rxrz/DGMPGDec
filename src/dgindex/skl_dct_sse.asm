@@ -801,72 +801,72 @@ Skl_IDct16_MMX:  ; 288c
   TEST_ROW ecx, .Row0_Round, .Row0_4
   %2  0, ITAB1, Idct_Rnd0, 11
   jmp .Row1
-.Row0_4
+.Row0_4:
   %3  0, ITAB1, Idct_Rnd0, 11
   jmp .Row1
-.Row0_Round
+.Row0_Round:
   movq mm0, [Idct_Sparse_Rnd0]
   movq [ecx  ], mm0
   movq [ecx+8], mm0
 
-.Row1
+.Row1:
   TEST_ROW ecx+16, .Row1_Round, .Row1_4
   %2  1, ITAB2, Idct_Rnd1, 11
   jmp .Row2
-.Row1_4
+.Row1_4:
   %3  1, ITAB2, Idct_Rnd1, 11
   jmp .Row2
-.Row1_Round
+.Row1_Round:
   movq mm0, [Idct_Sparse_Rnd1]
   movq [ecx+16  ], mm0
   movq [ecx+16+8], mm0
 
-.Row2
+.Row2:
   TEST_ROW ecx+32, .Row2_Round, .Row2_4
   %2  2, ITAB3, Idct_Rnd2, 11
   jmp .Row3
-.Row2_4
+.Row2_4:
   %3  2, ITAB3, Idct_Rnd2, 11
   jmp .Row3
-.Row2_Round
+.Row2_Round:
   movq mm0, [Idct_Sparse_Rnd2]
   movq [ecx+32  ], mm0
   movq [ecx+32+8], mm0
 
-.Row3
+.Row3:
   TEST_ROW ecx+48, .Row4, .Row3_4
   %2  3, ITAB4, Idct_Rnd3, 11
   jmp .Row4
-.Row3_4
+.Row3_4:
   %3  3, ITAB4, Idct_Rnd3, 11
 
-.Row4
+.Row4:
   TEST_ROW ecx+64, .Row5, .Row4_4
   %2  4, ITAB1, Idct_Rnd4, 11
   jmp .Row5
 .Row4_4:
   %3  4, ITAB1, Idct_Rnd4, 11
 
-.Row5
+.Row5:
   TEST_ROW ecx+80, .Row6, .Row5_4
   %2  5, ITAB4, Idct_Rnd5, 11
   jmp .Row6
-.Row5_4
+.Row5_4:
   %3  5, ITAB4, Idct_Rnd5, 11
 
-.Row6
+.Row6:
   TEST_ROW ecx+96, .Row7, .Row6_4
   %2  6, ITAB3, Idct_Rnd6, 11
   jmp .Row7
-.Row6_4
+.Row6_4:
   %3  6, ITAB3, Idct_Rnd6, 11
-.Row7
+.Row7:
   TEST_ROW ecx+112, .End, .Row7_4
   %2  7, ITAB2, Idct_Rnd7, 11
   jmp .End
-.Row7_4
+.Row7_4:
   %3  7, ITAB2, Idct_Rnd7, 11
-.End
+.End:
 
 %if (%1==0)
   %4 ecx+0, 0,0
