@@ -70,9 +70,6 @@ LINK32_FLAGS =\
 
 
 LINK32_OBJS=\
-    "idctmmx.obj"\
-    "simple_idct_mmx.obj"\
-    "skl_dct_sse.obj"\
     "d2vparse.obj"\
     "getbit.obj"\
     "gethdr.obj"\
@@ -110,12 +107,11 @@ RFLAGS=/D "NDEBUG" /l 0x0409 /nologo /fo"$(OUTDIR)\gui.res"
 
 
 
-"$(OUTDIR)/$(TARGETNAME).exe" : "$(OUTDIR)" $(LINK32_OBJS)
+"$(OUTDIR)/$(TARGETNAME).exe" : "$(OUTDIR)" custom_step $(LINK32_OBJS)
     $(LINK32) $(LINK32_FLAGS) "$(OUTDIR)\*.obj" "$(OUTDIR)\*.res"
 
 
-#.asm{$(OUTDIR)}.obj:
-.asm.obj:
+custom_step:
     $(AS) $(ASFLAGS) -o "$(OUTDIR)\simple_idct_mmx.obj" "simple_idct_mmx.asm"
     $(AS) $(ASFLAGS) -o "$(OUTDIR)\skl_dct_sse.obj" "skl_dct_sse.asm"
     @echo copy "idctmmx.obj" "$(OUTDIR)"
