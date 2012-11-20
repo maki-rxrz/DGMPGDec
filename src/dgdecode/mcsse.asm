@@ -130,10 +130,10 @@ section .text
 
 align 16
 cglobal MC_put_8_mmxext
-MC_put_8_mmxext
+MC_put_8_mmxext:
 
     INIT
-.mc0
+.mc0:
     movq mm0, [esi]
     movq [edi], mm0
     add esi, edx
@@ -144,10 +144,10 @@ MC_put_8_mmxext
 
 align 16
 cglobal MC_put_16_mmxext
-MC_put_16_mmxext
+MC_put_16_mmxext:
 
     INIT
-.mc0
+.mc0:
     movq mm0, [esi]
     movq mm1, [esi+8]
     add esi, edx
@@ -160,10 +160,10 @@ MC_put_16_mmxext
 
 align 16
 cglobal MC_avg_8_mmxext
-MC_avg_8_mmxext
+MC_avg_8_mmxext:
 
     INIT
-.mc0
+.mc0:
     movq mm0, [esi]
     pavgb mm0, [edi]
     add esi, edx
@@ -175,10 +175,10 @@ MC_avg_8_mmxext
 
 align 16
 cglobal MC_avg_16_mmxext
-MC_avg_16_mmxext
+MC_avg_16_mmxext:
 
     INIT
-.mc0
+.mc0:
     movq mm0, [esi]
     movq mm1, [esi+8]
     pavgb mm0, [edi]
@@ -193,10 +193,10 @@ MC_avg_16_mmxext
 
 align 16
 cglobal MC_put_x8_mmxext
-MC_put_x8_mmxext
+MC_put_x8_mmxext:
 
     INIT
-.mc0
+.mc0:
     movq mm0, [esi]
     pavgb mm0, [esi+1]
     add esi, edx
@@ -210,10 +210,10 @@ MC_put_x8_mmxext
 
 align 16
 cglobal MC_put_y8_mmxext
-MC_put_y8_mmxext
+MC_put_y8_mmxext:
 
     INIT2
-.mc0
+.mc0:
     movq mm0, [esi]
     pavgb mm0, [ecx]
     add esi, edx
@@ -226,10 +226,10 @@ MC_put_y8_mmxext
 
 align 16
 cglobal MC_put_x16_mmxext
-MC_put_x16_mmxext
+MC_put_x16_mmxext:
 
     INIT
-.mc0
+.mc0:
     movq mm0, [esi]
     movq mm1, [esi+8]
     pavgb mm0, [esi+1]
@@ -244,10 +244,10 @@ MC_put_x16_mmxext
 
 align 16
 cglobal MC_put_y16_mmxext
-MC_put_y16_mmxext
+MC_put_y16_mmxext:
 
     INIT2
-.mc0
+.mc0:
     movq mm0, [esi]
     movq mm1, [esi+8]
     pavgb mm0, [ecx]
@@ -263,10 +263,10 @@ MC_put_y16_mmxext
 
 align 16
 cglobal MC_avg_x8_mmxext
-MC_avg_x8_mmxext
+MC_avg_x8_mmxext:
 
     INIT
-.mc0
+.mc0:
     movq mm0, [esi]
     pavgb mm0, [esi+1]
     pavgb mm0, [edi]
@@ -279,10 +279,10 @@ MC_avg_x8_mmxext
 
 align 16
 cglobal MC_avg_y8_mmxext
-MC_avg_y8_mmxext
+MC_avg_y8_mmxext:
 
     INIT2
-.mc0
+.mc0:
     movq mm0, [esi]
     pavgb mm0, [ecx]
     pavgb mm0, [edi]
@@ -296,10 +296,10 @@ MC_avg_y8_mmxext
 
 align 16
 cglobal MC_avg_x16_mmxext
-MC_avg_x16_mmxext
+MC_avg_x16_mmxext:
 
     INIT
-.mc0
+.mc0:
     movq mm0, [esi]
     movq mm1, [esi+8]
     pavgb mm0, [esi+1]
@@ -316,10 +316,10 @@ MC_avg_x16_mmxext
 
 align 16
 cglobal MC_avg_y16_mmxext
-MC_avg_y16_mmxext
+MC_avg_y16_mmxext:
 
     INIT2
-.mc0
+.mc0:
     movq mm0, [esi]
     movq mm1, [esi+8]
     pavgb mm0, [ecx]
@@ -337,10 +337,10 @@ MC_avg_y16_mmxext
 
 align 16
 cglobal MC_put_xy8_mmxext_AC
-MC_put_xy8_mmxext_AC
+MC_put_xy8_mmxext_AC:
 
     INIT2
-.mc0
+.mc0:
 
     MCxyAC esi, ecx
 
@@ -354,10 +354,10 @@ MC_put_xy8_mmxext_AC
 
 align 16
 cglobal MC_put_xy8_mmxext_FAST
-MC_put_xy8_mmxext_FAST
+MC_put_xy8_mmxext_FAST:
 
     INIT2
-.mc0
+.mc0:
 
     MCxyFAST esi, ecx
 
@@ -373,10 +373,10 @@ MC_put_xy8_mmxext_FAST
 
 align 16
 cglobal MC_put_xy16_mmxext_AC
-MC_put_xy16_mmxext_AC
+MC_put_xy16_mmxext_AC:
 
     INIT2
-.mc0
+.mc0:
 
     MCxyAC esi, ecx
 
@@ -394,10 +394,10 @@ MC_put_xy16_mmxext_AC
 
 align 16
 cglobal MC_put_xy16_mmxext_FAST
-MC_put_xy16_mmxext_FAST
+MC_put_xy16_mmxext_FAST:
 
     INIT2
-.mc0
+.mc0:
 
     MCxyFAST esi, ecx
 
@@ -415,10 +415,10 @@ MC_put_xy16_mmxext_FAST
 
 align 16
 cglobal MC_avg_xy8_mmxext_AC
-MC_avg_xy8_mmxext_AC
+MC_avg_xy8_mmxext_AC:
 
     INIT2
-.mc0
+.mc0:
 
     MCxyAC esi, ecx
 
@@ -435,10 +435,10 @@ MC_avg_xy8_mmxext_AC
 
 align 16
 cglobal MC_avg_xy8_mmxext_FAST
-MC_avg_xy8_mmxext_FAST
+MC_avg_xy8_mmxext_FAST:
 
     INIT2
-.mc0
+.mc0:
 
     MCxyFAST esi, ecx
 
@@ -455,10 +455,10 @@ MC_avg_xy8_mmxext_FAST
 
 align 16
 cglobal MC_avg_xy16_mmxext_AC
-MC_avg_xy16_mmxext_AC
+MC_avg_xy16_mmxext_AC:
 
     INIT2
-.mc0
+.mc0:
 
     MCxyAC esi, ecx
 
@@ -481,10 +481,10 @@ MC_avg_xy16_mmxext_AC
 
 align 16
 cglobal MC_avg_xy16_mmxext_FAST
-MC_avg_xy16_mmxext_FAST
+MC_avg_xy16_mmxext_FAST:
 
     INIT2
-.mc0
+.mc0:
 
     MCxyFAST esi, ecx
 
