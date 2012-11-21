@@ -1,130 +1,131 @@
-# UserChange
+#-----------------------------
+# makefile for DGIndex
+#-----------------------------
 
-TARGETNAME=DGIndex
+### Target ###
+
 OUTDIR=.\Release_nmake
 
-AS=nasm.exe
-ASFLAGS=-f win32 -DPREFIX -DWIN32
-
-LINK32=link.exe
+TARGET=DGIndex
+TARGETEXE=$(OUTDIR)\$(TARGET).exe
 
 
-.SUFFIXES: .cpp .obj
-.SUFFIXES: .rc .res
+### build utils ###
+
+AS  = nasm.exe
+CC  = cl.exe
+CPP = cl.exe
+LD  = link.exe
+RC  = rc.exe
 
 
+### build flags ###
 
-ALL : "$(OUTDIR)/$(TARGETNAME).exe"
+ASFLAGS = -f win32 -DPREFIX -DWIN32
 
-"$(OUTDIR)" :
-    if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
+CPPFLAGS = \
+    /c /Zi /nologo /W3 /WX- /O2 /Ob1 /Oi /Ot /Oy- \
+    /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_CRT_SECURE_NO_WARNINGS" /D "_MBCS" \
+    /GF /Gm- /EHsc /MT /GS /fp:precise /Zc:wchar_t /Zc:forScope \
+    /Fp"$(OUTDIR)/$(TARGET).pch" /Fd"$(OUTDIR)/" \
+    /Gd /analyze- /errorReport:none
 
-# compile
+LDFLAGS = \
+    /OUT:"$(TARGETEXE)" \
+    /INCREMENTAL:NO \
+    /NOLOGO \
+    /MANIFEST \
+    /ManifestFile:"$(TARGETEXE).intermediate.manifest" \
+    /ALLOWISOLATION \
+    /MANIFESTUAC:"level='asInvoker' uiAccess='false'" \
+    /SUBSYSTEM:WINDOWS \
+    /STACK:"4096000" \
+    /TLBID:1 \
+    /DYNAMICBASE \
+    /NXCOMPAT \
+    /MACHINE:X86 \
+    /PDB:"$(OUTDIR)/$(TARGET).pdb" \
+    /ERRORREPORT:NONE
 
-CPPFLAGS = /c\
-    /Zi /nologo /W3 /WX- /O2 /Ob1 /Oi /Ot /Oy-\
-    /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_CRT_SECURE_NO_WARNINGS" /D "_MBCS"\
-    /GF /Gm- /EHsc /MT /GS /fp:precise /Zc:wchar_t /Zc:forScope\
-    /Fp"$(OUTDIR)/$(TARGETNAME).pch" /Fo"$(OUTDIR)/" /Fd"$(OUTDIR)/"\
-    /Gd
-#    /Fp"$(OUTDIR)/$(TARGETNAME).pch" /Fa"$(OUTDIR)/" /Fo"$(OUTDIR)/" /Fd"$(OUTDIR)/"\
-#    /Gd /analyze- /errorReport:queue
-
-# link
-
-LINK32_FLAGS =\
-    /OUT:"$(OUTDIR)/$(TARGETNAME).exe"\
-    /INCREMENTAL:NO\
-    /NOLOGO\
-    /MANIFEST\
-    /ManifestFile:"$(OUTDIR)/$(TARGETNAME).exe.intermediate.manifest"\
-    /ALLOWISOLATION\
-    /MANIFESTUAC:"level='asInvoker' uiAccess='false'"\
-    /SUBSYSTEM:WINDOWS\
-    /STACK:"4096000"\
-    /TLBID:1\
-    /DYNAMICBASE\
-    /NXCOMPAT\
-    /MACHINE:X86\
-    /PDB:"$(OUTDIR)/$(TARGETNAME).pdb"\
-    /ERRORREPORT:QUEUE\
-        "vfw32.lib"\
-        "winmm.lib"\
-        "odbc32.lib"\
-        "odbccp32.lib"\
-        "shlwapi.lib"\
-        "kernel32.lib"\
-        "user32.lib"\
-        "gdi32.lib"\
-        "winspool.lib"\
-        "comdlg32.lib"\
-        "advapi32.lib"\
-        "shell32.lib"\
-        "ole32.lib"\
-        "oleaut32.lib"\
-        "uuid.lib"
-
-#    /PGD:"$(OUTDIR)/$(TARGETNAME).pgd"\
+RFLAGS = /D "NDEBUG" /l 0x0409 /nologo
 
 
+### link targets ###
+
+LIBS = vfw32.lib winmm.lib odbc32.lib odbccp32.lib shlwapi.lib kernel32.lib \
+    user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib \
+    ole32.lib  oleaut32.lib uuid.lib
+
+OBJS = \
+    "$(OUTDIR)\gui.res" \
+    "$(OUTDIR)\simple_idct_mmx.obj" \
+    "$(OUTDIR)\skl_dct_sse.obj" \
+    "$(OUTDIR)\d2vparse.obj" \
+    "$(OUTDIR)\getbit.obj" \
+    "$(OUTDIR)\gethdr.obj" \
+    "$(OUTDIR)\getpic.obj" \
+    "$(OUTDIR)\gui.obj" \
+    "$(OUTDIR)\idctfpu.obj" \
+    "$(OUTDIR)\idctref.obj" \
+    "$(OUTDIR)\initial_parse.obj" \
+    "$(OUTDIR)\misc.obj" \
+    "$(OUTDIR)\motion.obj" \
+    "$(OUTDIR)\mpeg2dec.obj" \
+    "$(OUTDIR)\norm.obj" \
+    "$(OUTDIR)\parse_cli.obj" \
+    "$(OUTDIR)\pat.obj" \
+    "$(OUTDIR)\store.obj" \
+    "$(OUTDIR)\strverscmp.obj" \
+    "$(OUTDIR)\wavefs44.obj" \
+    "$(OUTDIR)\AC3Dec\bit_allocate.obj" \
+    "$(OUTDIR)\AC3Dec\bitstream.obj" \
+    "$(OUTDIR)\AC3Dec\coeff.obj" \
+    "$(OUTDIR)\AC3Dec\crc.obj" \
+    "$(OUTDIR)\AC3Dec\decode.obj" \
+    "$(OUTDIR)\AC3Dec\downmix.obj" \
+    "$(OUTDIR)\AC3Dec\exponent.obj" \
+    "$(OUTDIR)\AC3Dec\imdct.obj" \
+    "$(OUTDIR)\AC3Dec\parse.obj" \
+    "$(OUTDIR)\AC3Dec\rematrix.obj" \
+    "$(OUTDIR)\AC3Dec\sanity_check.obj"
 
 
-LINK32_OBJS=\
-    "d2vparse.obj"\
-    "getbit.obj"\
-    "gethdr.obj"\
-    "getpic.obj"\
-    "gui.obj"\
-    "idctfpu.obj"\
-    "idctref.obj"\
-    "initial_parse.obj"\
-    "misc.obj"\
-    "motion.obj"\
-    "mpeg2dec.obj"\
-    "norm.obj"\
-    "parse_cli.obj"\
-    "pat.obj"\
-    "store.obj"\
-    "strverscmp.obj"\
-    "wavefs44.obj"\
-    "AC3Dec\bit_allocate.obj"\
-    "AC3Dec\bitstream.obj"\
-    "AC3Dec\coeff.obj"\
-    "AC3Dec\crc.obj"\
-    "AC3Dec\decode.obj"\
-    "AC3Dec\downmix.obj"\
-    "AC3Dec\exponent.obj"\
-    "AC3Dec\imdct.obj"\
-    "AC3Dec\parse.obj"\
-    "AC3Dec\rematrix.obj"\
-    "AC3Dec\sanity_check.obj"\
-    "gui.res"
+### build ###
 
-# resource compiler
-
-#RFLAGS=/D "NDEBUG" /l 0x0409 /nologo /fo"$(OUTDIR)/"
-RFLAGS=/D "NDEBUG" /l 0x0409 /nologo /fo"$(OUTDIR)\gui.res"
+.SUFFIXES : .exe .obj .asm .cpp .res .rc
 
 
+ALL: "$(TARGETEXE)"
 
-"$(OUTDIR)/$(TARGETNAME).exe" : "$(OUTDIR)" custom_step $(LINK32_OBJS)
-    $(LINK32) $(LINK32_FLAGS) "$(OUTDIR)\*.obj" "$(OUTDIR)\*.res"
+"$(TARGETEXE)": "$(OUTDIR)" $(OBJS)
+    @echo $(LD) $(LDFLAGS) "idctmmx.obj" $(OBJS) $(LIBS)
+    @$(LD) $(LDFLAGS) "idctmmx.obj" $(OBJS) $(LIBS)
 
+.asm{$(OUTDIR)}.obj:
+    @echo nasm $<
+    @$(AS) $(ASFLAGS) $< -o $@
 
-custom_step:
-    $(AS) $(ASFLAGS) -o "$(OUTDIR)\simple_idct_mmx.obj" "simple_idct_mmx.asm"
-    $(AS) $(ASFLAGS) -o "$(OUTDIR)\skl_dct_sse.obj" "skl_dct_sse.asm"
-    @echo copy "idctmmx.obj" "$(OUTDIR)"
-    @copy /y "idctmmx.obj" "$(OUTDIR)" >NUL
-
+{AC3Dec\}.cpp{$(OUTDIR)\AC3Dec}.obj:
+    @if not exist "$(OUTDIR)\AC3Dec" mkdir "$(OUTDIR)\AC3Dec"
+    @$(CPP) $(CPPFLAGS) $< /Fo"$@"
 
 .cpp{$(OUTDIR)}.obj:
-    $(CPP) $(CPPFLAGS) $<
+    @$(CPP) $(CPPFLAGS) $< /Fo"$@"
 
 .rc{$(OUTDIR)}.res:
-    $(RC) $(RFLAGS) $<
-
+    @echo rc $<
+    @$(RC) $(RFLAGS) /fo"$@" $<
 
 clean:
-    del /Q "$(OUTDIR)\*.*"
-#    del /Q "$(OUTDIR)\*.obj" "$(OUTDIR)\*.res" "$(OUTDIR)\*.manifest" "$(OUTDIR)\*.pdb"
+    @echo delete "*.obj *.res *.pdb *.manifest"
+    @if exist "$(OUTDIR)\AC3Dec" @rmdir /S /Q "$(OUTDIR)\AC3Dec" >NUL
+    @if exist "$(OUTDIR)" @del /Q "$(OUTDIR)\*.res" "$(OUTDIR)\*.obj" "$(OUTDIR)\*.pdb" "$(OUTDIR)\*.manifest" 2>NUL 1>NUL
+
+"$(OUTDIR)":
+    @if not exist "$(OUTDIR)" mkdir "$(OUTDIR)"
+    @if not exist "$(OUTDIR)\AC3Dec" mkdir "$(OUTDIR)\AC3Dec"
+
+
+### depend ####
+
+!include "makefile.dep"

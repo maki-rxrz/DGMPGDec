@@ -1,0 +1,31 @@
+$(OUTDIR)\simple_idct_mmx.obj: simple_idct_mmx.asm
+$(OUTDIR)\skl_dct_sse.obj: skl_dct_sse.asm skl_nasm.h
+$(OUTDIR)\d2vparse.obj : d2vparse.cpp global.h misc.h resource.h pat.h
+$(OUTDIR)\getbit.obj : getbit.cpp global.h misc.h resource.h pat.h getbit.h AC3Dec\ac3.h
+$(OUTDIR)\gethdr.obj : gethdr.cpp global.h misc.h resource.h pat.h getbit.h
+$(OUTDIR)\getpic.obj : getpic.cpp global.h misc.h resource.h pat.h getbit.h
+$(OUTDIR)\gui.obj : gui.cpp resource.h global.h misc.h pat.h
+$(OUTDIR)\idctfpu.obj : idctfpu.cpp
+$(OUTDIR)\idctref.obj : idctref.cpp
+$(OUTDIR)\initial_parse.obj : initial_parse.cpp resource.h global.h misc.h pat.h
+$(OUTDIR)\misc.obj : misc.cpp global.h misc.h resource.h pat.h
+$(OUTDIR)\motion.obj : motion.cpp global.h misc.h resource.h pat.h getbit.h
+$(OUTDIR)\mpeg2dec.obj : mpeg2dec.cpp global.h misc.h resource.h pat.h getbit.h
+$(OUTDIR)\norm.obj : norm.cpp global.h misc.h resource.h pat.h
+$(OUTDIR)\parse_cli.obj : parse_cli.cpp resource.h global.h misc.h pat.h
+$(OUTDIR)\pat.obj : pat.cpp resource.h global.h misc.h pat.h
+$(OUTDIR)\store.obj : store.cpp global.h misc.h resource.h pat.h filter.h
+$(OUTDIR)\strverscmp.obj : strverscmp.cpp
+$(OUTDIR)\wavefs44.obj : wavefs44.cpp global.h misc.h resource.h pat.h
+$(OUTDIR)\bit_allocate.obj : AC3Dec\bit_allocate.cpp ac3.h
+$(OUTDIR)\bitstream.obj : AC3Dec\bitstream.cpp ac3.h bitstream.h
+$(OUTDIR)\coeff.obj : AC3Dec\coeff.cpp ac3.h bitstream.h
+$(OUTDIR)\crc.obj : AC3Dec\crc.cpp ac3.h
+$(OUTDIR)\decode.obj : AC3Dec\decode.cpp ..\global.h ac3.h bitstream.h
+$(OUTDIR)\downmix.obj : AC3Dec\downmix.cpp ..\global.h ac3.h
+$(OUTDIR)\exponent.obj : AC3Dec\exponent.cpp ac3.h
+$(OUTDIR)\imdct.obj : AC3Dec\imdct.cpp ac3.h
+$(OUTDIR)\parse.obj : AC3Dec\parse.cpp ac3.h bitstream.h
+$(OUTDIR)\rematrix.obj : AC3Dec\rematrix.cpp ac3.h
+$(OUTDIR)\sanity_check.obj : AC3Dec\sanity_check.cpp ac3.h
+$(OUTDIR)\gui.res : gui.rc resource.h
