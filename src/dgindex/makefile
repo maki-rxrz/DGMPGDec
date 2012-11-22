@@ -12,6 +12,7 @@ TARGETEXE=$(OUTDIR)\$(TARGET).exe
 
 ### build utils ###
 
+MASM = $(MASM_PATH)ml.exe
 AS  = nasm.exe
 CC  = cl.exe
 CPP = cl.exe
@@ -57,6 +58,7 @@ LIBS = vfw32.lib winmm.lib odbc32.lib odbccp32.lib shlwapi.lib kernel32.lib \
     ole32.lib  oleaut32.lib uuid.lib
 
 OBJS = \
+    idctmmx.obj \
     "$(OUTDIR)\gui.res" \
     "$(OUTDIR)\simple_idct_mmx.obj" \
     "$(OUTDIR)\skl_dct_sse.obj" \
@@ -98,8 +100,11 @@ OBJS = \
 ALL: "$(TARGETEXE)"
 
 "$(TARGETEXE)": "$(OUTDIR)" "$(OUTDIR)\AC3Dec" $(OBJS)
-    @echo $(LD) $(LDFLAGS) "idctmmx.obj" $(OBJS) $(LIBS)
-    @$(LD) $(LDFLAGS) "idctmmx.obj" $(OBJS) $(LIBS)
+    @echo $(LD) $(LDFLAGS) $(OBJS) $(LIBS)
+    @$(LD) $(LDFLAGS) $(OBJS) $(LIBS)
+
+idctmmx.obj:
+    @$(MASM) /c /coff /Cx /nologo /Fo idctmmx.obj idctmmx.asm
 
 .asm{$(OUTDIR)}.obj:
     @echo nasm $<
