@@ -97,7 +97,7 @@ OBJS = \
 
 ALL: "$(TARGETEXE)"
 
-"$(TARGETEXE)": "$(OUTDIR)" $(OBJS)
+"$(TARGETEXE)": "$(OUTDIR)" "$(OUTDIR)\AC3Dec" $(OBJS)
     @echo $(LD) $(LDFLAGS) "idctmmx.obj" $(OBJS) $(LIBS)
     @$(LD) $(LDFLAGS) "idctmmx.obj" $(OBJS) $(LIBS)
 
@@ -106,7 +106,6 @@ ALL: "$(TARGETEXE)"
     @$(AS) $(ASFLAGS) $< -o $@
 
 {AC3Dec\}.cpp{$(OUTDIR)\AC3Dec}.obj:
-    @if not exist "$(OUTDIR)\AC3Dec" mkdir "$(OUTDIR)\AC3Dec"
     @$(CPP) $(CPPFLAGS) $< /Fo"$@"
 
 .cpp{$(OUTDIR)}.obj:
@@ -122,8 +121,10 @@ clean:
     @if exist "$(OUTDIR)" @del /Q "$(OUTDIR)\*.res" "$(OUTDIR)\*.obj" "$(OUTDIR)\*.pdb" "$(OUTDIR)\*.manifest" 2>NUL 1>NUL
 
 "$(OUTDIR)":
-    @if not exist "$(OUTDIR)" mkdir "$(OUTDIR)"
-    @if not exist "$(OUTDIR)\AC3Dec" mkdir "$(OUTDIR)\AC3Dec"
+    @mkdir "$(OUTDIR)"
+
+"$(OUTDIR)\AC3Dec":
+    @mkdir "$(OUTDIR)\AC3Dec"
 
 
 ### depend ####
