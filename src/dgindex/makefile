@@ -12,7 +12,7 @@ TARGETEXE=$(OUTDIR)\$(TARGET).exe
 
 ### build utils ###
 
-MASM = $(MASM_PATH)ml.exe
+MASM = "$(MASM_PATH)ml.exe"
 AS  = nasm.exe
 CC  = cl.exe
 CPP = cl.exe
