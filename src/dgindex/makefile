@@ -103,8 +103,8 @@ ALL: "$(TARGETEXE)"
     @echo $(LD) $(LDFLAGS) $(OBJS) $(LIBS)
     @$(LD) $(LDFLAGS) $(OBJS) $(LIBS)
 
-idctmmx.obj:
-    @$(MASM) /c /coff /Cx /nologo /Fo idctmmx.obj idctmmx.asm
+idctmmx.obj: idctmmx.asm
+    @if not "$(MASM_PATH)" == "" @$(MASM) /c /coff /Cx /nologo /Fo idctmmx.obj idctmmx.asm
 
 .asm{$(OUTDIR)}.obj:
     @echo nasm $<
