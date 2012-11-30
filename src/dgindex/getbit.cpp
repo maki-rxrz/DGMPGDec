@@ -96,7 +96,11 @@ int PTSDifference(__int64 apts, __int64 vpts, int *result)
     if (apts == vpts)
     {
         *result = 0;
+#ifdef NO_NEED_AUDIO_DELAY_VALUE
         return 1;
+#else
+        return 0;
+#endif
     }
     diff = apts - vpts;
     if (_abs64(diff) > TIMESTAMP_WRAP_AROUND_CHECK_VALUE)
