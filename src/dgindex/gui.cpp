@@ -928,6 +928,7 @@ cli_parse_d2v:
                     MPEG2_Transport_VideoPID = 2;
                     MPEG2_Transport_AudioPID = 2;
                     MPEG2_Transport_PCRPID = 2;
+                    StartupEnables();
                     break;
 
                 case IDM_PREVIEW_NO_INFO:
@@ -3883,6 +3884,9 @@ void CheckFlag()
 void Recovery()
 {
     int i;
+
+    hThread = NULL;
+    threadId = 0;
 
     if (Check_Flag)
     {
