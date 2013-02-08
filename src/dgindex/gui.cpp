@@ -4287,7 +4287,7 @@ void UpdateWindowText(void)
         SetDlgItemText(hDlg, IDC_REMAIN, szBuffer);
 
         if (remain == 0 && percent >= 100 && bIsWindowsXPorLater)
-            PostMessage(hWnd, PROGRESS_MESSAGE, 100, 0);
+            PostMessage(hWnd, PROGRESS_MESSAGE, 10000, 0);
     }
     else
         remain = 0;
@@ -4298,7 +4298,7 @@ void UpdateWindowText(void)
         {
             sprintf(szBuffer, "DGIndex[%d%%] - ", (elapsed * 100) / (elapsed + remain));
             if(bIsWindowsXPorLater)
-                PostMessage(hWnd, PROGRESS_MESSAGE, (elapsed * 100) / (elapsed + remain), 0);
+                PostMessage(hWnd, PROGRESS_MESSAGE, (elapsed * 10000) / (elapsed + remain), 0);
         }
         else
         {
@@ -4338,15 +4338,16 @@ void OutputProgress(int progr)
 
     if (progr != lastprogress)
     {
-        char percent[20];
+        char percent[50];
         DWORD written;
 
-        if (progr == 100)
-            sprintf(percent, "100%% - FINISHED\n");
+        if (progr == 10000)
+            sprintf(percent, "DGIndex: [100%%] - FINISHED                   \n");
         else if(progr == -1)
-            sprintf(percent, "%d%% - Interrupted\n", lastprogress);
+            sprintf(percent, "DGIndex: [%.2f%%] - Interrupted              \n", lastprogress / 100.0);
         else
-            sprintf(percent, "%d/100 elapsed\r", progr);
+            sprintf(percent, "DGIndex: [%.2f%%] elapsed, eta %d:%02d:%02d\r", progr / 100.0
+                    , remain/3600, (remain%3600)/60, remain%60);
         WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), percent, strlen(percent), &written, NULL);
         lastprogress = progr;
     }
