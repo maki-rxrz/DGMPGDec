@@ -103,6 +103,8 @@ extern int fix_d2v(HWND hWnd, char *path, int test_only);
 extern int parse_d2v(HWND hWnd, char *path);
 extern int analyze_sync(HWND hWnd, char *path, int track);
 extern unsigned char *Rdbfr;
+extern __int64 VideoPTS;
+static __int64 StartPTS, IframePTS;
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
@@ -3887,6 +3889,7 @@ void Recovery()
 
     hThread = NULL;
     threadId = 0;
+    StartPTS = IframePTS = 0;
 
     if (Check_Flag)
     {
@@ -4325,6 +4328,22 @@ void UpdateWindowText(void)
     {
         sprintf(szTemp, " [Vob %d] [Cell %d]", VOB_ID, CELL_ID);
         strcat(szBuffer, szTemp);
+    }
+    if (!remain && VideoPTS > 0)
+    {
+        if (StartPTS == 0)
+            StartPTS = VideoPTS;
+        if (!Start_Flag)
+            IframePTS = VideoPTS;
+        if (IframePTS > 0)
+        {
+            __int64 time = IframePTS - StartPTS;
+            if (_abs64(time) > TIMESTAMP_WRAP_AROUND_CHECK_VALUE)
+                time += MPEG_TIMESTAMP_WRAPAROUND_VALUE * ((time > 0) ? -1 : 1);
+            time /= 90;
+            sprintf(szTemp, " [%02lld:%02lld:%02lld.%03lld]", time/3600000, ((time/1000)%3600)/60, (time/1000)%60, time%1000);
+            strcat(szBuffer, szTemp);
+        }
     }
     if (strcmp(szBuffer, windowTitle))
     {

@@ -85,10 +85,6 @@ int check_audio_syncword(unsigned int audio_id, int layer, int bitrate, int samp
     return 0;
 }
 
-#define MPEG_TIMESTAMP_MAX_VALUE                (0x1FFFFFFFFLL)
-#define MPEG_TIMESTAMP_WRAPAROUND_VALUE         (0x200000000LL)
-#define TIMESTAMP_WRAP_AROUND_CHECK_VALUE       (0x0FFFFFFFFLL)
-
 int PTSDifference(__int64 apts, __int64 vpts, int *result)
 {
     __int64 diff = 0;
