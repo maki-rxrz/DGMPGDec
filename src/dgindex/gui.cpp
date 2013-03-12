@@ -4299,8 +4299,11 @@ void UpdateWindowText(void)
     {
         if (elapsed + remain)
         {
-            sprintf(szBuffer, "DGIndex[%d%%] eta %d:%02d:%02d - ", (elapsed * 100) / (elapsed + remain)
-                    , remain/3600, (remain%3600)/60, remain%60);
+            if (interrupted)
+                sprintf(szBuffer, "DGIndex[%d%%] - ", (elapsed * 100) / (elapsed + remain));
+            else
+                sprintf(szBuffer, "DGIndex[%d%%] eta %d:%02d:%02d - ", (elapsed * 100) / (elapsed + remain)
+                        , remain/3600, (remain%3600)/60, remain%60);
             if(bIsWindowsXPorLater)
                 PostMessage(hWnd, PROGRESS_MESSAGE, (elapsed * 10000) / (elapsed + remain), 0);
         }
