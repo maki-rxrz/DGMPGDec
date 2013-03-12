@@ -4348,8 +4348,7 @@ void UpdateWindowText(int mode)
         if (IframePTS > 0)
         {
             __int64 time = IframePTS - StartPTS;
-            if (_abs64(time) > TIMESTAMP_WRAP_AROUND_CHECK_VALUE)
-                time += MPEG_TIMESTAMP_WRAPAROUND_VALUE * ((time > 0) ? -1 : 1);
+            WRAPAROUND_CORRECTION(time);
             time /= 90;
             sprintf(szTemp, " [%02lld:%02lld:%02lld.%03lld]", time/3600000, ((time/1000)%3600)/60, (time/1000)%60, time%1000);
             strcat(szBuffer, szTemp);

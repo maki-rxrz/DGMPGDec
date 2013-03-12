@@ -201,6 +201,12 @@ XTN bool bIsWindowsXPorLater;
 #define MPEG_TIMESTAMP_WRAPAROUND_VALUE         (0x200000000LL)
 #define TIMESTAMP_WRAP_AROUND_CHECK_VALUE       (0x0FFFFFFFFLL)
 
+#define WRAPAROUND_CORRECTION(v)                                    \
+do {                                                                \
+    if (_abs64(v) > TIMESTAMP_WRAP_AROUND_CHECK_VALUE)              \
+        v += MPEG_TIMESTAMP_WRAPAROUND_VALUE * ((v > 0) ? -1 : 1);  \
+} while(0)
+
 #define TRACK_PITCH     30000
 
 #define DG_MAX_PATH 2048

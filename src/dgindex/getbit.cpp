@@ -99,8 +99,7 @@ int PTSDifference(__int64 apts, __int64 vpts, int *result)
 #endif
     }
     diff = apts - vpts;
-    if (_abs64(diff) > TIMESTAMP_WRAP_AROUND_CHECK_VALUE)
-        diff += MPEG_TIMESTAMP_WRAPAROUND_VALUE * ((diff > 0) ? -1 : 1);
+    WRAPAROUND_CORRECTION(diff);
     diff /= 90;
     *result = (int) diff;
     if (_abs64(diff) > 1000 && (D2V_Flag || AudioOnly_Flag) && !CLIActive)
