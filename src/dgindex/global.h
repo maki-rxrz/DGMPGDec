@@ -465,7 +465,9 @@ XTN void Decode_Picture(void);
 XTN void WriteD2VLine(int);
 
 /* gui.cpp */
-XTN void UpdateWindowText();
+#define PICTURE_HEADER 0
+#define THREAD_KILL    1
+XTN void UpdateWindowText(int);
 XTN void UpdateMRUList(void);
 XTN void AddMRUList(char *);
 XTN void DeleteMRUList(int);

@@ -354,7 +354,7 @@ static char *MPARate[4][15] = {
 int check_audio_packet_continue = 0;
 unsigned int num_pmt_pids = 0;
 
-__int64 VideoPTS, AudioPTS;
+__int64 VideoPTS, AudioPTS, LastVideoPTS;
 static unsigned char PCM_Buffer[SECTOR_SIZE];
 static short *ptrPCM_Buffer = (short*)PCM_Buffer;
 
@@ -694,6 +694,7 @@ retry_sync:
                     // the first I frame.
                     VideoPTS = pts_stamp;
                 }
+                LastVideoPTS = pts_stamp;
             }
 
             Rdmax = Rdptr + Packet_Length;
@@ -1551,6 +1552,7 @@ void Next_PVA_Packet()
                 {
                     VideoPTS = PTS;
                 }
+                LastVideoPTS = PTS;
             }
 
             // Deliver the video to the ES parsing layer.
@@ -2554,6 +2556,7 @@ emulated2:
                             // the first I frame.
                             VideoPTS = pts_stamp;
                         }
+                        LastVideoPTS = pts_stamp;
                         Bitrate_Monitor += Rdmax - Rdptr;
                         return;
                     }
@@ -2594,6 +2597,7 @@ emulated2:
                                     // the first I frame.
                                     VideoPTS = pts_stamp;
                                 }
+                                LastVideoPTS = pts_stamp;
                             }
                             else
                                 Rdptr += Packet_Header_Length;

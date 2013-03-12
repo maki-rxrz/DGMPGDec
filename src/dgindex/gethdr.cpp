@@ -455,7 +455,7 @@ static void picture_header(__int64 start, boolean HadSequenceHeader, boolean Had
 
         if (Info_Flag)
             UpdateInfo();
-        UpdateWindowText();
+        UpdateWindowText(PICTURE_HEADER);
     }
 
     vbv_delay = Get_Bits(16);

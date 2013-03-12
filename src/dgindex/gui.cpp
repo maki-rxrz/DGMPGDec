@@ -103,7 +103,7 @@ extern int fix_d2v(HWND hWnd, char *path, int test_only);
 extern int parse_d2v(HWND hWnd, char *path);
 extern int analyze_sync(HWND hWnd, char *path, int track);
 extern unsigned char *Rdbfr;
-extern __int64 VideoPTS;
+extern __int64 VideoPTS, LastVideoPTS;
 static __int64 StartPTS, IframePTS;
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
@@ -2709,7 +2709,7 @@ void ThreadKill(int mode)
 
     // Get rid of the % completion string in the window title.
     remain = 0;
-    UpdateWindowText();
+    UpdateWindowText(THREAD_KILL);
 
     // Close the quants log if necessary.
     if (Quants)
@@ -4267,7 +4267,7 @@ static void RunningEnables(void)
     DrawMenuBar(hWnd);
 }
 
-void UpdateWindowText(void)
+void UpdateWindowText(int mode)
 {
     char *ext;
     char szTemp[DG_MAX_PATH];
@@ -4332,12 +4332,19 @@ void UpdateWindowText(void)
         sprintf(szTemp, " [Vob %d] [Cell %d]", VOB_ID, CELL_ID);
         strcat(szBuffer, szTemp);
     }
-    if (!remain && VideoPTS > 0)
+    if (remain == 0 || interrupted)
     {
         if (StartPTS == 0)
             StartPTS = VideoPTS;
-        if (!Start_Flag)
+        if (!Start_Flag && mode == PICTURE_HEADER)
             IframePTS = VideoPTS;
+        else if (process.locate == LOCATE_RIP || process.locate == LOCATE_PLAY || process.locate == LOCATE_DEMUX_AUDIO)
+        {
+            if (mode == THREAD_KILL)
+                IframePTS = LastVideoPTS;
+            else
+                IframePTS = 0;
+        }
         if (IframePTS > 0)
         {
             __int64 time = IframePTS - StartPTS;
