@@ -98,6 +98,7 @@ static int SoundDelay[MAX_FILE_NUMBER];
 static char Outfilename[MAX_FILE_NUMBER][DG_MAX_PATH];
 
 static char windowTitle[DG_MAX_PATH] = "";
+static int stopWaitTime;
 
 extern int fix_d2v(HWND hWnd, char *path, int test_only);
 extern int parse_d2v(HWND hWnd, char *path);
@@ -396,6 +397,8 @@ NEW_VERSION:
     MPEG2_Transport_VideoPID = 2;
     MPEG2_Transport_AudioPID = 2;
     MPEG2_Transport_PCRPID = 2;
+
+    stopWaitTime = 5000;
 
     // Command line init.
     strcpy(ucCmdLine, lpCmdLine);
@@ -916,6 +919,12 @@ cli_parse_d2v:
                     break;
 
                 case IDM_CLOSE:
+                    if (threadId)
+                    {
+                        Stop_Flag = true;
+                        if (WaitForSingleObject(hThread, stopWaitTime) != WAIT_OBJECT_0)
+                            exit(EXIT_FAILURE);
+                    }
                     if (Info_Flag)
                     {
                         DestroyWindow(hDlg);
@@ -1137,6 +1146,12 @@ D2V_PROCESS:
                         }
 
                         // Close any opened files.
+                        if (threadId)
+                        {
+                            Stop_Flag = true;
+                            if (WaitForSingleObject(hThread, stopWaitTime) != WAIT_OBJECT_0)
+                                exit(EXIT_FAILURE);
+                        }
                         while (NumLoadedFiles)
                         {
                             NumLoadedFiles--;
@@ -2210,6 +2225,12 @@ right_arrow:
                 }
             }
 
+            if (threadId)
+            {
+                Stop_Flag = true;
+                if (WaitForSingleObject(hThread, stopWaitTime) != WAIT_OBJECT_0)
+                    exit(EXIT_FAILURE);
+            }
             while (NumLoadedFiles)
             {
                 NumLoadedFiles--;
@@ -2525,6 +2546,12 @@ LRESULT CALLBACK VideoList(HWND hVideoListDlg, UINT message, WPARAM wParam, LPAR
                 case ID_DEL:
                     if (NumLoadedFiles)
                     {
+                        if (threadId)
+                        {
+                            Stop_Flag = true;
+                            if (WaitForSingleObject(hThread, stopWaitTime) != WAIT_OBJECT_0)
+                                exit(EXIT_FAILURE);
+                        }
                         i= SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_GETCURSEL, 0, 0);
                         SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_DELETESTRING, i, 0);
                         NumLoadedFiles--;
@@ -2547,6 +2574,12 @@ LRESULT CALLBACK VideoList(HWND hVideoListDlg, UINT message, WPARAM wParam, LPAR
                     break;
 
                 case ID_DELALL:
+                    if (threadId)
+                    {
+                        Stop_Flag = true;
+                        if (WaitForSingleObject(hThread, stopWaitTime) != WAIT_OBJECT_0)
+                            exit(EXIT_FAILURE);
+                    }
                     while (NumLoadedFiles)
                     {
                         NumLoadedFiles--;
@@ -2562,6 +2595,12 @@ LRESULT CALLBACK VideoList(HWND hVideoListDlg, UINT message, WPARAM wParam, LPAR
                 case IDOK:
                 case IDCANCEL:
                     EndDialog(hVideoListDlg, 0);
+                    if (threadId)
+                    {
+                        Stop_Flag = true;
+                        if (WaitForSingleObject(hThread, stopWaitTime) != WAIT_OBJECT_0)
+                            exit(EXIT_FAILURE);
+                    }
                     Recovery();
                     MPEG2_Transport_VideoPID = 2;
                     MPEG2_Transport_AudioPID = 2;
