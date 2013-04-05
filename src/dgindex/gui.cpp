@@ -2256,7 +2256,7 @@ right_arrow:
             break;
 
         case WM_DESTROY:
-            Stop_Flag = 1;
+            Stop_Flag = true;
             WaitForSingleObject(hThread, 2000);
             strcpy(prog, ExePath);
             strcat(prog, "DGIndex.ini");
@@ -2742,7 +2742,7 @@ void ThreadKill(int mode)
         if (NotifyWhenDone & 2)
             MessageBeep(MB_OK);
         SetDlgItemText(hDlg, IDC_REMAIN, "FINISH");
-        AudioOnly_Flag = 0;
+        AudioOnly_Flag = false;
         ExitThread(0);
     }
 

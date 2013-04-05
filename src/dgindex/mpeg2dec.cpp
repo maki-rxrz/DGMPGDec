@@ -55,7 +55,7 @@ DWORD WINAPI MPEG2Dec(LPVOID n)
     Bitrate_Average = 0.0;
     max_rate = 0.0;
     GOPSeen = false;
-    AudioOnly_Flag = 0;
+    AudioOnly_Flag = false;
     AudioFilePath[0] = 0;
     LowestAudioId = 0xffffffff;
     StartLogging_Flag = 0;
@@ -154,8 +154,8 @@ do_rip_play:
     // was opened.
     if (process.locate == LOCATE_DEMUX_AUDIO)
     {
-        Start_Flag = 1;
-        AudioOnly_Flag = 1;
+        Start_Flag = true;
+        AudioOnly_Flag = true;
         AudioPktCount = 0;
         if (SystemStream_Flag == TRANSPORT_STREAM)
         {
