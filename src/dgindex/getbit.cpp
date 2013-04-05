@@ -1414,7 +1414,6 @@ oops2:
         }
         else if (Start_Flag && pmt_check && num_pmt_pids)
         {
-#if 1
             int read_size = 0;
             int parse_pmt = pat_parser.CheckPMTSection( tp.pid, Rdptr, Packet_Length, &read_size, check_num_pmt );
 
@@ -1439,9 +1438,6 @@ oops2:
                     }
                 }
             }
-#else
-            ThreadKill(MISC_KILL);
-#endif
         }
         // fallthrough case
         // skip remaining bytes in current packet
