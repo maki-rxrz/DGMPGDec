@@ -1234,8 +1234,6 @@ check_pmt_another_section:
 
 int PATParser::ParsePMTSection( void )
 {
-    int ret = 0;
-
     unsigned int ndx, section_length, pid;
     unsigned int descriptors_length, es_descriptors_length, type, encrypted;
 
@@ -1260,10 +1258,10 @@ int PATParser::ParsePMTSection( void )
         pid = (section[ndx++] & 0x1f) << 8;
         pid |= section[ndx++];
 
-        if (MPEG2_Transport_VideoPID == pid)
+        if (MPEG2_Transport_VideoPID == pid
+         || (MPEG2_Transport_AudioPID == pid && MPEG2_Transport_VideoPID == 2))
         {
-            ret = 1;
-            break;
+            return 1;
         }
 
         // Parse the ES descriptors if necessary.
@@ -1308,8 +1306,15 @@ int PATParser::ParsePMTSection( void )
                     type = 0x02;
                     if (MPEG2_Transport_VideoPID == pid)
                     {
-                        ret = 1;
-                        break;
+                        return 1;
+                    }
+                }
+                else if (hadAudio == 1)
+                {
+                    // "LPCM Audio";
+                    if (MPEG2_Transport_AudioPID == pid && MPEG2_Transport_VideoPID == 2)
+                    {
+                        return 1;
                     }
                 }
             }
@@ -1327,5 +1332,5 @@ int PATParser::ParsePMTSection( void )
 
     }
 
-    return ret;
+    return 0;
 }
