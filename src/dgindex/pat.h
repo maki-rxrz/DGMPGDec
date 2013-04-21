@@ -70,6 +70,7 @@ private:
 public:
     unsigned int GetNumPMTpids( void );
     void InitializePMTCheckItems(void);
+    int CheckPMTPid( int pkt_pid, int check_pmt_idx );
     int CheckPMTSection( int pkt_pid, unsigned char *pkt_ptr, unsigned int pkt_length, int check_pmt_idx );
 private:
     int ParsePMTSection( void );

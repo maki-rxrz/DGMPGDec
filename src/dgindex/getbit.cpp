@@ -1414,22 +1414,38 @@ oops2:
         }
         else if ((Start_Flag || process.locate == LOCATE_SCROLL) && pmt_check && num_pmt_pids)
         {
-            int parse_pmt = pat_parser.CheckPMTSection( tp.pid, Rdptr, Packet_Length, check_num_pmt );
-
-            if (parse_pmt > 0)
+            if (!pat_parser.CheckPMTPid(tp.pid, check_num_pmt))
             {
-                pat_parser.InitializePMTCheckItems();
-                if (parse_pmt == 1)
+                static unsigned char pmt_packet_payload[192];
+                int read_size = 0;
+                if (BUFFER_SIZE - (Rdptr - Rdbfr) < Packet_Length)
                 {
-                    pmt_check = false;
-                    check_num_pmt = 0;
+                    read_size = BUFFER_SIZE - (Rdptr - Rdbfr);
+                    memcpy(pmt_packet_payload, Rdptr, read_size);
+                    Rdptr += read_size;
+                    LOCATE
                 }
-                else
+                memcpy(&(pmt_packet_payload[read_size]), Rdptr, Packet_Length - read_size);
+                Rdptr += Packet_Length - read_size;
+                read_size = Packet_Length;
+                Packet_Length = 0;
+
+                int parse_pmt = pat_parser.CheckPMTSection(tp.pid, pmt_packet_payload, read_size, check_num_pmt);
+                if (parse_pmt > 0)
                 {
-                    check_num_pmt++;
-                    if (check_num_pmt >= num_pmt_pids)
+                    pat_parser.InitializePMTCheckItems();
+                    if (parse_pmt == 1)
                     {
-                        ThreadKill(MISC_KILL);
+                        pmt_check = false;
+                        check_num_pmt = 0;
+                    }
+                    else
+                    {
+                        check_num_pmt++;
+                        if (check_num_pmt >= num_pmt_pids)
+                        {
+                            ThreadKill(MISC_KILL);
+                        }
                     }
                 }
             }

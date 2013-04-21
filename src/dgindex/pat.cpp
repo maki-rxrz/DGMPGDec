@@ -1091,6 +1091,13 @@ void PATParser::InitializePMTCheckItems( void )
     check_section_ptr = NULL;
 }
 
+int PATParser::CheckPMTPid( int pkt_pid, int check_pmt_idx )
+{
+    if (pkt_pid != pmt_pids[check_pmt_idx])
+        return -1;
+    return 0;
+}
+
 int PATParser::CheckPMTSection( int pkt_pid, unsigned char *pkt_ptr, unsigned int pkt_length, int check_pmt_idx )
 {
     int ret = -1;
