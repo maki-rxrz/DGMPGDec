@@ -1414,13 +1414,8 @@ oops2:
         }
         else if ((Start_Flag || process.locate == LOCATE_SCROLL) && pmt_check && num_pmt_pids)
         {
-            int read_size = 0;
-            int parse_pmt = pat_parser.CheckPMTSection( tp.pid, Rdptr, Packet_Length, &read_size, check_num_pmt );
+            int parse_pmt = pat_parser.CheckPMTSection( tp.pid, Rdptr, Packet_Length, check_num_pmt );
 
-            if (parse_pmt >= 0)
-            {
-                Packet_Length -= read_size;
-            }
             if (parse_pmt > 0)
             {
                 pat_parser.InitializePMTCheckItems();

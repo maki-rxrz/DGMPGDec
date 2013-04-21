@@ -1091,7 +1091,7 @@ void PATParser::InitializePMTCheckItems( void )
     check_section_ptr = NULL;
 }
 
-int PATParser::CheckPMTSection( int pkt_pid, unsigned char *pkt_ptr, unsigned int pkt_length, int *read_size, int check_pmt_idx )
+int PATParser::CheckPMTSection( int pkt_pid, unsigned char *pkt_ptr, unsigned int pkt_length, int check_pmt_idx )
 {
     int ret = -1;
 
@@ -1102,7 +1102,6 @@ int PATParser::CheckPMTSection( int pkt_pid, unsigned char *pkt_ptr, unsigned in
 
     // Process the transport packets.
     ndx = 0;
-    (*read_size) = 0;
 
     if (check_section_ptr != NULL)
     {
@@ -1127,7 +1126,6 @@ int PATParser::CheckPMTSection( int pkt_pid, unsigned char *pkt_ptr, unsigned in
                 section_ptr += section_length;
 
                 // Parse the table.
-                (*read_size) += section_length;
                 if (ParsePMTSection() > 0)
                     return 1;
 
@@ -1158,7 +1156,6 @@ int PATParser::CheckPMTSection( int pkt_pid, unsigned char *pkt_ptr, unsigned in
 
                 check_pmt_selction_length = section_length;
                 check_section_ptr = section_ptr;
-                (*read_size) = pkt_length;
                 ret = 0;
             }
         }
@@ -1197,7 +1194,6 @@ check_pmt_another_section:
             section_ptr += section_length;
 
             // Parse the section.
-            (*read_size) += section_length;
             if (ParsePMTSection() > 0)
                 return 1;
 
@@ -1224,7 +1220,6 @@ check_pmt_another_section:
 
             check_pmt_selction_length = section_length;
             check_section_ptr = section_ptr;
-            (*read_size) = pkt_length;
             ret = 0;
         }
     }
