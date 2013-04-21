@@ -3960,6 +3960,7 @@ void Recovery()
     Luminance_Flag = false;
     CheckMenuItem(hMenu, IDM_LUMINANCE, MF_UNCHECKED);
 
+    Clip_Width = Clip_Height = 0;
     Clip_Left = Clip_Right = Clip_Top = Clip_Bottom = 0;
     Cropping_Flag = false;
     CheckMenuItem(hMenu, IDM_CROPPING, MF_UNCHECKED);
