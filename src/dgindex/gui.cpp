@@ -83,6 +83,26 @@ static void StartupEnables(void);
 static void FileLoadedEnables(void);
 static void RunningEnables(void);
 
+enum {
+    DIALOG_INFORMATION,
+    DIALOG_ABOUT,
+    DIALOG_FILE_LIST,
+    DIALOG_LUMINANCE,
+    DIALOG_NORMALIZE,
+    DIALOG_SET_PIDS,
+    DIALOG_AVS_TEMPLATE,
+    DIALOG_BITMAP_PATH,
+    DIALOG_CROPPING,
+    DIALOG_DETECT_PIDS,
+    DIALOG_SELECT_TRACKS,
+    DIALOG_DELAY_TRACK,
+    DIALOG_MARGIN,
+    DIALOG_MAX
+};
+static void LoadLanguageSettings(void);
+static void *LoadDialogLanguageSettings(HWND, int);
+static void DestroyDialogLanguageSettings(void *);
+
 static int INIT_X, INIT_Y, Priority_Flag, Edge_Width, Edge_Height;
 
 static FILE *INIFile;
@@ -393,6 +413,8 @@ NEW_VERSION:
 
     ResizeWindow(INIT_WIDTH, INIT_HEIGHT);
     MoveWindow(hWnd, INIT_X, INIT_Y, INIT_WIDTH+Edge_Width, INIT_HEIGHT+Edge_Height+TRACK_HEIGHT+TRACK_HEIGHT/3, true);
+
+    LoadLanguageSettings();
 
     MPEG2_Transport_VideoPID = 2;
     MPEG2_Transport_AudioPID = 2;
@@ -2399,6 +2421,7 @@ LRESULT CALLBACK SelectProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 LRESULT CALLBACK DetectPids(HWND hDialog, UINT message, WPARAM wParam, LPARAM lParam)
 {
     char msg[255];
+    static void *lang = NULL;
 
     switch (message)
     {
@@ -2422,6 +2445,7 @@ LRESULT CALLBACK DetectPids(HWND hDialog, UINT message, WPARAM wParam, LPARAM lP
                 sprintf(msg, "Could not find PAT/PMT tables!");
                 SendDlgItemMessage(hDialog, IDC_PID_LISTBOX, LB_ADDSTRING, 0, (LPARAM)msg);
             }
+            lang = LoadDialogLanguageSettings(hDialog, DIALOG_DETECT_PIDS);
             return true;
 
         case WM_COMMAND:
@@ -2469,6 +2493,7 @@ LRESULT CALLBACK DetectPids(HWND hDialog, UINT message, WPARAM wParam, LPARAM lP
                 case IDC_SET_DONE:
                 case IDCANCEL:
                     EndDialog(hDialog, 0);
+                    DestroyDialogLanguageSettings(lang);
             }
             return true;
     }
@@ -2481,6 +2506,7 @@ LRESULT CALLBACK VideoList(HWND hVideoListDlg, UINT message, WPARAM wParam, LPAR
     char updown[DG_MAX_PATH];
     char *name;
     int handle;
+    static void *lang = NULL;
 
     switch (message)
     {
@@ -2496,6 +2522,7 @@ LRESULT CALLBACK VideoList(HWND hVideoListDlg, UINT message, WPARAM wParam, LPAR
             if (NumLoadedFiles)
                 SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_SETCURSEL, NumLoadedFiles-1, 0);
 
+            lang = LoadDialogLanguageSettings(hVideoListDlg, DIALOG_FILE_LIST);
             return true;
 
         case WM_COMMAND:
@@ -2595,6 +2622,7 @@ LRESULT CALLBACK VideoList(HWND hVideoListDlg, UINT message, WPARAM wParam, LPAR
                 case IDOK:
                 case IDCANCEL:
                     EndDialog(hVideoListDlg, 0);
+                    DestroyDialogLanguageSettings(lang);
                     if (threadId)
                     {
                         Stop_Flag = true;
@@ -2882,9 +2910,11 @@ void ThreadKill(int mode)
 
 LRESULT CALLBACK Info(HWND hInfoDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    static void *lang = NULL;
     switch (message)
     {
         case WM_INITDIALOG:
+            lang = LoadDialogLanguageSettings(hInfoDlg, DIALOG_INFORMATION);
             return true;
 
         case WM_MOVE:
@@ -2974,6 +3004,7 @@ LRESULT CALLBACK Info(HWND hInfoDlg, UINT message, WPARAM wParam, LPARAM lParam)
                         fclose(lfp);
                     }
                 }
+                DestroyDialogLanguageSettings(lang);
             }
             break;
     }
@@ -2982,17 +3013,20 @@ LRESULT CALLBACK Info(HWND hInfoDlg, UINT message, WPARAM wParam, LPARAM lParam)
 
 LRESULT CALLBACK About(HWND hAboutDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    static void *lang = NULL;
     switch (message)
     {
         case WM_INITDIALOG:
             sprintf(szBuffer, "%s", Version);
             SetDlgItemText(hAboutDlg, IDC_VERSION, szBuffer);
+            lang = LoadDialogLanguageSettings(hAboutDlg, DIALOG_ABOUT);
             return true;
 
         case WM_COMMAND:
             if (LOWORD(wParam)==IDOK || LOWORD(wParam)==IDCANCEL)
             {
                 EndDialog(hAboutDlg, 0);
+                DestroyDialogLanguageSettings(lang);
                 return true;
             }
     }
@@ -3002,6 +3036,7 @@ LRESULT CALLBACK About(HWND hAboutDlg, UINT message, WPARAM wParam, LPARAM lPara
 LRESULT CALLBACK Cropping(HWND hDialog, UINT message, WPARAM wParam, LPARAM lParam)
 {
     int i;
+    static void *lang = NULL;
 
     switch (message)
     {
@@ -3025,6 +3060,7 @@ LRESULT CALLBACK Cropping(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPar
             SetDlgItemInt(hDialog, IDC_WIDTH, horizontal_size-Clip_Left-Clip_Right, 0);
             SetDlgItemInt(hDialog, IDC_HEIGHT, vertical_size-Clip_Top-Clip_Bottom, 0);
 
+            lang = LoadDialogLanguageSettings(hDialog, DIALOG_CROPPING);
             ShowWindow(hDialog, SW_SHOW);
 
             if (Cropping_Flag)
@@ -3052,6 +3088,7 @@ LRESULT CALLBACK Cropping(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPar
 
                 case IDCANCEL:
                     EndDialog(hDialog, 0);
+                    DestroyDialogLanguageSettings(lang);
                     return true;
             }
             break;
@@ -3109,6 +3146,7 @@ LRESULT CALLBACK Cropping(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPar
 
 LRESULT CALLBACK Luminance(HWND hDialog, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    static void *lang = NULL;
     switch (message)
     {
         case WM_INITDIALOG:
@@ -3122,6 +3160,7 @@ LRESULT CALLBACK Luminance(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPa
             sprintf(szTemp, "%d", LumOffset);
             SetDlgItemText(hDialog, IDC_OFFSET_BOX, szTemp);
 
+            lang = LoadDialogLanguageSettings(hDialog, DIALOG_LUMINANCE);
             ShowWindow(hDialog, SW_SHOW);
 
             if (Luminance_Flag)
@@ -3148,6 +3187,7 @@ LRESULT CALLBACK Luminance(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPa
 
                 case IDCANCEL:
                     EndDialog(hDialog, 0);
+                    DestroyDialogLanguageSettings(lang);
                     return true;
             }
             break;
@@ -3175,11 +3215,13 @@ LRESULT CALLBACK Luminance(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPa
 
 LRESULT CALLBACK AVSTemplate(HWND hDialog, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    static void *lang = NULL;
     switch (message)
     {
         case WM_INITDIALOG:
             sprintf(szTemp, "%s", AVSTemplatePath);
             SetDlgItemText(hDialog, IDC_AVS_TEMPLATE, szTemp);
+            lang = LoadDialogLanguageSettings(hDialog, DIALOG_AVS_TEMPLATE);
             ShowWindow(hDialog, SW_SHOW);
             return true;
 
@@ -3192,6 +3234,7 @@ LRESULT CALLBACK AVSTemplate(HWND hDialog, UINT message, WPARAM wParam, LPARAM l
                     SetDlgItemText(hDialog, IDC_AVS_TEMPLATE, szTemp);
                     ShowWindow(hDialog, SW_SHOW);
                     EndDialog(hDialog, 0);
+                    DestroyDialogLanguageSettings(lang);
                     return true;
                 case IDC_CHANGE_TEMPLATE:
                     if (PopFileDlg(AVSTemplatePath, hWnd, OPEN_AVS))
@@ -3207,10 +3250,12 @@ LRESULT CALLBACK AVSTemplate(HWND hDialog, UINT message, WPARAM wParam, LPARAM l
                     }
                     ShowWindow(hDialog, SW_SHOW);
                     EndDialog(hDialog, 0);
+                    DestroyDialogLanguageSettings(lang);
                     return true;
                 case IDC_KEEP_TEMPLATE:
                 case IDCANCEL:
                     EndDialog(hDialog, 0);
+                    DestroyDialogLanguageSettings(lang);
                     return true;
             }
             break;
@@ -3220,11 +3265,13 @@ LRESULT CALLBACK AVSTemplate(HWND hDialog, UINT message, WPARAM wParam, LPARAM l
 
 LRESULT CALLBACK BMPPath(HWND hDialog, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    static void *lang = NULL;
     switch (message)
     {
         case WM_INITDIALOG:
             sprintf(szTemp, "%s", BMPPathString);
             SetDlgItemText(hDialog, IDC_BMP_PATH, szTemp);
+            lang = LoadDialogLanguageSettings(hDialog, DIALOG_BITMAP_PATH);
             ShowWindow(hDialog, SW_SHOW);
             return true;
 
@@ -3235,10 +3282,12 @@ LRESULT CALLBACK BMPPath(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPara
                     GetDlgItemText(hDialog, IDC_BMP_PATH, BMPPathString, DG_MAX_PATH - 1);
                     ShowWindow(hDialog, SW_SHOW);
                     EndDialog(hDialog, 0);
+                    DestroyDialogLanguageSettings(lang);
                     return true;
                 case IDC_BMP_PATH_CANCEL:
                 case IDCANCEL:
                     EndDialog(hDialog, 0);
+                    DestroyDialogLanguageSettings(lang);
                     return true;
             }
             break;
@@ -3249,6 +3298,7 @@ LRESULT CALLBACK BMPPath(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPara
 LRESULT CALLBACK SetPids(HWND hDialog, UINT message, WPARAM wParam, LPARAM lParam)
 {
     char buf[80];
+    static void *lang = NULL;
 
     switch (message)
     {
@@ -3259,6 +3309,7 @@ LRESULT CALLBACK SetPids(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPara
             SetDlgItemText(hDialog, IDC_AUDIO_PID, szTemp);
             sprintf(szTemp, "%x", MPEG2_Transport_PCRPID);
             SetDlgItemText(hDialog, IDC_PCR_PID, szTemp);
+            lang = LoadDialogLanguageSettings(hDialog, DIALOG_SET_PIDS);
             ShowWindow(hDialog, SW_SHOW);
             return true;
 
@@ -3273,6 +3324,7 @@ LRESULT CALLBACK SetPids(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPara
                     GetDlgItemText(hDialog, IDC_PCR_PID, buf, 10);
                     sscanf(buf, "%x", &MPEG2_Transport_PCRPID);
                     EndDialog(hDialog, 0);
+                    DestroyDialogLanguageSettings(lang);
                     Recovery();
                     if (NumLoadedFiles)
                     {
@@ -3294,6 +3346,7 @@ LRESULT CALLBACK SetPids(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPara
                 case IDCANCEL:
                 case IDC_PIDS_CANCEL:
                     EndDialog(hDialog, 0);
+                    DestroyDialogLanguageSettings(lang);
                     return true;
             }
             break;
@@ -3304,12 +3357,14 @@ LRESULT CALLBACK SetPids(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPara
 LRESULT CALLBACK SetMargin(HWND hDialog, UINT message, WPARAM wParam, LPARAM lParam)
 {
     char buf[80];
+    static void *lang = NULL;
 
     switch (message)
     {
         case WM_INITDIALOG:
             sprintf(szTemp, "%d", TsParseMargin);
             SetDlgItemText(hDialog, IDC_MARGIN, szTemp);
+            lang = LoadDialogLanguageSettings(hDialog, DIALOG_MARGIN);
             ShowWindow(hDialog, SW_SHOW);
             return true;
 
@@ -3320,6 +3375,7 @@ LRESULT CALLBACK SetMargin(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPa
                     GetDlgItemText(hDialog, IDC_MARGIN, buf, 10);
                     sscanf(buf, "%d", &TsParseMargin);
                     EndDialog(hDialog, 0);
+                    DestroyDialogLanguageSettings(lang);
                     Recovery();
                     MPEG2_Transport_VideoPID = MPEG2_Transport_AudioPID = MPEG2_Transport_PCRPID = 0x02;
                     if (NumLoadedFiles)
@@ -3342,6 +3398,7 @@ LRESULT CALLBACK SetMargin(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPa
                 case IDCANCEL:
                 case IDC_MARGIN_CANCEL:
                     EndDialog(hDialog, 0);
+                    DestroyDialogLanguageSettings(lang);
                     return true;
             }
             break;
@@ -3351,6 +3408,7 @@ LRESULT CALLBACK SetMargin(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPa
 
 LRESULT CALLBACK Normalization(HWND hDialog, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    static void *lang = NULL;
     switch (message)
     {
         case WM_INITDIALOG:
@@ -3360,6 +3418,7 @@ LRESULT CALLBACK Normalization(HWND hDialog, UINT message, WPARAM wParam, LPARAM
             sprintf(szTemp, "%d", Norm_Ratio);
             SetDlgItemText(hDialog, IDC_NORM, szTemp);
 
+            lang = LoadDialogLanguageSettings(hDialog, DIALOG_NORMALIZE);
             ShowWindow(hDialog, SW_SHOW);
 
             if (Norm_Flag)
@@ -3384,6 +3443,7 @@ LRESULT CALLBACK Normalization(HWND hDialog, UINT message, WPARAM wParam, LPARAM
 
                 case IDCANCEL:
                     EndDialog(hDialog, 0);
+                    DestroyDialogLanguageSettings(lang);
                     return true;
             }
             break;
@@ -3406,6 +3466,7 @@ LRESULT CALLBACK SelectTracks(HWND hDialog, UINT message, WPARAM wParam, LPARAM 
     static char track_list[255];
     char *p;
     unsigned int audio_id;
+    static void *lang = NULL;
 
     switch (message)
     {
@@ -3426,6 +3487,7 @@ LRESULT CALLBACK SelectTracks(HWND hDialog, UINT message, WPARAM wParam, LPARAM 
                     break;
                 p++;
             }
+            lang = LoadDialogLanguageSettings(hDialog, DIALOG_SELECT_TRACKS);
             ShowWindow(hDialog, SW_SHOW);
 
             return true;
@@ -3456,10 +3518,12 @@ LRESULT CALLBACK SelectTracks(HWND hDialog, UINT message, WPARAM wParam, LPARAM 
                         PreScale_Ratio = 1.0;
                     }
                     EndDialog(hDialog, 0);
+                    DestroyDialogLanguageSettings(lang);
                     return false;
                 case IDCANCEL:
                 case IDC_TRACK_CANCEL:
                     EndDialog(hDialog, 0);
+                    DestroyDialogLanguageSettings(lang);
                     return true;
             }
             break;
@@ -3472,12 +3536,14 @@ LRESULT CALLBACK SelectDelayTrack(HWND hDialog, UINT message, WPARAM wParam, LPA
     static char delay_track[255];
     char *p;
     unsigned char audio_id;
+    static void *lang = NULL;
 
     switch (message)
     {
         case WM_INITDIALOG:
             SetDlgItemText(hDialog, IDC_DELAY_LIST, Delay_Track);
             strcpy(delay_track, Delay_Track);
+            lang = LoadDialogLanguageSettings(hDialog, DIALOG_DELAY_TRACK);
             ShowWindow(hDialog, SW_SHOW);
             return true;
 
@@ -3497,10 +3563,12 @@ LRESULT CALLBACK SelectDelayTrack(HWND hDialog, UINT message, WPARAM wParam, LPA
                         }
                     }
                     EndDialog(hDialog, 0);
+                    DestroyDialogLanguageSettings(lang);
                     return false;
                 case IDCANCEL:
                 case IDC_DELAY_CANCEL:
                     EndDialog(hDialog, 0);
+                    DestroyDialogLanguageSettings(lang);
                     return true;
             }
             break;
@@ -4516,4 +4584,215 @@ void UpdateMRUList(void)
     }
 
     DrawMenuBar((HWND)hWnd);
+}
+
+static void LoadLanguageSettings(void)
+{
+    char ini[DG_MAX_PATH];
+    strcpy(ini, ExePath);
+    strcat(ini, "DGIndex.lang.ini");
+
+    FILE* lang_ini = fopen(ini, "r");
+    if (lang_ini == NULL)
+        return;
+
+    char lang_string[255];
+    MENUITEMINFO lpmii;
+    lpmii.cbSize     = sizeof(lpmii);
+    lpmii.fMask      = MIIM_TYPE;
+    lpmii.fType      = MFT_STRING;
+    lpmii.fState     = MFS_DEFAULT;
+    lpmii.dwTypeData = lang_string;
+
+    // Parse language settings.
+    HMENU menu = NULL;
+    while (fgets(lang_string, 255, lang_ini))
+    {
+        if (lang_string[0] == '[')
+        {
+            char *c = strstr(lang_string, "]");
+            if (c)
+                *c = '\0';
+            char *menu_name = &lang_string[1];
+            if (strcmp(menu_name, "MainMenu") == 0)
+                menu = hMenu;
+            else if (strncmp(menu_name, "SubMenu", 7) == 0)
+            {
+                int no1, no2, no3;
+                int num = sscanf(menu_name, "SubMenu%d-%d-%d", &no1, &no2, &no3);
+                if (num == 3)
+                {
+                    menu = GetSubMenu(hMenu, no1);
+                    menu = GetSubMenu(menu, no2);
+                    menu = GetSubMenu(menu, no3);
+                }
+                else if (num == 2)
+                {
+                    menu = GetSubMenu(hMenu, no1);
+                    menu = GetSubMenu(menu, no2);
+                }
+                else if (num == 1)
+                    menu = GetSubMenu(hMenu, no1);
+                else
+                    menu = NULL;
+            }
+            else if (menu != NULL)
+                break;
+            continue;
+        }
+        else if (menu == NULL)
+            continue;
+        int item_no = -1;
+        if (sscanf(lang_string, "%d=%[^\n]", &item_no, lang_string) == 2)
+            SetMenuItemInfo(menu, item_no, TRUE, &lpmii);
+    }
+
+    fclose(lang_ini);
+}
+
+typedef struct {
+    DWORD   fSize;
+    HFONT   hFont;
+} lang_settings_t;
+
+static void *LoadDialogLanguageSettings(HWND hInfoDlg, int dialog_id)
+{
+    char ini[DG_MAX_PATH];
+    strcpy(ini, ExePath);
+    strcat(ini, "DGIndex.lang.ini");
+
+    FILE* lang_ini = fopen(ini, "r");
+    if (lang_ini == NULL)
+        return NULL;
+
+    lang_settings_t *lang = (lang_settings_t *)(malloc(sizeof(lang_settings_t)));
+    if (lang == NULL)
+        return NULL;
+    lang->fSize = 10;
+    lang->hFont = NULL;
+
+    static const DWORD res_information[]   = { 0 };
+    static const DWORD res_about[]         = { IDOK, IDC_STATIC_ABOUT, IDC_STATIC_THANK };
+    static const DWORD res_file_list[]     = { ID_ADD, ID_UP, ID_DOWN, ID_DEL, ID_DELALL, IDOK };
+    static const DWORD res_luminance[]     = { IDC_LUM_CHECK, IDC_STATIC_OFFSET, IDC_STATIC_GAMMA };
+    static const DWORD res_normalize[]     = { IDC_NORM_CHECK, IDC_STATIC_VOLUME };
+    static const DWORD res_set_pids[]      = { IDC_PIDS_OK, IDC_PIDS_CANCEL, IDC_STATIC_VIDEO_PID, IDC_STATIC_AUDIO_PID, IDC_STATIC_PCR_PID, IDC_STATIC_SET_PIDS };
+    static const DWORD res_avs_template[]  = { IDC_NO_TEMPLATE, IDC_CHANGE_TEMPLATE, IDC_KEEP_TEMPLATE, IDC_STATIC_AVS_TEMPLATE };
+    static const DWORD res_bitmap_path[]   = { IDC_BMP_PATH_OK, IDC_BMP_PATH_CANCEL, IDC_STATIC_BMP_PATH };
+    static const DWORD res_cropping[]      = { IDC_CROPPING_CHECK, IDC_STATIC_FLEFT, IDC_STATIC_FRIGHT, IDC_STATIC_FTOP, IDC_STATIC_FBOTTOM, IDC_FWIDTH, IDC_FHEIGHT };
+    static const DWORD res_detect_pids[]   = { IDC_SET_VIDEO, IDC_SET_AUDIO, IDC_SET_PCR, IDC_SET_DONE, IDC_STATIC_DETECT_PIDS };
+    static const DWORD res_select_tracks[] = { IDC_TRACK_OK, IDC_TRACK_CANCEL, IDC_STATIC_SELECT_TRACKS, IDC_TRACK_LIST };
+    static const DWORD res_delay_track[]   = { IDC_DELAY_OK, IDC_DELAY_CANCEL, IDC_STATIC_SELECT_DELAY_TRACK, IDC_DELAY_LIST };
+    static const DWORD res_margin[]        = { IDC_MARGIN_OK, IDC_MARGIN_CANCEL, IDC_STATIC_SET_MARGIN, IDC_STATIC_MSEC, IDC_MARGIN };
+    static const DWORD *res_ids[DIALOG_MAX] = {
+        res_information, res_about, res_file_list, res_luminance, res_normalize, res_set_pids,
+        res_avs_template, res_bitmap_path, res_cropping, res_detect_pids, res_select_tracks, res_delay_track,
+        res_margin
+    };
+#define GET_NUMS(a)  (sizeof(a)/sizeof(a[0]))
+    static const int ids_nums[DIALOG_MAX] = {
+        //GET_NUMS(res_information),
+        0,
+        GET_NUMS(res_about), GET_NUMS(res_file_list), GET_NUMS(res_luminance),
+        GET_NUMS(res_normalize), GET_NUMS(res_set_pids), GET_NUMS(res_avs_template), GET_NUMS(res_bitmap_path),
+        GET_NUMS(res_cropping), GET_NUMS(res_detect_pids), GET_NUMS(res_select_tracks), GET_NUMS(res_delay_track),
+        GET_NUMS(res_margin)
+    };
+#undef GET_NUMS
+    static const DWORD res_information_txts[]   = { 0 };
+    static const DWORD res_about_txts[]         = { IDOK, IDC_STATIC_ABOUT, IDC_STATIC_THANK, IDC_VERSION, 0 };
+    static const DWORD res_file_list_txts[]     = { ID_ADD, ID_UP, ID_DOWN, ID_DEL, ID_DELALL, IDOK, IDC_LIST, 0 };
+    static const DWORD res_luminance_txts[]     = { IDC_LUM_CHECK, IDC_STATIC_OFFSET, IDC_STATIC_GAMMA, IDC_GAMMA_BOX, IDC_OFFSET_BOX, 0 };
+    static const DWORD res_normalize_txts[]     = { IDC_NORM_CHECK, IDC_STATIC_VOLUME, IDC_NORM, 0 };
+    static const DWORD res_set_pids_txts[]      = { IDC_PIDS_OK, IDC_PIDS_CANCEL, IDC_STATIC_VIDEO_PID, IDC_STATIC_AUDIO_PID, IDC_STATIC_PCR_PID, IDC_STATIC_SET_PIDS,
+                                                    IDC_VIDEO_PID, IDC_AUDIO_PID, IDC_PCR_PID, 0 };
+    static const DWORD res_avs_template_txts[]  = { IDC_NO_TEMPLATE, IDC_CHANGE_TEMPLATE, IDC_KEEP_TEMPLATE, IDC_STATIC_AVS_TEMPLATE, IDC_AVS_TEMPLATE, 0 };
+    static const DWORD res_bitmap_path_txts[]   = { IDC_BMP_PATH_OK, IDC_BMP_PATH_CANCEL, IDC_STATIC_BMP_PATH, IDC_BMP_PATH, 0 };
+    static const DWORD res_cropping_txts[]      = { IDC_CROPPING_CHECK, IDC_STATIC_FLEFT, IDC_STATIC_FRIGHT, IDC_STATIC_FTOP, IDC_STATIC_FBOTTOM, IDC_FWIDTH, IDC_FHEIGHT,
+                                                    IDC_WIDTH, IDC_HEIGHT, IDC_LEFT, IDC_RIGHT, IDC_TOP, IDC_BOTTOM, 0 };
+    static const DWORD res_detect_pids_txts[]   = { IDC_SET_VIDEO, IDC_SET_AUDIO, IDC_SET_PCR, IDC_SET_DONE, IDC_STATIC_DETECT_PIDS, IDC_PID_LISTBOX, 0 };
+    static const DWORD res_select_tracks_txts[] = { IDC_TRACK_OK, IDC_TRACK_CANCEL, IDC_STATIC_SELECT_TRACKS, IDC_TRACK_LIST, IDC_TRACK_LIST, 0 };
+    static const DWORD res_delay_track_txts[]   = { IDC_DELAY_OK, IDC_DELAY_CANCEL, IDC_STATIC_SELECT_DELAY_TRACK, IDC_DELAY_LIST, IDC_DELAY_LIST, 0 };
+    static const DWORD res_margin_txts[]        = { IDC_MARGIN_OK, IDC_MARGIN_CANCEL, IDC_STATIC_SET_MARGIN, IDC_STATIC_MSEC, IDC_MARGIN, IDC_MARGIN, 0 };
+    static const DWORD *res_txts[DIALOG_MAX] = {
+        res_information_txts, res_about_txts, res_file_list_txts, res_luminance_txts, res_normalize_txts,
+        res_set_pids_txts, res_avs_template_txts, res_bitmap_path_txts, res_cropping_txts, res_detect_pids_txts,
+        res_select_tracks_txts, res_delay_track_txts, res_margin_txts
+    };
+
+    const int ids_max = ids_nums[dialog_id];
+    const DWORD *ids  = res_ids[dialog_id];
+    const DWORD *txts = res_txts[dialog_id];
+
+    // Parse language settings.
+    char lang_string[255];
+    HWND dialog = NULL;
+    while (fgets(lang_string, 255, lang_ini))
+    {
+        if (lang_string[0] == '[')
+        {
+            char *c = strstr(lang_string, "]");
+            if (c)
+                *c = '\0';
+            char *dlg_name = &lang_string[1];
+            if (strncmp(dlg_name, "Dialog", 6) == 0)
+            {
+                if (dialog != NULL)
+                    break;
+                int no;
+                if (sscanf(dlg_name, "Dialog%d", &no) == 1)
+                {
+                    if (no == dialog_id)
+                        dialog = hInfoDlg;
+                }
+            }
+            continue;
+        }
+        else if (dialog == NULL)
+            continue;
+        int item_no = -1;
+        int nums = sscanf(lang_string, "%d=%[^\n]", &item_no, lang_string);
+        if (nums == 0)
+        {
+            // Check the Caption & Font settings.
+            if (sscanf(lang_string, "caption=%[^\n]", lang_string) == 1)
+                SetWindowText(dialog, lang_string);
+            else if (sscanf(lang_string, "font_size=%[^\n]", lang_string) == 1)
+                lang->fSize = atoi(lang_string);
+            else if (sscanf(lang_string, "font_name=%[^\n]", lang_string) == 1)
+            {
+                if (lang->hFont != NULL)
+                    DeleteObject(lang->hFont);
+                lang->hFont = CreateFont(-MulDiv(lang->fSize, GetDeviceCaps(hDC, LOGPIXELSY), 72),
+                                0, 0, 0, 0, FW_DONTCARE, FALSE, FALSE,
+                                DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+                                DEFAULT_QUALITY, (DEFAULT_PITCH | FF_DONTCARE), lang_string);
+                for( int i = 0; txts[i] != 0; i++ )
+                    SendMessage(GetDlgItem(dialog, txts[i]), WM_SETFONT, (WPARAM)lang->hFont, MAKELPARAM(TRUE, 0));
+            }
+            continue;
+        }
+        if (item_no < 0 || ids_max <= item_no)
+            continue;
+        DWORD id = ids[item_no];
+        if (id != 0 && nums == 2)
+        {
+            // Apply the user-specified settings.
+            SetDlgItemText(dialog, id, lang_string);
+        }
+    }
+
+    fclose(lang_ini);
+    return lang;
+}
+
+static void DestroyDialogLanguageSettings(void *lh)
+{
+    if (lh == NULL)
+        return;
+    lang_settings_t *lang = (lang_settings_t*)lh;
+
+    if (lang->hFont)
+        DeleteObject(lang->hFont);
+    free(lang);
 }

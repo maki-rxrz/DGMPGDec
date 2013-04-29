@@ -116,6 +116,26 @@
 #define IDC_MARGIN                      1100
 #define IDC_MARGIN_OK                   1101
 #define IDC_MARGIN_CANCEL               1102
+#define IDC_STATIC_ABOUT                1103
+#define IDC_STATIC_THANK                1104
+#define IDC_STATIC_OFFSET               1105
+#define IDC_STATIC_GAMMA                1106
+#define IDC_STATIC_VOLUME               1107
+#define IDC_STATIC_VIDEO_PID            1108
+#define IDC_STATIC_AUDIO_PID            1109
+#define IDC_STATIC_PCR_PID              1110
+#define IDC_STATIC_SET_PIDS             1111
+#define IDC_STATIC_AVS_TEMPLATE         1112
+#define IDC_STATIC_BMP_PATH             1113
+#define IDC_STATIC_FLEFT                1114
+#define IDC_STATIC_FRIGHT               1115
+#define IDC_STATIC_FTOP                 1116
+#define IDC_STATIC_FBOTTOM              1117
+#define IDC_STATIC_DETECT_PIDS          1118
+#define IDC_STATIC_SELECT_TRACKS        1119
+#define IDC_STATIC_SELECT_DELAY_TRACK   1120
+#define IDC_STATIC_SET_MARGIN           1121
+#define IDC_STATIC_MSEC                 1122
 #define IDM_ABOUT                       32769
 #define IDM_EXIT                        32770
 #define IDM_OPEN                        32771
@@ -240,7 +260,7 @@
 #define _APS_NO_MFC                     1
 #define _APS_NEXT_RESOURCE_VALUE        28
 #define _APS_NEXT_COMMAND_VALUE         32889
-#define _APS_NEXT_CONTROL_VALUE         1103
+#define _APS_NEXT_CONTROL_VALUE         1123
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
