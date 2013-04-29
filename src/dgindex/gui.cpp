@@ -2445,6 +2445,24 @@ LRESULT CALLBACK DetectPids(HWND hDialog, UINT message, WPARAM wParam, LPARAM lP
                 sprintf(msg, "Could not find PAT/PMT tables!");
                 SendDlgItemMessage(hDialog, IDC_PID_LISTBOX, LB_ADDSTRING, 0, (LPARAM)msg);
             }
+            {
+                char pid_string[16];
+                if (MPEG2_Transport_VideoPID != 2)
+                {
+                    sprintf(pid_string, "0x%X", MPEG2_Transport_VideoPID);
+                    SetDlgItemText(hDialog, IDC_SELECT_VIDEO_PID, pid_string);
+                }
+                if (MPEG2_Transport_AudioPID != 2)
+                {
+                    sprintf(pid_string, "0x%X", MPEG2_Transport_AudioPID);
+                    SetDlgItemText(hDialog, IDC_SELECT_AUDIO_PID, pid_string);
+                }
+                if (MPEG2_Transport_PCRPID != 2)
+                {
+                    sprintf(pid_string, "0x%X", MPEG2_Transport_PCRPID);
+                    SetDlgItemText(hDialog, IDC_SELECT_PCR_PID, pid_string);
+                }
+            }
             lang = LoadDialogLanguageSettings(hDialog, DIALOG_DETECT_PIDS);
             return true;
 
@@ -2463,12 +2481,38 @@ LRESULT CALLBACK DetectPids(HWND hDialog, UINT message, WPARAM wParam, LPARAM lP
                         SendDlgItemMessage(hDialog, IDC_PID_LISTBOX, (UINT) LB_GETTEXT, item, (LPARAM) text);
                         if ((ptr = strstr(text, "0x")) != NULL)
                         {
+                            int id = -1;
+                            int pid = 2;
                             if (LOWORD(wParam) == IDC_SET_AUDIO)
-                                sscanf(ptr, "%x", &MPEG2_Transport_AudioPID);
+                            {
+                                if (sscanf(ptr, "%x", &MPEG2_Transport_AudioPID) == 1)
+                                {
+                                    pid = MPEG2_Transport_AudioPID;
+                                    id  = IDC_SELECT_AUDIO_PID;
+                                }
+                            }
                             else if (LOWORD(wParam) == IDC_SET_VIDEO)
-                                sscanf(ptr, "%x", &MPEG2_Transport_VideoPID);
+                            {
+                                if (sscanf(ptr, "%x", &MPEG2_Transport_VideoPID) == 1)
+                                {
+                                    pid = MPEG2_Transport_VideoPID;
+                                    id  = IDC_SELECT_VIDEO_PID;
+                                }
+                            }
                             else
-                                sscanf(ptr, "%x", &MPEG2_Transport_PCRPID);
+                            {
+                                if (sscanf(ptr, "%x", &MPEG2_Transport_PCRPID) == 1)
+                                {
+                                    pid = MPEG2_Transport_PCRPID;
+                                    id  = IDC_SELECT_PCR_PID;
+                                }
+                            }
+                            if (pid != 2)
+                            {
+                                char pid_string[16];
+                                sprintf(pid_string, "0x%X", pid);
+                                SetDlgItemText(hDialog, id, pid_string);
+                            }
                         }
                     }
                     if (LOWORD(wParam) == IDC_SET_AUDIO || LOWORD(wParam) == IDC_SET_PCR) break;
@@ -4710,7 +4754,8 @@ static void *LoadDialogLanguageSettings(HWND hInfoDlg, int dialog_id)
     static const DWORD res_bitmap_path_txts[]   = { IDC_BMP_PATH_OK, IDC_BMP_PATH_CANCEL, IDC_STATIC_BMP_PATH, IDC_BMP_PATH, 0 };
     static const DWORD res_cropping_txts[]      = { IDC_CROPPING_CHECK, IDC_STATIC_FLEFT, IDC_STATIC_FRIGHT, IDC_STATIC_FTOP, IDC_STATIC_FBOTTOM, IDC_FWIDTH, IDC_FHEIGHT,
                                                     IDC_WIDTH, IDC_HEIGHT, IDC_LEFT, IDC_RIGHT, IDC_TOP, IDC_BOTTOM, 0 };
-    static const DWORD res_detect_pids_txts[]   = { IDC_SET_VIDEO, IDC_SET_AUDIO, IDC_SET_PCR, IDC_SET_DONE, IDC_STATIC_DETECT_PIDS, IDC_PID_LISTBOX, 0 };
+    static const DWORD res_detect_pids_txts[]   = { IDC_SET_VIDEO, IDC_SET_AUDIO, IDC_SET_PCR, IDC_SET_DONE, IDC_STATIC_DETECT_PIDS,
+                                                    IDC_PID_LISTBOX, IDC_SELECT_VIDEO_PID, IDC_SELECT_AUDIO_PID, IDC_SELECT_PCR_PID, 0 };
     static const DWORD res_select_tracks_txts[] = { IDC_TRACK_OK, IDC_TRACK_CANCEL, IDC_STATIC_SELECT_TRACKS, IDC_TRACK_LIST, IDC_TRACK_LIST, 0 };
     static const DWORD res_delay_track_txts[]   = { IDC_DELAY_OK, IDC_DELAY_CANCEL, IDC_STATIC_SELECT_DELAY_TRACK, IDC_DELAY_LIST, IDC_DELAY_LIST, 0 };
     static const DWORD res_margin_txts[]        = { IDC_MARGIN_OK, IDC_MARGIN_CANCEL, IDC_STATIC_SET_MARGIN, IDC_STATIC_MSEC, IDC_MARGIN, IDC_MARGIN, 0 };

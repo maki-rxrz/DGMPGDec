@@ -136,6 +136,9 @@
 #define IDC_STATIC_SELECT_DELAY_TRACK   1120
 #define IDC_STATIC_SET_MARGIN           1121
 #define IDC_STATIC_MSEC                 1122
+#define IDC_SELECT_VIDEO_PID            1123
+#define IDC_SELECT_AUDIO_PID            1124
+#define IDC_SELECT_PCR_PID              1125
 #define IDM_ABOUT                       32769
 #define IDM_EXIT                        32770
 #define IDM_OPEN                        32771
@@ -260,7 +263,7 @@
 #define _APS_NO_MFC                     1
 #define _APS_NEXT_RESOURCE_VALUE        28
 #define _APS_NEXT_COMMAND_VALUE         32889
-#define _APS_NEXT_CONTROL_VALUE         1123
+#define _APS_NEXT_CONTROL_VALUE         1126
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
