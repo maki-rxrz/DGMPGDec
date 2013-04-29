@@ -3499,7 +3499,7 @@ LRESULT CALLBACK SelectDelayTrack(HWND hDialog, UINT message, WPARAM wParam, LPA
                     EndDialog(hDialog, 0);
                     return false;
                 case IDCANCEL:
-                case IDC_TRACK_CANCEL:
+                case IDC_DELAY_CANCEL:
                     EndDialog(hDialog, 0);
                     return true;
             }

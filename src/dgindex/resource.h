@@ -111,10 +111,11 @@
 #define IDC_DISPLAY_SIZE                1095
 #define IDC_DELAY_LIST                  1096
 #define IDC_DELAY_OK                    1097
-#define IDC_SEQUENCE                    1098
-#define IDC_MARGIN                      1099
-#define IDC_MARGIN_OK                   1100
-#define IDC_MARGIN_CANCEL               1101
+#define IDC_DELAY_CANCEL                1098
+#define IDC_SEQUENCE                    1099
+#define IDC_MARGIN                      1100
+#define IDC_MARGIN_OK                   1101
+#define IDC_MARGIN_CANCEL               1102
 #define IDM_ABOUT                       32769
 #define IDM_EXIT                        32770
 #define IDM_OPEN                        32771
@@ -239,7 +240,7 @@
 #define _APS_NO_MFC                     1
 #define _APS_NEXT_RESOURCE_VALUE        28
 #define _APS_NEXT_COMMAND_VALUE         32889
-#define _APS_NEXT_CONTROL_VALUE         1102
+#define _APS_NEXT_CONTROL_VALUE         1103
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

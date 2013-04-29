@@ -311,7 +311,7 @@ FONT 10, "System"
 BEGIN
     EDITTEXT        IDC_DELAY_LIST,7,23,34,15,ES_AUTOHSCROLL
     PUSHBUTTON      "OK",IDC_DELAY_OK,7,54,50,14
-    PUSHBUTTON      "Cancel",IDC_TRACK_CANCEL,63,54,50,14
+    PUSHBUTTON      "Cancel",IDC_DELAY_CANCEL,63,54,50,14
     LTEXT           "Enter audio id to analyze in hex without the leading 0x",
                     IDC_STATIC,7,2,202,16,SS_CENTERIMAGE
 END
