@@ -10,7 +10,6 @@
 *.bak
 *.orig
 *.rej
-config.*
 *.aps
 *.suo
 *.ncb

@@ -30,7 +30,13 @@
 #define GLOBAL
 #include "global.h"
 
+#include "..\config.h"
+
+#ifndef DGMPGDEC_GIT_VERSION
 static char Version[] = "DGIndex 1.5.8";
+#else
+static char Version[] = "DGIndex " DGMPGDEC_GIT_VERSION;
+#endif
 
 #define TRACK_HEIGHT    32
 #define INIT_WIDTH      480
