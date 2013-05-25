@@ -16,5 +16,10 @@
 *.user
 *.sdf
 *.opensdf
+*.vcproj.*.user
+*.vcxproj.user
 *.obj
 *.res
+*.exp
+*.ilk
+*.pdb
