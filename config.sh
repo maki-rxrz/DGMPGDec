@@ -22,7 +22,7 @@ else
   if [ -d ".git" ] && [ -n "`git tag`" ]; then
     version="`git describe --tags`"
     echo "$version"
-    echo "#define DGMPGDEC_GIT_VERSION    \"$verision\"" > "$config_h"
+    echo "#define DGMPGDEC_GIT_VERSION    \"$version\"" > "$config_h"
   else
     echo "#undef DGMPGDEC_GIT_VERSION" > "$config_h"
   fi
