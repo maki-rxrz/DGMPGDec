@@ -1,6 +1,7 @@
 //Microsoft Developer Studio generated resource script.
 //
 #include "resource.h"
+#include "..\config.h"
 
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
@@ -536,7 +537,11 @@ BEGIN
         BEGIN
             VALUE "Comments", "DGIndex is the indexing component of DGMPGDec, an MPEG decoding and frame serving utility.\0"
             VALUE "CompanyName", "Freeware licensed under GPL\0"
+#ifdef DGMPGDEC_GIT_VERSION
+            VALUE "FileVersion", DGMPGDEC_GIT_VERSION "\0"
+#else
             VALUE "FileVersion", "1.5.8\0"
+#endif
             VALUE "LegalCopyright", "Copyright (C) 2001-2010 Donald A. Graft\0"
             VALUE "OriginalFilename", "DGIndex.exe\0"
         END
