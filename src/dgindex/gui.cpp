@@ -234,9 +234,15 @@ NEW_VERSION:
 
         fgets(line, DG_MAX_PATH - 1, INIFile);
         line[strlen(line)-1] = 0;
-        p = line;
-        while (*p != '=' && *p != 0) p++;
-        if (*p == 0 || strcmp(++p, Version))
+//#ifdef DGMPGDEC_GIT_VERSION
+        p = strstr(line, "-");
+        if (p)
+            *p = 0;
+//#endif
+        p = strstr(line, "=");
+        if (p)
+            ++p;
+        if (!p || *p == 0 || strncmp(p, Version, strlen(p)))
         {
             fclose(INIFile);
             goto NEW_VERSION;
