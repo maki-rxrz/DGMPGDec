@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 9.00
 # Visual C++ Express 2005
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DGDecode", "DGDecode\DGDecode.vcproj", "{2F24CC02-BF57-4C06-B0AF-75E619338513}"
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DGIndex", "DGIndex\DGIndex.vcproj", "{EFD292D9-7C5E-42D4-B8C7-FA6F5BBB0091}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DGDecode", "DGDecode\DGDecode.vcproj", "{2F24CC02-BF57-4C06-B0AF-75E619338513}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DGVfapi", "DGVfapi\DGVfapi.vcproj", "{ED9E67B1-C1A7-4288-8EE4-EDBC3A02D346}"
 EndProject
