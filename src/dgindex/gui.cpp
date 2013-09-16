@@ -2276,6 +2276,8 @@ right_arrow:
             for (drop_index = 0; drop_index < drop_count; drop_index++)
             {
                 DragQueryFile((HDROP)wParam, drop_index, szInput, sizeof(szInput));
+                if (strchr(szInput, '?') != NULL)       // Exclude the filename that contains Unicode.
+                    continue;
                 struct _finddata_t seqfile;
                 if (_findfirst(szInput, &seqfile) != -1L)
                 {
@@ -2742,6 +2744,8 @@ static void OpenVideoFile(HWND hVideoListDlg)
         if (strlen(curPath) != strlen(szInput))
         {
             // Only one file specified.
+            if (strchr(szInput, '?') != NULL)       // Exclude the filename that contains Unicode.
+                return;
             if (_findfirst(szInput, &seqfile) == -1L) return;
             SendDlgItemMessage(hVideoListDlg, IDC_LIST, LB_ADDSTRING, 0, (LPARAM) szInput);
             strcpy(Infilename[NumLoadedFiles], szInput);
@@ -2789,9 +2793,12 @@ static void OpenVideoFile(HWND hVideoListDlg)
             // Build full path plus filename.
             strcpy(filename, path);
             strcat(filename, p);
+            if (strchr(filename, '?') != NULL)      // Exclude the filename that contains Unicode.
+                goto next_filename;
             if (_findfirst(filename, &seqfile) == -1L) break;
             strcpy(Infilename[NumLoadedFiles], filename);
             NumLoadedFiles++;
+next_filename:
             // Skip to next filename.
             while (*p++ != 0);
             // A double zero is the end of the file list.
