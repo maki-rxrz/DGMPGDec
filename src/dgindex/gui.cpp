@@ -133,6 +133,33 @@ extern unsigned char *Rdbfr;
 extern __int64 VideoPTS, LastVideoPTS;
 static __int64 StartPTS, IframePTS;
 
+#undef DGMPGDEC_WIN9X_SUPPORTED
+#if _MSC_VER < 1500
+#define DGMPGDEC_WIN9X_SUPPORTED
+#endif
+
+#if !defined(DGMPGDEC_WIN9X_SUPPORTED)
+static BOOL bIsWindowsVersionOK(DWORD dwMajor, DWORD dwMinor, WORD dwSPMajor)
+{
+    OSVERSIONINFOEX osvi;
+    DWORD           dwTypeMask       = VER_MAJORVERSION | VER_MINORVERSION | VER_SERVICEPACKMAJOR;
+    DWORDLONG       dwlConditionMask = 0;
+
+    ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
+    osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
+
+    osvi.dwMajorVersion    = dwMajor;
+    osvi.dwMinorVersion    = dwMinor;
+    osvi.wServicePackMajor = dwSPMajor;
+
+    VER_SET_CONDITION(dwlConditionMask, VER_MAJORVERSION    , VER_GREATER_EQUAL);
+    VER_SET_CONDITION(dwlConditionMask, VER_MINORVERSION    , VER_GREATER_EQUAL);
+    VER_SET_CONDITION(dwlConditionMask, VER_SERVICEPACKMAJOR, VER_GREATER_EQUAL);
+
+    return VerifyVersionInfo(&osvi, dwTypeMask, dwlConditionMask);
+}
+#endif
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
     MSG msg;
@@ -144,6 +171,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     char prog[DG_MAX_PATH];
     char cwd[DG_MAX_PATH];
 
+    DWORD dwMajor = 5;
+    DWORD dwMinor = 1;
+
+#if !defined(DGMPGDEC_WIN9X_SUPPORTED)
+    bIsWindowsXPorLater = bIsWindowsVersionOK(dwMajor, dwMinor, 0);
+#else
     OSVERSIONINFO osvi;
 
     ZeroMemory(&osvi, sizeof(OSVERSIONINFO));
@@ -152,8 +185,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     GetVersionEx(&osvi);
 
     bIsWindowsXPorLater =
-       ( (osvi.dwMajorVersion > 5) ||
-       ( (osvi.dwMajorVersion == 5) && (osvi.dwMinorVersion >= 1) ));
+       ( (osvi.dwMajorVersion > dwMajor) ||
+       ( (osvi.dwMajorVersion == dwMajor) && (osvi.dwMinorVersion >= dwMinor) ));
+#endif
 
     if(bIsWindowsXPorLater)
     {
