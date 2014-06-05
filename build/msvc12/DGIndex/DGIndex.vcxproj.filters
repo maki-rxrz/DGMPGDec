@@ -143,14 +143,14 @@
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\..\src\dgindex\idctmmx.asm">
+    <CustomBuild Include="..\..\..\src\dgindex\idctmmx.asm">
       <Filter>Source Files</Filter>
-    </None>
-    <None Include="..\..\..\src\dgindex\simple_idct_mmx.asm">
+    </CustomBuild>
+    <CustomBuild Include="..\..\..\src\dgindex\simple_idct_mmx.asm">
       <Filter>Source Files</Filter>
-    </None>
-    <None Include="..\..\..\src\dgindex\skl_dct_sse.asm">
+    </CustomBuild>
+    <CustomBuild Include="..\..\..\src\dgindex\skl_dct_sse.asm">
       <Filter>Source Files</Filter>
-    </None>
+    </CustomBuild>
   </ItemGroup>
 </Project>
