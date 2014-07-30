@@ -39,7 +39,7 @@ LDFLAGS = \
     /ManifestFile:"$(TARGETEXE).intermediate.manifest" \
     /ALLOWISOLATION \
     /MANIFESTUAC:"level='asInvoker' uiAccess='false'" \
-    /SUBSYSTEM:WINDOWS \
+    /SUBSYSTEM:WINDOWS,5.01 \
     /STACK:"4096000" \
     /TLBID:1 \
     /DYNAMICBASE \
