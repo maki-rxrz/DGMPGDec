@@ -1,29 +1,40 @@
 #!/bin/sh
-version=""
-clean="no"
+ERR_EXIT () {
+    echo $1; exit 1
+}
 
-config_h="./src/config.h"
+cwd="$(cd $(dirname $0); pwd)"
 
-# Check options
+version=''
+clean='no'
+
+config_h="$cwd/src/config.h"
+
+# Parse options
 for opt do
+    optarg="${opt#*=}"
     case "$opt" in
         --clean)
-            clean="yes"
-        ;;
+            clean='yes'
+            ;;
+        *)
+            ERR_EXIT "Unknown option ... $opt"
+            ;;
     esac
 done
 
 # Output config.h
-if test "$clean" = "yes" ; then
-cat > "$config_h" << EOF
+if [ "$clean" = 'yes' -o ! -d "$cwd/.git" ]; then
+    cat > "$config_h" << EOF
 #undef DGMPGDEC_GIT_VERSION
 EOF
 else
-  if [ -d ".git" ] && [ -n "`git tag`" ]; then
-    version="`git describe --tags`"
-    echo "$version"
-    echo "#define DGMPGDEC_GIT_VERSION    \"$version\"" > "$config_h"
-  else
-    echo "#undef DGMPGDEC_GIT_VERSION" > "$config_h"
-  fi
+    cd "$cwd"
+    if [ -n "`git tag`" ]; then
+        version="`git describe --tags`"
+        echo "$version"
+        echo "#define DGMPGDEC_GIT_VERSION    \"$version\"" > "$config_h"
+    else
+        echo "#undef DGMPGDEC_GIT_VERSION" > "$config_h"
+    fi
 fi
