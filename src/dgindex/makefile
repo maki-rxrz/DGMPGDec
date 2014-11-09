@@ -29,7 +29,7 @@ CPPFLAGS = \
     /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_CRT_SECURE_NO_WARNINGS" /D "_MBCS" \
     /GF /Gm- /EHsc /MT /GS /fp:precise /Zc:wchar_t /Zc:forScope \
     /Fp"$(OUTDIR)/$(TARGET).pch" /Fd"$(OUTDIR)/" \
-    /Gd /analyze- /errorReport:none
+    /Gd /analyze- /errorReport:none $(EXTRA_CPPFLAGS)
 
 LDFLAGS = \
     /OUT:"$(TARGETEXE)" \
@@ -46,7 +46,7 @@ LDFLAGS = \
     /NXCOMPAT \
     /MACHINE:X86 \
     /PDB:"$(OUTDIR)/$(TARGET).pdb" \
-    /ERRORREPORT:NONE
+    /ERRORREPORT:NONE $(EXTRA_LDFLAGS)
 
 RFLAGS = /D "NDEBUG" /l 0x0409 /nologo
 
