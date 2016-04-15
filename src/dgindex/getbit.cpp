@@ -1473,7 +1473,8 @@ void Next_PVA_Packet()
     unsigned int Packet_Length;
     unsigned int time, start;
     pva_packet pva;
-    unsigned int code, PTS, PES_PTS, Packet_Header_Length;
+    unsigned int code, Packet_Header_Length;
+    __int64 PTS, PES_PTS;
     int PTSDiff;
     double picture_period;
 

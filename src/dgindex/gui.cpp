@@ -3632,7 +3632,7 @@ LRESULT CALLBACK SelectDelayTrack(HWND hDialog, UINT message, WPARAM wParam, LPA
 {
     static char delay_track[255];
     char *p;
-    unsigned char audio_id;
+    unsigned int audio_id;
     static void *lang = NULL;
 
     switch (message)
