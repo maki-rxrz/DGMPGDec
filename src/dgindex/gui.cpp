@@ -1987,7 +1987,7 @@ D2V_PROCESS:
                     break;
 
                 case IDM_NEURON2:
-                    ShellExecute(NULL, "open", "http://neuron2.net/dgmpgdec/dgmpgdec.html", NULL, NULL, SW_SHOWNORMAL);
+                    ShellExecute(NULL, "open", "http://rationalqm.us/dgmpgdec/dgmpgdec.html", NULL, NULL, SW_SHOWNORMAL);
                     break;
 
                 case IDM_EXIT:
