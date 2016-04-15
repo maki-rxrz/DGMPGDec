@@ -104,8 +104,8 @@ void timer_debug(ts* timers)
     ts tim = *timers;
     //tim.freq = ;
 //    sprintf(buffer,"conv = %I64d ",tim.conv);
-//    sprintf(buffer,"idct = %I64d overall=%I64d idct% = %f",tim.idct,tim.overall,(double)tim.idct*100/tim.overall);
-    sprintf(buffer,"| dec% = %f > mcmp% = %f addb% = %f idct% = %f decMB% = %f bit% = %f | conv% = %f | post% = %f | mcpy% = %f | msec = %f fps = %f mean = %f",
+//    sprintf(buffer,"idct = %I64d overall=%I64d idct%% = %f",tim.idct,tim.overall,(double)tim.idct*100/tim.overall);
+    sprintf(buffer,"| dec%% = %f > mcmp%% = %f addb%% = %f idct%% = %f decMB%% = %f bit%% = %f | conv%% = %f | post%% = %f | mcpy%% = %f | msec = %f fps = %f mean = %f",
         (double)tim.dec*100/tim.overall,
         (double)tim.idct*100/tim.overall,
         (double)tim.addb*100/tim.overall,

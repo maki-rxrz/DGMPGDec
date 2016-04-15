@@ -298,12 +298,12 @@ void CMPEG2Decoder::macroblock_modes(int *pmacroblock_type, int *pmotion_type,
    - ISO/IEC 13818-2 section 6.1.3: Macroblock
 */
 __declspec(align(16))
-static const __int64 mmmask_128C[2] = {0x8080808080808080, 0x8080808080808080};
+static const unsigned __int64 mmmask_128C[2] = {0x8080808080808080, 0x8080808080808080};
 
 
 void CMPEG2Decoder::Add_Block(int count, int bx, int by, int dct_type, int addflag)
 {
-static const __int64 mmmask_128  = 0x0080008000800080;
+static const unsigned __int64 mmmask_128  = 0x0080008000800080;
 
 
     int comp, cc, iincr, bxh, byh;
