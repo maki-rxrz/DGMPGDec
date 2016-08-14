@@ -858,6 +858,16 @@ static void picture_coding_extension()
     progressive_frame           = Get_Bits(1);
     composite_display_flag      = Get_Bits(1);
 
+    if (picture_structure != FRAME_PICTURE)
+    {
+        if (picture_structure == TOP_FIELD)
+            top_field_first = 1;
+        else
+            top_field_first = 0;
+        repeat_first_field = 0;
+        progressive_frame  = 0;
+    }
+
     d2v_current.pf = progressive_frame;
     d2v_current.trf = (top_field_first<<1) + repeat_first_field;
     // Store just the first picture structure encountered. We'll
