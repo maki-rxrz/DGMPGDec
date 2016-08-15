@@ -1770,8 +1770,12 @@ AVSValue __cdecl Create_Deblock(AVSValue args, void* user_data, IScriptEnvironme
         env);
 }
 
-extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit2(IScriptEnvironment* env)
+const AVS_Linkage *AVS_linkage = NULL;
+
+extern "C" __declspec(dllexport) const char* __stdcall
+AvisynthPluginInit3(IScriptEnvironment* env, const AVS_Linkage* const vectors)
 {
+    AVS_linkage = vectors;
     env->AddFunction("MPEG2Source", "[d2v]s[cpu]i[idct]i[iPP]b[moderate_h]i[moderate_v]i[showQ]b[fastMC]b[cpu2]s[info]i[upConv]i[i420]b[iCC]b", Create_MPEG2Source, 0);
     env->AddFunction("LumaYV12","c[lumoff]i[lumgain]f",Create_LumaYV12,0);
     env->AddFunction("BlindPP", "c[quant]i[cpu]i[cpu2]s[iPP]b[moderate_h]i[moderate_v]i", Create_BlindPP, 0);
