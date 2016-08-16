@@ -120,14 +120,16 @@
     <CustomBuild Include="..\..\..\src\dgdecode\mcsse.asm">
       <Filter>Motion Compensation</Filter>
     </CustomBuild>
-    <CustomBuild Include="..\..\..\src\dgdecode\idctmmx.asm">
-      <Filter>Source Files</Filter>
-    </CustomBuild>
     <CustomBuild Include="..\..\..\src\dgdecode\simple_idct_mmx.asm">
       <Filter>Source Files</Filter>
     </CustomBuild>
     <CustomBuild Include="..\..\..\src\dgdecode\skl_dct_sse.asm">
       <Filter>Source Files</Filter>
     </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <MASM Include="..\..\..\src\dgdecode\idctmmx.asm">
+      <Filter>Source Files</Filter>
+    </MASM>
   </ItemGroup>
 </Project>
