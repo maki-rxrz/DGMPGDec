@@ -5,6 +5,7 @@
 ### Target ###
 
 OUTDIR=.\Release_nmake
+INTDIR=$(OUTDIR)\obj
 
 TARGET=DGIndex
 TARGETEXE=$(OUTDIR)\$(TARGET).exe
@@ -13,16 +14,18 @@ TARGETEXE=$(OUTDIR)\$(TARGET).exe
 ### build utils ###
 
 MASM = ml.exe
-AS  = nasm.exe
-CC  = cl.exe
-CPP = cl.exe
-LD  = link.exe
-RC  = rc.exe
+NASM = nasm.exe
+CC   = cl.exe
+CPP  = cl.exe
+LD   = link.exe
+RC   = rc.exe
 
 
 ### build flags ###
 
-ASFLAGS = -f win32 -DPREFIX -DWIN32
+MASM_FLAGS = /c /coff /Cx /nologo
+
+NASM_FLAGS = -f win32 -DPREFIX -DWIN32
 
 CPPFLAGS = \
     /c /Zi /nologo /W3 /WX- /O2 /Ob1 /Oi /Ot /Oy- \
@@ -45,8 +48,11 @@ LDFLAGS = \
     /DYNAMICBASE \
     /NXCOMPAT \
     /MACHINE:X86 \
-    /PDB:"$(OUTDIR)/$(TARGET).pdb" \
     /ERRORREPORT:NONE $(EXTRA_LDFLAGS)
+
+LDFLAGS_DEBUG = \
+    /DEBUG \
+    /PDB:"$(OUTDIR)\$(TARGET).pdb"
 
 RFLAGS = /D "NDEBUG" /l 0x0409 /nologo
 
@@ -58,38 +64,38 @@ LIBS = vfw32.lib winmm.lib odbc32.lib odbccp32.lib shlwapi.lib kernel32.lib \
     ole32.lib  oleaut32.lib uuid.lib
 
 OBJS = \
-    idctmmx.obj \
-    "$(OUTDIR)\gui.res" \
-    "$(OUTDIR)\simple_idct_mmx.obj" \
-    "$(OUTDIR)\skl_dct_sse.obj" \
-    "$(OUTDIR)\d2vparse.obj" \
-    "$(OUTDIR)\getbit.obj" \
-    "$(OUTDIR)\gethdr.obj" \
-    "$(OUTDIR)\getpic.obj" \
-    "$(OUTDIR)\gui.obj" \
-    "$(OUTDIR)\idctfpu.obj" \
-    "$(OUTDIR)\idctref.obj" \
-    "$(OUTDIR)\initial_parse.obj" \
-    "$(OUTDIR)\misc.obj" \
-    "$(OUTDIR)\motion.obj" \
-    "$(OUTDIR)\mpeg2dec.obj" \
-    "$(OUTDIR)\norm.obj" \
-    "$(OUTDIR)\parse_cli.obj" \
-    "$(OUTDIR)\pat.obj" \
-    "$(OUTDIR)\store.obj" \
-    "$(OUTDIR)\strverscmp.obj" \
-    "$(OUTDIR)\wavefs44.obj" \
-    "$(OUTDIR)\AC3Dec\bit_allocate.obj" \
-    "$(OUTDIR)\AC3Dec\bitstream.obj" \
-    "$(OUTDIR)\AC3Dec\coeff.obj" \
-    "$(OUTDIR)\AC3Dec\crc.obj" \
-    "$(OUTDIR)\AC3Dec\decode.obj" \
-    "$(OUTDIR)\AC3Dec\downmix.obj" \
-    "$(OUTDIR)\AC3Dec\exponent.obj" \
-    "$(OUTDIR)\AC3Dec\imdct.obj" \
-    "$(OUTDIR)\AC3Dec\parse.obj" \
-    "$(OUTDIR)\AC3Dec\rematrix.obj" \
-    "$(OUTDIR)\AC3Dec\sanity_check.obj"
+    "$(INTDIR)\gui.res" \
+    "$(INTDIR)\masm\idctmmx.obj" \
+    "$(INTDIR)\nasm\simple_idct_mmx.obj" \
+    "$(INTDIR)\nasm\skl_dct_sse.obj" \
+    "$(INTDIR)\d2vparse.obj" \
+    "$(INTDIR)\getbit.obj" \
+    "$(INTDIR)\gethdr.obj" \
+    "$(INTDIR)\getpic.obj" \
+    "$(INTDIR)\gui.obj" \
+    "$(INTDIR)\idctfpu.obj" \
+    "$(INTDIR)\idctref.obj" \
+    "$(INTDIR)\initial_parse.obj" \
+    "$(INTDIR)\misc.obj" \
+    "$(INTDIR)\motion.obj" \
+    "$(INTDIR)\mpeg2dec.obj" \
+    "$(INTDIR)\norm.obj" \
+    "$(INTDIR)\parse_cli.obj" \
+    "$(INTDIR)\pat.obj" \
+    "$(INTDIR)\store.obj" \
+    "$(INTDIR)\strverscmp.obj" \
+    "$(INTDIR)\wavefs44.obj" \
+    "$(INTDIR)\AC3Dec\bit_allocate.obj" \
+    "$(INTDIR)\AC3Dec\bitstream.obj" \
+    "$(INTDIR)\AC3Dec\coeff.obj" \
+    "$(INTDIR)\AC3Dec\crc.obj" \
+    "$(INTDIR)\AC3Dec\decode.obj" \
+    "$(INTDIR)\AC3Dec\downmix.obj" \
+    "$(INTDIR)\AC3Dec\exponent.obj" \
+    "$(INTDIR)\AC3Dec\imdct.obj" \
+    "$(INTDIR)\AC3Dec\parse.obj" \
+    "$(INTDIR)\AC3Dec\rematrix.obj" \
+    "$(INTDIR)\AC3Dec\sanity_check.obj"
 
 
 ### build ###
@@ -99,37 +105,49 @@ OBJS = \
 
 ALL: "$(TARGETEXE)"
 
-"$(TARGETEXE)": "$(OUTDIR)" "$(OUTDIR)\AC3Dec" $(OBJS)
-    @echo $(LD) $(LDFLAGS) $(OBJS) $(LIBS)
-    @$(LD) $(LDFLAGS) $(OBJS) $(LIBS)
+"$(TARGETEXE)": "$(OUTDIR)" $(OBJS)
+    @echo   LD    $(TARGET).exe
+    @$(LD) $(LDFLAGS) $(OBJS) $(LIBS) >NUL
 
-idctmmx.obj: idctmmx.asm
-    @$(MASM) /c /coff /Cx /nologo /Fo idctmmx.obj idctmmx.asm
+.asm{$(INTDIR)\masm}.obj:
+    @echo   MASM  $<
+    @$(MASM) $(MASM_FLAGS) /Fo"$@" $< >NUL
 
-.asm{$(OUTDIR)}.obj:
-    @echo nasm $<
-    @$(AS) $(ASFLAGS) $< -o $@
+.asm{$(INTDIR)\nasm}.obj:
+    @echo   NASM  $<
+    @$(NASM) $(NASM_FLAGS) $< -o $@ >NUL
 
-{AC3Dec}.cpp{$(OUTDIR)\AC3Dec}.obj:
-    @$(CPP) $(CPPFLAGS) $< /Fo"$@"
+{AC3Dec}.cpp{$(INTDIR)\AC3Dec}.obj:
+    @echo   CXX   $<
+    @$(CPP) $(CPPFLAGS) $< /Fo"$@" >NUL
 
-.cpp{$(OUTDIR)}.obj:
-    @$(CPP) $(CPPFLAGS) $< /Fo"$@"
+.cpp{$(INTDIR)}.obj:
+    @echo   CXX   $<
+    @$(CPP) $(CPPFLAGS) $< /Fo"$@" >NUL
 
-.rc{$(OUTDIR)}.res:
-    @echo rc $<
-    @$(RC) $(RFLAGS) /fo"$@" $<
+.rc{$(INTDIR)}.res:
+    @echo   RC    $<
+    @$(RC) $(RFLAGS) /fo"$@" $< >NUL
 
 clean:
     @echo delete "*.obj *.res *.pdb *.manifest"
-    @if exist "$(OUTDIR)\AC3Dec" @rmdir /S /Q "$(OUTDIR)\AC3Dec" >NUL
-    @if exist "$(OUTDIR)" @del /Q "$(OUTDIR)\*.res" "$(OUTDIR)\*.obj" "$(OUTDIR)\*.pdb" "$(OUTDIR)\*.manifest" 2>NUL 1>NUL
+    @if exist "$(INTDIR)" @rmdir /S /Q "$(INTDIR)" >NUL
+    @if exist "$(OUTDIR)" @del /Q "$(OUTDIR)\*.obj" "$(OUTDIR)\*.pdb" "$(OUTDIR)\*.manifest" 2>NUL 1>NUL
 
-"$(OUTDIR)":
-    @mkdir "$(OUTDIR)"
+"$(OUTDIR)": "$(INTDIR)" "$(INTDIR)\AC3Dec" "$(INTDIR)\masm" "$(INTDIR)\nasm"
+    @if not exist "$(OUTDIR)" @mkdir "$(OUTDIR)"
 
-"$(OUTDIR)\AC3Dec":
-    @mkdir "$(OUTDIR)\AC3Dec"
+"$(INTDIR)":
+    @if not exist "$(INTDIR)" @mkdir "$(INTDIR)"
+
+"$(INTDIR)\AC3Dec":
+    @if not exist "$(INTDIR)\AC3Dec" @mkdir "$(INTDIR)\AC3Dec"
+
+"$(INTDIR)\masm":
+    @if not exist "$(INTDIR)\masm" @mkdir "$(INTDIR)\masm"
+
+"$(INTDIR)\nasm":
+    @if not exist "$(INTDIR)\nasm" @mkdir "$(INTDIR)\nasm"
 
 
 ### depend ####
