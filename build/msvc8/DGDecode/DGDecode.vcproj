@@ -393,7 +393,7 @@
 				>
 				<Tool
 					Name="VCCustomBuildTool"
-					CommandLine="@copy /Y ..\..\..\src\dgdecode\skl_nasm.h .\ &gt;NUL&#x0D;&#x0A;nasm -f win32 -DPREFIX -DWIN32 -o $(IntDir)\$(InputName).obj $(InputPath)&#x0D;&#x0A;@del /Q .\*.h&#x0D;&#x0A;"
+					CommandLine="@copy /Y ..\..\..\src\dgdecode\skl_nasm.h .\ &gt;NUL&#x0D;&#x0A;nasm -f win32 -DPREFIX -DWIN32 -o $(IntDir)\$(IputName).obj $(InputPath)&#x0D;&#x0A;@del /Q .\skl_nasm.h&#x0D;&#x0A;"
 					Outputs="$(IntDir)\$(InputName).obj;%(Outputs)"
 				/>
 			</FileConfiguration>
@@ -402,7 +402,7 @@
 				>
 				<Tool
 					Name="VCCustomBuildTool"
-					CommandLine="@copy /Y ..\..\..\src\dgdecode\skl_nasm.h .\ &gt;NUL&#x0D;&#x0A;nasm -f win32 -DPREFIX -DWIN32 -o $(IntDir)\$(InputName).obj $(InputPath)&#x0D;&#x0A;@del /Q .\*.h&#x0D;&#x0A;"
+					CommandLine="@copy /Y ..\..\..\src\dgdecode\skl_nasm.h .\ &gt;NUL&#x0D;&#x0A;nasm -f win32 -DPREFIX -DWIN32 -o $(IntDir)\$(InputName).obj $(InputPath)&#x0D;&#x0A;@del /Q .\skl_nasm.h&#x0D;&#x0A;"
 					Outputs="$(IntDir)\$(InputName).obj;%(Outputs)"
 				/>
 			</FileConfiguration>
