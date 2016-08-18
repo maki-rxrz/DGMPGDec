@@ -12,7 +12,7 @@ TARGETEXE=$(OUTDIR)\$(TARGET).exe
 
 ### build utils ###
 
-MASM = "$(MASM_PATH)ml.exe"
+MASM = ml.exe
 AS  = nasm.exe
 CC  = cl.exe
 CPP = cl.exe
@@ -104,13 +104,13 @@ ALL: "$(TARGETEXE)"
     @$(LD) $(LDFLAGS) $(OBJS) $(LIBS)
 
 idctmmx.obj: idctmmx.asm
-    @if not "$(MASM_PATH)" == "" @$(MASM) /c /coff /Cx /nologo /Fo idctmmx.obj idctmmx.asm
+    @$(MASM) /c /coff /Cx /nologo /Fo idctmmx.obj idctmmx.asm
 
 .asm{$(OUTDIR)}.obj:
     @echo nasm $<
     @$(AS) $(ASFLAGS) $< -o $@
 
-{AC3Dec\}.cpp{$(OUTDIR)\AC3Dec}.obj:
+{AC3Dec}.cpp{$(OUTDIR)\AC3Dec}.obj:
     @$(CPP) $(CPPFLAGS) $< /Fo"$@"
 
 .cpp{$(OUTDIR)}.obj:

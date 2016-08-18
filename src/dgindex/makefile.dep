@@ -1,3 +1,4 @@
+$(OUTDIR)\idctmmx.obj: idctmmx.asm
 $(OUTDIR)\simple_idct_mmx.obj: simple_idct_mmx.asm
 $(OUTDIR)\skl_dct_sse.obj: skl_dct_sse.asm skl_nasm.h
 $(OUTDIR)\d2vparse.obj : d2vparse.cpp global.h misc.h resource.h pat.h
