@@ -146,15 +146,9 @@
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)%(Filename).obj;%(Outputs)</Outputs>
     </CustomBuild>
     <CustomBuild Include="..\..\src\dgdecode\skl_dct_sse.asm">
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%40copy /Y ..\..\src\dgdecode\skl_nasm.h .\ &gt;NUL
-nasm -f win32 -DPREFIX -DWIN32 -o $(IntDir)%(Filename).obj %(FullPath)
-%40del /Q .\skl_nasm.h
-</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">nasm -f win32 -I..\..\src\dgdecode\ -DPREFIX -DWIN32 -o $(IntDir)%(Filename).obj %(FullPath)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(IntDir)%(Filename).obj;%(Outputs)</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%40copy /Y ..\..\src\dgdecode\skl_nasm.h .\ &gt;NUL
-nasm -f win32 -DPREFIX -DWIN32 -o $(IntDir)%(Filename).obj %(FullPath)
-%40del /Q .\skl_nasm.h
-</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">nasm -f win32 -I..\..\src\dgdecode\ -DPREFIX -DWIN32 -o $(IntDir)%(Filename).obj %(FullPath)</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)%(Filename).obj;%(Outputs)</Outputs>
     </CustomBuild>
   </ItemGroup>
