@@ -5,13 +5,16 @@
     <NASMBeforeTargets>Midl</NASMBeforeTargets>
     <NASMAfterTargets>CustomBuild</NASMAfterTargets>
   </PropertyGroup>
+  <PropertyGroup>
+    <NasmPath Condition= "'$(NASMPATH)' == ''"></NasmPath>
+  </PropertyGroup>
   <ItemDefinitionGroup>
     <NASM>
       <OutputFormat>$(IntDir)%(FileName).obj</OutputFormat>
       <Outputswitch>0</Outputswitch>
       <PackAlignmentBoundary>0</PackAlignmentBoundary>
-      <CommandLineTemplate Condition="'$(Platform)' == 'Win32'">nasm [AllOptions] [AdditionalOptions] [Inputs]</CommandLineTemplate>
-      <CommandLineTemplate Condition="'$(Platform)' == 'X64'">nasm [AllOptions]  [AdditionalOptions] [Inputs]</CommandLineTemplate>
+      <CommandLineTemplate Condition="'$(Platform)' == 'Win32'">"$(NasmPath)"nasm [AllOptions] [AdditionalOptions] [Inputs]</CommandLineTemplate>
+      <CommandLineTemplate Condition="'$(Platform)' == 'X64'">"$(NasmPath)"nasm [AllOptions]  [AdditionalOptions] [Inputs]</CommandLineTemplate>
       <CommandLineTemplate Condition="'$(Platform)' != 'Win32' and '$(Platform)' != 'X64'">echo NASM not supported on this platform</CommandLineTemplate>
       <ExecutionDescription>Assembling %(Identity)...</ExecutionDescription>
     </NASM>
