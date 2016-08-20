@@ -1,0 +1,9 @@
+
+There files were created by 'perilbrain'.
+- nasm.props
+- nasm.targets
+- nasm.xml
+
+See the following site for details.
+http://www.codeproject.com/Articles/410776/Integrating-a-compiler-assembler-in-VS-Using-NASM
+
