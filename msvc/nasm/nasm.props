@@ -10,10 +10,10 @@
       <OutputFormat>$(IntDir)%(FileName).obj</OutputFormat>
       <Outputswitch>0</Outputswitch>
       <PackAlignmentBoundary>0</PackAlignmentBoundary>
-      <CommandLineTemplate Condition="'$(Platform)' == 'Win32'">nasm [AllOptions] [AdditionalOptions]  %(Filename)%(Extension) </CommandLineTemplate>
-      <CommandLineTemplate Condition="'$(Platform)' == 'X64'">nasm [AllOptions]  [AdditionalOptions]  %(Filename)%(Extension)</CommandLineTemplate>
+      <CommandLineTemplate Condition="'$(Platform)' == 'Win32'">nasm [AllOptions] [AdditionalOptions] [Inputs]</CommandLineTemplate>
+      <CommandLineTemplate Condition="'$(Platform)' == 'X64'">nasm [AllOptions]  [AdditionalOptions] [Inputs]</CommandLineTemplate>
       <CommandLineTemplate Condition="'$(Platform)' != 'Win32' and '$(Platform)' != 'X64'">echo NASM not supported on this platform</CommandLineTemplate>
-      <ExecutionDescription>Assembling [Inputs]...</ExecutionDescription>
+      <ExecutionDescription>Assembling %(Identity)...</ExecutionDescription>
     </NASM>
   </ItemDefinitionGroup>
 </Project>

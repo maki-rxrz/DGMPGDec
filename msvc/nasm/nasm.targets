@@ -48,7 +48,7 @@
       Lines="^%(NASM_tlog.Source);@(NASM_tlog-&gt;'%(Fullpath)')"/>
     <NASM
       Condition="'@(NASM)' != '' and '%(NASM.ExcludedFromBuild)' != 'true'"
-      Inputs="%(NASM.Inputs)"
+      Inputs="%(NASM.Identity)"
       OutputFormat="%(NASM.OutputFormat)"
       Outputswitch="%(NASM.Outputswitch)"
       AssembledCodeListingFile="%(NASM.AssembledCodeListingFile)"
