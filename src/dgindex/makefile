@@ -14,7 +14,7 @@ TARGETEXE=$(OUTDIR)\$(TARGET).exe
 ### build utils ###
 
 MASM = ml.exe
-NASM = nasm.exe
+NASM = "$(NASMPATH)"nasm.exe
 CC   = cl.exe
 CPP  = cl.exe
 LD   = link.exe
