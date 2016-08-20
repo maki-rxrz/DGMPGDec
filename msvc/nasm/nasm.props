@@ -6,15 +6,16 @@
     <NASMAfterTargets>CustomBuild</NASMAfterTargets>
   </PropertyGroup>
   <PropertyGroup>
-    <NasmPath Condition= "'$(NASMPATH)' == ''"></NasmPath>
+    <NasmExec Condition= "'$(NASMPATH)' == ''">nasm</NasmExec>
+    <NasmExec Condition= "'$(NASMPATH)' != ''">"$(NASMPATH)nasm"</NasmExec>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <NASM>
       <OutputFormat>$(IntDir)%(FileName).obj</OutputFormat>
       <Outputswitch>0</Outputswitch>
       <PackAlignmentBoundary>0</PackAlignmentBoundary>
-      <CommandLineTemplate Condition="'$(Platform)' == 'Win32'">"$(NasmPath)"nasm [AllOptions] [AdditionalOptions] [Inputs]</CommandLineTemplate>
-      <CommandLineTemplate Condition="'$(Platform)' == 'X64'">"$(NasmPath)"nasm [AllOptions]  [AdditionalOptions] [Inputs]</CommandLineTemplate>
+      <CommandLineTemplate Condition="'$(Platform)' == 'Win32'">$(NasmExec) [AllOptions] [AdditionalOptions] [Inputs]</CommandLineTemplate>
+      <CommandLineTemplate Condition="'$(Platform)' == 'X64'">$(NasmExec) [AllOptions]  [AdditionalOptions] [Inputs]</CommandLineTemplate>
       <CommandLineTemplate Condition="'$(Platform)' != 'Win32' and '$(Platform)' != 'X64'">echo NASM not supported on this platform</CommandLineTemplate>
       <ExecutionDescription>Assembling %(Identity)...</ExecutionDescription>
     </NASM>
