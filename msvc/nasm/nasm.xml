@@ -17,24 +17,24 @@
           <sys:String>General</sys:String>
         </Category.DisplayName>
       </Category>
-	  <Category
+      <Category
         Name="Preprocessor">
         <Category.DisplayName>
           <sys:String>Preprocessing Options</sys:String>
         </Category.DisplayName>
       </Category>
-	  <Category
+      <Category
         Name="Assembler Options">
         <Category.DisplayName>
           <sys:String>Assembler Options</sys:String>
         </Category.DisplayName>
       </Category>
-	  <Category
+      <Category
         Name="Advanced">
         <Category.DisplayName>
           <sys:String>Advanced </sys:String>
         </Category.DisplayName>
-      </Category>	  
+      </Category>
       <Category
         Name="Command Line"
         Subtype="CommandLine">
@@ -56,16 +56,16 @@
     </StringProperty>
     
   <StringProperty
-	  Name="OutputFormat"	  
+      Name="OutputFormat"
       Category="Assembler Options"
       HelpUrl="http://www.nasm.us/doc/"
       DisplayName="Output File Name"
       Description="Specify Output Filename.-o [value]"
-	  Switch="-o [value]"
-	/>  
+      Switch="-o [value]"
+    />
 
-	<EnumProperty
-	  Name="Outputswitch"
+    <EnumProperty
+      Name="Outputswitch"
       Category="Assembler Options"
       HelpUrl="http://www.nasm.us/doc/"
       DisplayName="Output Switch"
@@ -82,66 +82,66 @@
         Name="2"
         DisplayName="FLAT BINARY"
         Switch="-f bin" /> 
-			
-    </EnumProperty>	
-	
-	<StringListProperty
-	Name="AssembledCodeListingFile"
-	Category="Assembler Options"
-	DisplayName="Assembled Code Listing File"	
-	Description="Generates an assembled code listing file.     (-l [file])"
-	HelpUrl="http://www.nasm.us/doc/"
-	Switch="-l &quot;[value]&quot;"
-	/>
-	
-	<BoolProperty
-	Name="GenerateDebugInformation"
-	Category="Assembler Options"
-	DisplayName="Generate Debug Information"
-	Description="Generates Debug Information.     (-g)"
-	HelpUrl="http://www.nasm.us/doc/"
-	Switch="-g"	
-	/>
-	  
+
+    </EnumProperty>
+
+    <StringListProperty
+    Name="AssembledCodeListingFile"
+    Category="Assembler Options"
+    DisplayName="Assembled Code Listing File"
+    Description="Generates an assembled code listing file.     (-l [file])"
+    HelpUrl="http://www.nasm.us/doc/"
+    Switch="-l &quot;[value]&quot;"
+    />
+
+    <BoolProperty
+    Name="GenerateDebugInformation"
+    Category="Assembler Options"
+    DisplayName="Generate Debug Information"
+    Description="Generates Debug Information.     (-g)"
+    HelpUrl="http://www.nasm.us/doc/"
+    Switch="-g"
+    />
+
   <StringListProperty
       Name="ErrorReporting"
       Category="Advanced"
       HelpUrl="http://www.nasm.us/doc/"
       DisplayName="Redirect Error Messages to File"
       Description="Drops the error Message on specified device"
-      Switch="-Z &quot;[value]&quot;"        
+      Switch="-Z &quot;[value]&quot;" 
     />
-	
-	<StringListProperty
-	Name="IncludePaths"
-	Category="General"
-	DisplayName="Include Paths"
-	Description="Sets path for include file.     (-I[path])"
-	HelpUrl="http://www.nasm.us/doc/"
-	Switch="-I[value]"
-	
-	/>
-	
-	<StringListProperty
-	Name="PreprocessorDefinitions"
+
+    <StringListProperty
+    Name="IncludePaths"
+    Category="General"
+    DisplayName="Include Paths"
+    Description="Sets path for include file.     (-I[path])"
+    HelpUrl="http://www.nasm.us/doc/"
+    Switch="-I[value]"
+
+    />
+
+    <StringListProperty
+    Name="PreprocessorDefinitions"
     Category="Preprocessor"
     HelpUrl="http://www.nasm.us/doc/"
     DisplayName="Preprocessor Definitions"
     Description="Defines a text macro with the given name.     (-D[symbol])"
-	Switch="-D[value]"
+    Switch="-D[value]"
 
-	/>
-	
+    />
+
   <StringListProperty
-	Name="UndefinePreprocessorDefinitions"
-	Category="Preprocessor"
-	HelpUrl="http://www.nasm.us/doc/"
-	DisplayName="Undefine Preprocessor Definitions"
-	Description="Undefines a text macro with the given name.     (-U[symbol])"	
-	Switch="-U[value]"
-	/>
-	
-	<EnumProperty
+    Name="UndefinePreprocessorDefinitions"
+    Category="Preprocessor"
+    HelpUrl="http://www.nasm.us/doc/"
+    DisplayName="Undefine Preprocessor Definitions"
+    Description="Undefines a text macro with the given name.     (-U[symbol])"
+    Switch="-U[value]"
+    />
+
+    <EnumProperty
       Name="ErrorReportingFormat"
       Category="Advanced"
       HelpUrl="http://www.nasm.us/doc/"
@@ -154,19 +154,19 @@
       <EnumValue
         Name="1"
         DisplayName="-Xvc	Style used by Microsoft Visual C++"
-        Switch="-Xvc" />      
+        Switch="-Xvc" />
     </EnumProperty>
-	
-	<BoolProperty
-	Name="TreatWarningsAsErrors"
-	Category="Assembler Options"
-	DisplayName="Treat Warnings As Errors"
-	Description="Returns an error code if warnings are generated.     (-Werror)"
-	HelpUrl="http://www.nasm.us/doc/"
-	Switch="-Werror"
-	/>
 
-	<BoolProperty
+    <BoolProperty
+    Name="TreatWarningsAsErrors"
+    Category="Assembler Options"
+    DisplayName="Treat Warnings As Errors"
+    Description="Returns an error code if warnings are generated.     (-Werror)"
+    HelpUrl="http://www.nasm.us/doc/"
+    Switch="-Werror"
+    />
+
+    <BoolProperty
       Name="floatunderflow"
       Category="Advanced"
       HelpUrl="http://www.nasm.us/doc/"
