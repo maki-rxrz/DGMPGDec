@@ -31,6 +31,7 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
     <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
+    <Import Project="$(SolutionDir)nasm\nasm.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -67,6 +68,10 @@
     <MASM>
       <AdditionalOptions>/coff /Cx %(AdditionalOptions)</AdditionalOptions>
     </MASM>
+    <NASM>
+      <IncludePaths>..\..\src\dgindex\;%(IncludePaths)</IncludePaths>
+      <PreprocessorDefinitions>PREFIX;WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </NASM>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -90,6 +95,10 @@
       <AdditionalOptions>/coff /Cx %(AdditionalOptions)</AdditionalOptions>
       <UseSafeExceptionHandlers>true</UseSafeExceptionHandlers>
     </MASM>
+    <NASM>
+      <IncludePaths>..\..\src\dgindex\;%(IncludePaths)</IncludePaths>
+      <PreprocessorDefinitions>PREFIX;WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </NASM>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\dgindex\d2vparse.cpp" />
@@ -137,26 +146,23 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\src\dgindex\movie.ico" />
+  </ItemGroup>
+  <ItemGroup>
     <MASM Include="..\..\src\dgindex\idctmmx.asm">
       <FileType>Document</FileType>
     </MASM>
-    <CustomBuild Include="..\..\src\dgindex\simple_idct_mmx.asm">
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">nasm -f win32 -DPREFIX -DWIN32 -o $(IntDir)%(Filename).obj %(FullPath)
-</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(IntDir)%(Filename).obj;%(Outputs)</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">nasm -f win32 -DPREFIX -DWIN32 -o $(IntDir)%(Filename).obj %(FullPath)
-</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)%(Filename).obj;%(Outputs)</Outputs>
-    </CustomBuild>
-    <CustomBuild Include="..\..\src\dgindex\skl_dct_sse.asm">
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">nasm -f win32 -I..\..\src\dgindex\ -DPREFIX -DWIN32 -o $(IntDir)%(Filename).obj %(FullPath)</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(IntDir)%(Filename).obj;%(Outputs)</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">nasm -f win32 -I..\..\src\dgindex\ -DPREFIX -DWIN32 -o $(IntDir)%(Filename).obj %(FullPath)</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)%(Filename).obj;%(Outputs)</Outputs>
-    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <NASM Include="..\..\src\dgindex\simple_idct_mmx.asm">
+      <FileType>Document</FileType>
+    </NASM>
+    <NASM Include="..\..\src\dgindex\skl_dct_sse.asm">
+      <FileType>Document</FileType>
+    </NASM>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
+    <Import Project="$(SolutionDir)nasm\nasm.targets" />
   </ImportGroup>
 </Project>
