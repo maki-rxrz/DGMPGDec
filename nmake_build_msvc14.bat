@@ -1,6 +1,6 @@
 @echo off
 
-rem Set up NASMPATH (Path termination must be a delimiter.)
+rem Set up NASMPATH (Path termination must be a separator character.)
 rem set NASMPATH=<YouNasmPath>\
 
 set EXTRA_CPPFLAGS=/FS

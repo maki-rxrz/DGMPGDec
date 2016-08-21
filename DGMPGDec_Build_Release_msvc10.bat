@@ -22,7 +22,7 @@ set TGT_SLN=.\msvc\%TGT_PROJECT%.sln
 set TGT_PLATFORM=Win32
 set TGT_CONFIG=Release
 
-rem Set up NASMPATH (Path termination must be a delimiter.)
+rem Set up NASMPATH (Path termination must be a separator character.)
 rem set NASMPATH=<YourNasmPath>\
 
 rem Build
