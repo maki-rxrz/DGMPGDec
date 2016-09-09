@@ -1,5 +1,7 @@
 @echo off
 
+setlocal
+
 rem Set up NASMPATH (Path termination must be a separator character.)
 rem set NASMPATH=<YouNasmPath>\
 
@@ -18,4 +20,7 @@ if "%ERRORLEVEL%" == "0" (
 )
 
 echo.
+
+endlocal
+
 pause

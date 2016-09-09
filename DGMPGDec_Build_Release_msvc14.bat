@@ -1,5 +1,7 @@
 @echo off
 
+setlocal
+
 echo -----------------------------------------------------
 echo                   S T A R T
 echo -----------------------------------------------------
@@ -33,20 +35,8 @@ for %%p in (%TGT_PLATFORM%) do (
     "%MSBUILD_EXEC%" %TGT_SLN% /p:Configuration=%%c;Platform=%%p %BUILD_OPT% /flp:logfile=_build_%TGT_PROJECT%_%%c_%%p_%MSVC_VER%.log;verbosity=%FLOG_VERBOSITY%
 ))
 
-rem Clean up
-set VisualStudioVersion=
-set TOOLS_VER=
-set MSVC_VER=
-set MSBUILD_PATH=
-set MSBUILD_EXEC=
-set BUILD_OPT=
-set FLOG_VERBOSITY=
-set TGT_PROJECT=
-set TGT_SLN=
-set TGT_PLATFORM=
-set TGT_CONFIG=
-set NASMPATH=
-
 echo -----------------------------------------------------
 echo                   F I N I S H
 echo -----------------------------------------------------
+
+endlocal
