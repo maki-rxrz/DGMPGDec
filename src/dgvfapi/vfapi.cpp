@@ -21,6 +21,7 @@
  */
 
 #include "vfapi.h"
+const AVS_Linkage* AVS_linkage = NULL;      // Unused in DGVFapi.
 
 extern "C" HRESULT __stdcall vfGetPluginInfo(LPVF_PluginInfo info);
 extern "C" HRESULT __stdcall vfGetPluginFunc(LPVF_PluginFunc func);
