@@ -1860,6 +1860,16 @@ public:
 NoAVSAccess g_A;
 NoAVSLinkedList g_LL;
 
+// Import from avisynth v2.61 [avisynth/src/core/interface.cpp]
+static inline bool IsYV12( VideoInfo* vi )
+{
+    return (vi->pixel_type & VideoInfo::CS_PLANAR_MASK) == (VideoInfo::CS_YV12 & VideoInfo::CS_PLANAR_FILTER);
+}
+static inline void SetFieldBased( VideoInfo* vi, bool isfieldbased )
+{
+    if (isfieldbased) vi->image_type |= VideoInfo::IT_FIELDBASED; else vi->image_type &= ~VideoInfo::IT_FIELDBASED;
+}
+
 MPEG2Source::MPEG2Source(const char* d2v, int _upConv)
 {
     CheckCPU();
@@ -1912,7 +1922,7 @@ MPEG2Source::MPEG2Source(const char* d2v, int _upConv)
     vi.fps_numerator = m_decoder.VF_FrameRate_Num;
     vi.fps_denominator = m_decoder.VF_FrameRate_Den;
     vi.num_frames = m_decoder.VF_FrameLimit;
-    vi.SetFieldBased(false);
+    SetFieldBased(&vi, false);
 
     bufY = bufU = bufV = NULL;
     u444 = v444 = NULL;
@@ -1924,14 +1934,14 @@ void MPEG2Source::GetFrame(int n, unsigned char *buffer, int pitch)
 {
     out->y = buffer;
     out->u = out->y + (pitch * m_decoder.Coded_Picture_Height);
-    if (vi.IsYV12()) out->v = out->u + ((pitch * m_decoder.Chroma_Height)/2);
+    if (IsYV12(&vi)) out->v = out->u + ((pitch * m_decoder.Chroma_Height)/2);
     else out->v = out->u + ((pitch * m_decoder.Coded_Picture_Height)/2);
     out->ypitch = pitch;
     out->uvpitch = pitch/2;
     out->ywidth = m_decoder.Coded_Picture_Width;
     out->yheight = m_decoder.Coded_Picture_Height;
     out->uvwidth = m_decoder.Chroma_Width;
-    if (vi.IsYV12()) out->uvheight = m_decoder.Chroma_Height;
+    if (IsYV12(&vi)) out->uvheight = m_decoder.Chroma_Height;
     else out->uvheight = m_decoder.Coded_Picture_Height;
 
     m_decoder.Decode(n, out);
