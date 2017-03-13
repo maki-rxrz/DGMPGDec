@@ -22,7 +22,8 @@
 *.exp
 *.ilk
 *.pdb
-build/*/*/ipch/*
-build/*/*/Debug/*
-build/*/*/Release/*
-bin/msvc*/*
+msvc/.vs/
+msvc/*/ipch/
+msvc/*/Debug/
+msvc/*/Release/
+bin/msvc*/
