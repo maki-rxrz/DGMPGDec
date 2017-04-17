@@ -28,6 +28,9 @@ set TGT_CONFIG=Debug
 rem Set up NASMPATH (Path termination must be a separator character.)
 rem set NASMPATH=<YourNasmPath>\
 
+rem Windows XP support
+rem set WINXPISDEAD=1
+
 rem Build
 for %%c in (%TGT_CONFIG%  ) do (
 for %%p in (%TGT_PLATFORM%) do (
