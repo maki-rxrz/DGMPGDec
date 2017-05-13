@@ -12,10 +12,21 @@ set MSVC_VER=msvc15
 set VS_NUMBER=2017
 set VS_EDITION=Community
 
+set VSINSTPATH=%ProgramFiles(x86)%\Microsoft Visual Studio\%VS_NUMBER%\%VS_EDITION%
+
+rem Check installed version of Visual Studio (15.2 or later)
+set VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe
+if exist "%VSWHERE%" (
+    for /f "delims=. tokens=1,2" %%a in ('"%VSWHERE%" -products * -property installationVersion') do set VisualStudioVersion=%%a.%%b
+    for /f "delims=. tokens=1,2" %%a in ('"%VSWHERE%" -products * -property installationVersion') do set TOOLS_VER=%%a.%%b
+    for /f "delims=. tokens=1"   %%a in ('"%VSWHERE%" -products * -property installationVersion') do set MSVC_VER=msvc%%a
+    for /f "delims="             %%a in ('"%VSWHERE%" -products * -property installationPath'   ) do set VSINSTPATH=%%a
+)
+
 rem Set up for MSBuild
 rem [memo] 4.0: %SystemRoot%\Microsoft.NET\Framework\v4.0.30319
 rem  12.0-14.0: %ProgramFiles(x86)%\MSBuild\%TOOLS_VER%\Bin
-set MSBUILD_PATH=%ProgramFiles(x86)%\Microsoft Visual Studio\%VS_NUMBER%\%VS_EDITION%\MSBuild\%TOOLS_VER%\Bin
+set MSBUILD_PATH=%VSINSTPATH%\MSBuild\%TOOLS_VER%\Bin
 set MSBUILD_EXEC=%MSBUILD_PATH%\MSBuild.exe
 
 rem [memo] verbosity-level: q[uiet] m[inimal] n[ormal] d[etailed] diag[nostic]
