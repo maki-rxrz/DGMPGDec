@@ -477,7 +477,15 @@ try_again:
     process.file = d2v_current.file;
     process.lba = d2v_current.lba;
 
+  __try
+  {
     Decode_Picture();
+  }
+  __except (EXCEPTION_EXECUTE_HANDLER)
+  {
+    if (MessageBox(hWnd, "Caught an exception during decoding! Continue?", "Exception!", MB_YESNO | MB_ICONERROR) != IDYES)
+        ThreadKill(MISC_KILL);
+  }
 
     timing.op = timing.mi = timeGetTime();
 
@@ -491,7 +499,15 @@ try_again:
             Write_Frame(current_frame, d2v_current, Frame_Number - 1);
             ThreadKill(MISC_KILL);
         }
+      __try
+      {
         Decode_Picture();
+      }
+      __except (EXCEPTION_EXECUTE_HANDLER)
+      {
+        if (MessageBox(hWnd, "Caught an exception during decoding! Continue?", "Exception!", MB_YESNO | MB_ICONERROR) != IDYES)
+            ThreadKill(MISC_KILL);
+      }
         field ^= 1;
         if (Stop_Flag && (!field || picture_structure == FRAME_PICTURE))
         {

@@ -207,8 +207,6 @@ void SetFaultFlag(int val)
 
 void Decode_Picture()
 {
-__try
-{
     if (picture_structure==FRAME_PICTURE && Second_Field)
         Second_Field = 0;
 
@@ -311,14 +309,6 @@ __try
         SendMessage(hWnd, CLI_PREVIEW_DONE_MESSAGE, 0, 0);
         ThreadKill(MISC_KILL);
     }
-}
-__except (EXCEPTION_EXECUTE_HANDLER)
-{
-    if (MessageBox(hWnd, "Caught an exception during decoding! Continue?", "Exception!", MB_YESNO | MB_ICONERROR) == IDYES)
-        return;
-    else
-        ThreadKill(MISC_KILL);
-}
 }
 
 /* reuse old picture buffers as soon as they are no longer needed */
