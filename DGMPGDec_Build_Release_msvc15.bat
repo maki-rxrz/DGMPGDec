@@ -17,10 +17,10 @@ set VSINSTPATH=%ProgramFiles(x86)%\Microsoft Visual Studio\%VS_NUMBER%\%VS_EDITI
 rem Check installed version of Visual Studio (15.2 or later)
 set VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe
 if exist "%VSWHERE%" (
-    for /f "delims=. tokens=1,2" %%a in ('"%VSWHERE%" -products * -property installationVersion') do set VisualStudioVersion=%%a.%%b
-    for /f "delims=. tokens=1,2" %%a in ('"%VSWHERE%" -products * -property installationVersion') do set TOOLS_VER=%%a.%%b
-    for /f "delims=. tokens=1"   %%a in ('"%VSWHERE%" -products * -property installationVersion') do set MSVC_VER=msvc%%a
-    for /f "delims="             %%a in ('"%VSWHERE%" -products * -property installationPath'   ) do set VSINSTPATH=%%a
+    for /f "delims=. tokens=1" %%a in ('"%VSWHERE%" -products * -property installationVersion') do set VisualStudioVersion=%%a.0
+    for /f "delims=. tokens=1" %%a in ('"%VSWHERE%" -products * -property installationVersion') do set TOOLS_VER=%%a.0
+    for /f "delims=. tokens=1" %%a in ('"%VSWHERE%" -products * -property installationVersion') do set MSVC_VER=msvc%%a
+    for /f "delims="           %%a in ('"%VSWHERE%" -products * -property installationPath'   ) do set VSINSTPATH=%%a
 )
 
 rem Set up for MSBuild
