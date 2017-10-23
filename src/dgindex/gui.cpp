@@ -107,7 +107,7 @@ enum {
 };
 static void LoadLanguageSettings(void);
 static void *LoadDialogLanguageSettings(HWND, int);
-static void DestroyDialogLanguageSettings(void *);
+static void DestroyDialogLanguageSettings(void **);
 
 static int INIT_X, INIT_Y, Priority_Flag, Edge_Width, Edge_Height;
 
@@ -2585,7 +2585,7 @@ LRESULT CALLBACK DetectPids(HWND hDialog, UINT message, WPARAM wParam, LPARAM lP
                 case IDC_SET_DONE:
                 case IDCANCEL:
                     EndDialog(hDialog, 0);
-                    DestroyDialogLanguageSettings(lang);
+                    DestroyDialogLanguageSettings(&lang);
             }
             return true;
     }
@@ -2714,7 +2714,7 @@ LRESULT CALLBACK VideoList(HWND hVideoListDlg, UINT message, WPARAM wParam, LPAR
                 case IDOK:
                 case IDCANCEL:
                     EndDialog(hVideoListDlg, 0);
-                    DestroyDialogLanguageSettings(lang);
+                    DestroyDialogLanguageSettings(&lang);
                     if (threadId)
                     {
                         Stop_Flag = true;
@@ -3101,7 +3101,7 @@ LRESULT CALLBACK Info(HWND hInfoDlg, UINT message, WPARAM wParam, LPARAM lParam)
                         fclose(lfp);
                     }
                 }
-                DestroyDialogLanguageSettings(lang);
+                DestroyDialogLanguageSettings(&lang);
             }
             break;
     }
@@ -3123,7 +3123,7 @@ LRESULT CALLBACK About(HWND hAboutDlg, UINT message, WPARAM wParam, LPARAM lPara
             if (LOWORD(wParam)==IDOK || LOWORD(wParam)==IDCANCEL)
             {
                 EndDialog(hAboutDlg, 0);
-                DestroyDialogLanguageSettings(lang);
+                DestroyDialogLanguageSettings(&lang);
                 return true;
             }
     }
@@ -3185,7 +3185,7 @@ LRESULT CALLBACK Cropping(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPar
 
                 case IDCANCEL:
                     EndDialog(hDialog, 0);
-                    DestroyDialogLanguageSettings(lang);
+                    DestroyDialogLanguageSettings(&lang);
                     return true;
             }
             break;
@@ -3284,7 +3284,7 @@ LRESULT CALLBACK Luminance(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPa
 
                 case IDCANCEL:
                     EndDialog(hDialog, 0);
-                    DestroyDialogLanguageSettings(lang);
+                    DestroyDialogLanguageSettings(&lang);
                     return true;
             }
             break;
@@ -3331,7 +3331,7 @@ LRESULT CALLBACK AVSTemplate(HWND hDialog, UINT message, WPARAM wParam, LPARAM l
                     SetDlgItemText(hDialog, IDC_AVS_TEMPLATE, szTemp);
                     ShowWindow(hDialog, SW_SHOW);
                     EndDialog(hDialog, 0);
-                    DestroyDialogLanguageSettings(lang);
+                    DestroyDialogLanguageSettings(&lang);
                     return true;
                 case IDC_CHANGE_TEMPLATE:
                     if (PopFileDlg(AVSTemplatePath, hWnd, OPEN_AVS))
@@ -3347,12 +3347,12 @@ LRESULT CALLBACK AVSTemplate(HWND hDialog, UINT message, WPARAM wParam, LPARAM l
                     }
                     ShowWindow(hDialog, SW_SHOW);
                     EndDialog(hDialog, 0);
-                    DestroyDialogLanguageSettings(lang);
+                    DestroyDialogLanguageSettings(&lang);
                     return true;
                 case IDC_KEEP_TEMPLATE:
                 case IDCANCEL:
                     EndDialog(hDialog, 0);
-                    DestroyDialogLanguageSettings(lang);
+                    DestroyDialogLanguageSettings(&lang);
                     return true;
             }
             break;
@@ -3379,12 +3379,12 @@ LRESULT CALLBACK BMPPath(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPara
                     GetDlgItemText(hDialog, IDC_BMP_PATH, BMPPathString, DG_MAX_PATH - 1);
                     ShowWindow(hDialog, SW_SHOW);
                     EndDialog(hDialog, 0);
-                    DestroyDialogLanguageSettings(lang);
+                    DestroyDialogLanguageSettings(&lang);
                     return true;
                 case IDC_BMP_PATH_CANCEL:
                 case IDCANCEL:
                     EndDialog(hDialog, 0);
-                    DestroyDialogLanguageSettings(lang);
+                    DestroyDialogLanguageSettings(&lang);
                     return true;
             }
             break;
@@ -3421,7 +3421,7 @@ LRESULT CALLBACK SetPids(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPara
                     GetDlgItemText(hDialog, IDC_PCR_PID, buf, 10);
                     sscanf(buf, "%x", &MPEG2_Transport_PCRPID);
                     EndDialog(hDialog, 0);
-                    DestroyDialogLanguageSettings(lang);
+                    DestroyDialogLanguageSettings(&lang);
                     Recovery();
                     if (NumLoadedFiles)
                     {
@@ -3443,7 +3443,7 @@ LRESULT CALLBACK SetPids(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPara
                 case IDCANCEL:
                 case IDC_PIDS_CANCEL:
                     EndDialog(hDialog, 0);
-                    DestroyDialogLanguageSettings(lang);
+                    DestroyDialogLanguageSettings(&lang);
                     return true;
             }
             break;
@@ -3472,7 +3472,7 @@ LRESULT CALLBACK SetMargin(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPa
                     GetDlgItemText(hDialog, IDC_MARGIN, buf, 10);
                     sscanf(buf, "%d", &TsParseMargin);
                     EndDialog(hDialog, 0);
-                    DestroyDialogLanguageSettings(lang);
+                    DestroyDialogLanguageSettings(&lang);
                     Recovery();
                     MPEG2_Transport_VideoPID = MPEG2_Transport_AudioPID = MPEG2_Transport_PCRPID = 0x02;
                     if (NumLoadedFiles)
@@ -3495,7 +3495,7 @@ LRESULT CALLBACK SetMargin(HWND hDialog, UINT message, WPARAM wParam, LPARAM lPa
                 case IDCANCEL:
                 case IDC_MARGIN_CANCEL:
                     EndDialog(hDialog, 0);
-                    DestroyDialogLanguageSettings(lang);
+                    DestroyDialogLanguageSettings(&lang);
                     return true;
             }
             break;
@@ -3540,7 +3540,7 @@ LRESULT CALLBACK Normalization(HWND hDialog, UINT message, WPARAM wParam, LPARAM
 
                 case IDCANCEL:
                     EndDialog(hDialog, 0);
-                    DestroyDialogLanguageSettings(lang);
+                    DestroyDialogLanguageSettings(&lang);
                     return true;
             }
             break;
@@ -3615,12 +3615,12 @@ LRESULT CALLBACK SelectTracks(HWND hDialog, UINT message, WPARAM wParam, LPARAM 
                         PreScale_Ratio = 1.0;
                     }
                     EndDialog(hDialog, 0);
-                    DestroyDialogLanguageSettings(lang);
+                    DestroyDialogLanguageSettings(&lang);
                     return false;
                 case IDCANCEL:
                 case IDC_TRACK_CANCEL:
                     EndDialog(hDialog, 0);
-                    DestroyDialogLanguageSettings(lang);
+                    DestroyDialogLanguageSettings(&lang);
                     return true;
             }
             break;
@@ -3660,12 +3660,12 @@ LRESULT CALLBACK SelectDelayTrack(HWND hDialog, UINT message, WPARAM wParam, LPA
                         }
                     }
                     EndDialog(hDialog, 0);
-                    DestroyDialogLanguageSettings(lang);
+                    DestroyDialogLanguageSettings(&lang);
                     return false;
                 case IDCANCEL:
                 case IDC_DELAY_CANCEL:
                     EndDialog(hDialog, 0);
-                    DestroyDialogLanguageSettings(lang);
+                    DestroyDialogLanguageSettings(&lang);
                     return true;
             }
             break;
@@ -4884,13 +4884,14 @@ static void *LoadDialogLanguageSettings(HWND hInfoDlg, int dialog_id)
     return lang;
 }
 
-static void DestroyDialogLanguageSettings(void *lh)
+static void DestroyDialogLanguageSettings(void **lh)
 {
-    if (lh == NULL)
+    if (lh == NULL || *lh == NULL)
         return;
-    lang_settings_t *lang = (lang_settings_t*)lh;
+    lang_settings_t *lang = (lang_settings_t *)*lh;
 
     if (lang->hFont)
         DeleteObject(lang->hFont);
     free(lang);
+    *lh = NULL;
 }
