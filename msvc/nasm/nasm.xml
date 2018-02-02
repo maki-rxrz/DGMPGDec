@@ -73,7 +73,7 @@
       <EnumValue
         Name="0"
         DisplayName="Object File"
-        Switch="-fwin" />
+        Switch="-f win32" />
       <EnumValue
         Name="1"
         DisplayName="LINUX ELF FORMAT"
@@ -82,6 +82,10 @@
         Name="2"
         DisplayName="FLAT BINARY"
         Switch="-f bin" /> 
+      <EnumValue
+        Name="4"
+        DisplayName="Object File"
+        Switch="-f win64" />
 
     </EnumProperty>
 

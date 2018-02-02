@@ -12,7 +12,9 @@
   <ItemDefinitionGroup>
     <NASM>
       <OutputFormat>$(IntDir)%(FileName).obj</OutputFormat>
-      <Outputswitch>0</Outputswitch>
+      <Outputswitch Condition="'$(Platform)' == 'Win32'">0</Outputswitch>
+      <Outputswitch Condition="'$(Platform)' == 'X64'">4</Outputswitch>
+      <ErrorReportingFormat>1</ErrorReportingFormat>
       <PackAlignmentBoundary>0</PackAlignmentBoundary>
       <CommandLineTemplate Condition="'$(Platform)' == 'Win32'">$(NasmExec) [AllOptions] [AdditionalOptions] [Inputs]</CommandLineTemplate>
       <CommandLineTemplate Condition="'$(Platform)' == 'X64'">$(NasmExec) [AllOptions]  [AdditionalOptions] [Inputs]</CommandLineTemplate>
