@@ -44,24 +44,7 @@
 
 #include <windows.h>
 #include "avisynth.h"
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////////////
-class LumaYV12: public GenericVideoFilter
-{
-	double	lumgain;
-	int		lumoff;
-
-	public:
-	LumaYV12(PClip _child, int _Lumaoffset,double _Lumagain, IScriptEnvironment* env);
-	~LumaYV12();
-	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
-
-	private:
-	bool use_SSE2;
-	bool use_ISSE;
-	bool SepFields;
-	int lumGain;
-};
+#include "AvisynthAPI.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 LumaYV12::LumaYV12(PClip _child, int _Lumaoffset,double _Lumagain, IScriptEnvironment* env):

@@ -29,9 +29,10 @@
 #include "postprocess.h"
 #include "AvisynthAPI.h"
 #include "utilities.h"
+#include "text-overlay.h"
 #include <string.h>
 
-#define VERSION "DGDecode 1.5.8"
+#define VERSION "DGDecode 2.0.0.5"
 
 MPEG2Source::MPEG2Source(const char* d2v, int cpu, int idct, int iPP, int moderate_h, int moderate_v, bool showQ, bool fastMC, const char* _cpu2, int _info, int _upConv, bool _i420, int iCC, IScriptEnvironment* env)
 {
@@ -391,8 +392,8 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
 	if (m_decoder.info == 1)
 	{
 		char msg1[1024];
-		sprintf(msg1,"%s (c) 2007 Donald A. Graft (et al)\n" \
-					 "---------------------------------------\n" \
+		sprintf(msg1,"%s (c) 2005-2021 Donald A. Graft (et al)\n" \
+					 "-----------------------------------------------------\n\n" \
 					 "Source:        %s\n" \
 					 "Frame Rate:    %3.6f fps (%u/%u) %s\n" \
 			         "Field Order:   %s\n" \
@@ -426,11 +427,11 @@ PVideoFrame __stdcall MPEG2Source::GetFrame(int n, IScriptEnvironment* env)
 		m_decoder.FrameList[raw].pf ? "True" : "False",
 		Matrix_s, m_decoder.GOPList[gop]->matrix,
 		m_decoder.avgquant, m_decoder.minquant, m_decoder.maxquant);
-		ApplyMessage(&frame, vi, msg1, 150, 0xdfffbf, 0x0, 0x0, env);
+		ApplyMessage(&frame, vi, msg1, 150, 0xffffff, 0x0, 0x0, env);
 	}
 	else if (m_decoder.info == 2)
 	{
-		dprintf("DGDecode: DGDecode %s (c) 2005 Donald A. Graft\n", VERSION);
+		dprintf("DGDecode: DGDecode %s (c) 2005-2021 Donald A. Graft (et al)\n", VERSION);
 		dprintf("DGDecode: Source:            %s\n", m_decoder.Infilename[m_decoder.GOPList[gop]->file]);
 		dprintf("DGDecode: Frame Rate:        %3.6f fps (%u/%u) %s\n",
 			double(m_decoder.VF_FrameRate_Num) / double(m_decoder.VF_FrameRate_Den),
@@ -1607,8 +1608,6 @@ PVideoFrame __stdcall Deblock::GetFrame(int n, IScriptEnvironment *env)
     return src;
 }
 
-#include "lumayv12.cpp"
-
 AVSValue __cdecl Create_MPEG2Source(AVSValue args, void*, IScriptEnvironment* env) 
 {
 //	char path[1024];
@@ -1694,8 +1693,8 @@ if (strncmp(buf, name, len) == 0) \
 	}
 
 	// check for uninitialised strings
-	if (strlen(d2v)>=255) d2v[0]=0;
-	if (strlen(cpu2)>=255) cpu2[0]=0;
+//	if (strlen(d2v)>=255) d2v[0]=0;
+//	if (strlen(cpu2)>=255) cpu2[0]=0;
 
 	MPEG2Source *dec = new MPEG2Source( args[0].AsString(d2v),
 										args[1].AsInt(cpu),
@@ -1770,7 +1769,11 @@ AVSValue __cdecl Create_Deblock(AVSValue args, void* user_data, IScriptEnvironme
     	env);
 }
 
-extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit2(IScriptEnvironment* env) {
+const AVS_Linkage *AVS_linkage = 0;
+extern "C" __declspec(dllexport) const char* __stdcall AvisynthPluginInit3(IScriptEnvironment* env, AVS_Linkage* vectors)
+{
+	AVS_linkage = vectors;
+
 	env->AddFunction("MPEG2Source", "[d2v]s[cpu]i[idct]i[iPP]b[moderate_h]i[moderate_v]i[showQ]b[fastMC]b[cpu2]s[info]i[upConv]i[i420]b[iCC]b", Create_MPEG2Source, 0);
 	env->AddFunction("LumaYV12","c[lumoff]i[lumgain]f",Create_LumaYV12,0);
     env->AddFunction("BlindPP", "c[quant]i[cpu]i[cpu2]s[iPP]b[moderate_h]i[moderate_v]i", Create_BlindPP, 0);
@@ -1919,15 +1922,23 @@ void MPEG2Source::GetFrame(int n, unsigned char *buffer, int pitch)
 {
 	out->y = buffer;
 	out->u = out->y + (pitch * m_decoder.Coded_Picture_Height);
-	if (vi.IsYV12()) out->v = out->u + ((pitch * m_decoder.Chroma_Height)/2);
-	else out->v = out->u + ((pitch * m_decoder.Coded_Picture_Height)/2);
+	// This is also called from the non-AVS interface and baked code
+	// cannot be used.
+//	if (vi.IsYV12())
+	if (vi.pixel_type == VideoInfo::CS_YV12 || vi.pixel_type == VideoInfo::CS_I420)
+		out->v = out->u + ((pitch * m_decoder.Chroma_Height)/2);
+	else
+		out->v = out->u + ((pitch * m_decoder.Coded_Picture_Height)/2);
 	out->ypitch = pitch;
 	out->uvpitch = pitch/2;
 	out->ywidth = m_decoder.Coded_Picture_Width;
 	out->yheight = m_decoder.Coded_Picture_Height;
 	out->uvwidth = m_decoder.Chroma_Width;
-	if (vi.IsYV12()) out->uvheight = m_decoder.Chroma_Height;
-	else out->uvheight = m_decoder.Coded_Picture_Height;
+//	if (vi.IsYV12())
+	if (vi.pixel_type == VideoInfo::CS_YV12 || vi.pixel_type == VideoInfo::CS_I420)
+		out->uvheight = m_decoder.Chroma_Height;
+	else
+		out->uvheight = m_decoder.Coded_Picture_Height;
 
 	m_decoder.Decode(n, out);
 

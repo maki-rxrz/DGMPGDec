@@ -1,0 +1,33 @@
+Vapoursynth Usage Notes
+-----------------------
+
+DGDecodeNV is usable in Vapoursynth either as a native Vapoursynth
+filter, or as a native Avisynth filter. Currently, the utility
+filters DGDenoise(), DGBob(), etc., are available only when DGDecodeNV
+is used in native Avisynth mode.
+
+Note that in Vapoursynth the defines true/false are required to be
+True/False, i.e., the first letters are capitalized. Here are
+sample scripts delivering full bit depth for both modes:
+
+Vapoursynth native mode:
+
+-----
+import vapoursynth as vs
+core = vs.get_core()
+core.std.LoadPlugin(".../DGDecodeNV.dll")
+video = core.dgdecodenv.DGSource(".../beach.dgi",fulldepth=True)
+video.set_output()
+-----
+
+Avisynth native mode:
+
+-----
+import vapoursynth as vs
+core = vs.get_core()
+core.avs.LoadPlugin(".../DGDecodeNV.dll")
+video = core.avs.DGSource(".../beach.dgi",fulldepth=True)
+video.set_output()
+-----
+
+Copyright (c) 2018 Donald A. Graft, All rights reserved

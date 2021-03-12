@@ -24,7 +24,7 @@
  */
 
 #include "global.h"
-#include "avisynth2.h"
+#include "avisynth.h"
 #include "text-overlay.h"
 
 #define uc unsigned char
@@ -50,7 +50,7 @@ public:
   bool __stdcall GetParity(int n);
   void __stdcall GetAudio(void* buf, __int64 start, __int64 count, IScriptEnvironment* env) {};
   const VideoInfo& __stdcall GetVideoInfo() { return vi; }
-  void __stdcall SetCacheHints(int cachehints,int frame_range) { } ;  // We do not pass cache requests upwards, only to the next filter.
+  int __stdcall SetCacheHints(int cachehints, int frame_range) { return 0; };  // We do not pass cache requests upwards, only to the next filter.
   void override(int ovr_idct);
   void conv422toYUV422(const unsigned char *py, unsigned char *pu, unsigned char *pv, unsigned char *dst, 
 					   int pitch1Y, int pitch1UV, int pitch2, int width, int height);
@@ -70,8 +70,6 @@ public:
 	~BlindPP();
 	void BlindPP::convYUV422to422(const unsigned char *src, unsigned char *py, unsigned char *pu, unsigned char *pv,
        int pitch1, int pitch2y, int pitch2uv, int width, int height);
-	void BlindPP::conv422toYUV422b(const unsigned char *py, unsigned char *pu, unsigned char *pv, unsigned char *dst, 
-					   int pitch1Y, int pitch1UV, int pitch2, int width, int height);
 };
 
 void conv420to422(const unsigned char *src, unsigned char *dst, int frame_type, int src_pitch,
@@ -121,4 +119,21 @@ public:
            IScriptEnvironment* env);
    ~Deblock();
 	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
+};
+
+class LumaYV12 : public GenericVideoFilter
+{
+	double	lumgain;
+	int		lumoff;
+
+public:
+	LumaYV12(PClip _child, int _Lumaoffset, double _Lumagain, IScriptEnvironment* env);
+	~LumaYV12();
+	PVideoFrame __stdcall GetFrame(int n, IScriptEnvironment* env);
+
+private:
+	bool use_SSE2;
+	bool use_ISSE;
+	bool SepFields;
+	int lumGain;
 };

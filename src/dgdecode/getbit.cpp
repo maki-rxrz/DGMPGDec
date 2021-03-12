@@ -526,7 +526,7 @@ void CMPEG2Decoder::Next_File()
 	// the decoder at least processes valid data until it detects the
 	// fault flag and exits.
 	_lseeki64(Infile[File_Flag], 0, SEEK_SET);
-	bytes = read(Infile[File_Flag], Rdbfr + Read, BUFFER_SIZE - Read);
+	bytes = _read(Infile[File_Flag], Rdbfr + Read, BUFFER_SIZE - Read);
 	if (Read + bytes == BUFFER_SIZE)
 		// The whole buffer has valid data.
 		buffer_invalid = (unsigned char *) 0xffffffff;

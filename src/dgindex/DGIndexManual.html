@@ -1,0 +1,2168 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<!-- DGIndex User Manual v1.0.0 -->
+<!-- Created by Cyberia (04/28/05) -->
+<html>
+<head>
+	<title>DGIndex - User Manual</title>
+	<meta HTTP-EQUIV="Content-Type" LANG="en-us" CONTENT="text/html; charset=iso-8859-1">
+	<style type="text/css">
+		body	      { font-family: verdana, arial, helvetica, sans-serif;
+				font-size: 12px;
+				color: #000000;
+				background-color: #B6C0CA;
+				text-align: left;
+				line-height: 150%;
+				width: 98.5%;
+				padding: 0px;
+				margin: 8px 0px 8px 8px; }
+
+		ul	      { padding: 0px;
+				margin: 0px 62px 0px 60px; }
+
+		ol	      { padding: 0px;
+				margin: 0px 62px 0px 60px; }
+
+		table	      { width: 99%; }
+
+		#tt	      { font-family: "Courier New", Courier, monospace;
+				font-size: 15px; }
+
+		h1	      { font-size: 26px;
+				background-color: #90A0C0;
+				text-align: center;
+				line-height: 150%;
+				margin: 12px 0px 12px 0px; }
+
+		h2	      { font-size: 22px;
+				background-color: #90A0C0;
+				line-height: 150%;
+				padding-left: 8px;
+				margin: 12px 0px 12px 0px;
+				border-style: solid;
+				border-color: #003366;
+				border-width: 2px; }
+
+		h3	      { font-size: 18px;
+				line-height: 150%;
+				padding-left: 8px;
+				margin: 12px 0px 12px 50px;
+				border-style: solid;
+				border-color: #003366;
+				border-width: 1px; }
+
+		pre	      { font-family: "Courier New", Courier, monospace;
+				font-size: 15px;
+				background-color: #D0D0C0;
+				padding: 12px;
+				margin: 10px 0px 10px 0px;
+				border-style: solid;
+				border-color: #908030;
+				border-width: 1px; }
+
+		code	      { font-family: "Courier New", Courier, monospace;
+				font-size: 15px;
+				color: #002266 ;
+				letter-spacing: 1px; }
+
+		a	      { font-size: 12px;
+				color: #0000ff;
+				text-decoration: none; }
+
+		a:visited     { color: #0000ff; }
+
+		a:hover	      { background-color: #EEE; }
+
+		#right	      { text-align: right; }
+
+		#justify      { text-align: justify; }
+
+		#center      { text-align: center; }
+
+		#quote	      { font-style: italic;
+				margin: 0px 50px 0px 50px; }
+
+		#precode      { color: #002266;
+				background-color: #B6C0CA;
+				padding: 0px 0px 0px 12px;
+				margin: 0px;
+				border-style: none; }
+
+		#section      { color: #002266;
+				width: 300px;
+				line-height: 75%;
+				text-align: right; }
+	</style>
+</head>
+<body>
+<a name="Top"></a>
+
+<h1><hr>DGIndex 2.0.0.5<hr></h1>
+
+
+<ul>
+	<br>
+	<br>
+	<a href="#WhatIsDGIndex">What is DGIndex?</a><br>
+	<br>
+
+	<a href="#FileMenu">File Menu</a><br>
+	&nbsp&nbsp&nbsp<a href="#FileOpen">Open</a><br>
+	&nbsp&nbsp&nbsp<a href="#LoadProject">Load Project</a><br>
+	&nbsp&nbsp&nbsp<a href="#FileClose">Close</a><br>
+	&nbsp&nbsp&nbsp<a href="#SaveProject">Save Project</a><br>
+	&nbsp&nbsp&nbsp<a href="#SaveDemux">Save Project and Demux Video</a><br>
+	&nbsp&nbsp&nbsp<a href="#AudioOnly">Demux Audio-Only Stream</a><br>
+	&nbsp&nbsp&nbsp<a href="#SaveBMP">Save BMP</a><br>
+	&nbsp&nbsp&nbsp<a href="#Play">Preview, Play, Stop, Pause/Resume</a><br>
+	&nbsp&nbsp&nbsp<a href="#Exit">Exit</a><br>
+	<br>
+	<a href="#StreamMenu">Stream Menu</a><br>
+	&nbsp&nbsp&nbsp<a href="#DetectPIDsPAT">Detect PIDs: PAT/PMT</a><br>
+	&nbsp&nbsp&nbsp<a href="#DetectPIDsPSIP">Detect PIDs: PSIP</a><br>
+	&nbsp&nbsp&nbsp<a href="#DetectPIDsRAW">Detect PIDs: Raw</a><br>
+	&nbsp&nbsp&nbsp<a href="#SetPIDs">Set PIDs</a><br>
+	<br>
+	<a href="#VideoMenu">Video Menu</a><br>
+	&nbsp&nbsp&nbsp<a href="#iDCT_Algorithm">iDCT Algorithm</a><br>
+	&nbsp&nbsp&nbsp<a href="#FieldOp">Field Operation</a><br>
+	&nbsp&nbsp&nbsp<a href="#YUVtoRGB">YUV->RGB</a><br>
+	&nbsp&nbsp&nbsp<a href="#LuminanceFilter">Luminance Filter</a><br>
+	&nbsp&nbsp&nbsp<a href="#CroppingFilter">Cropping Filter</a><br>
+	&nbsp&nbsp&nbsp<a href="#HDDisplay">HD Display</a><br>
+	&nbsp&nbsp&nbsp<a href="#CopyToClipboard">Copy Frame to Clipboard</a><br>
+		<br>
+	<a href="#AudioMenu">Audio Menu</a><br>
+	&nbsp&nbsp&nbsp<a href="#OutputMethod">Output Method</a><br>
+	&nbsp&nbsp&nbsp<a href="#TrackNumber">Select Track(s)</a><br>
+	&nbsp&nbsp&nbsp<a href="#AudioDecode">Dolby Digital Decode</a><br>
+	&nbsp&nbsp&nbsp<a href="#AudioDownconvert">48 -> 44.1KHz</a><br>
+	&nbsp&nbsp&nbsp<a href="#AudioNorm">Normalization</a><br>
+	<br>
+	<a href="#OptionsMenu">Options Menu</a><br>
+	&nbsp&nbsp&nbsp<a href="#ProcessPriority">Process Priority</a><br>
+	&nbsp&nbsp&nbsp<a href="#LoopPlayback">Loop Playback</a><br>
+	&nbsp&nbsp&nbsp<a href="#PlaybackSpeed">Playback Speed</a><br>
+	&nbsp&nbsp&nbsp<a href="#AVSTemplate">AVS Template</a><br>
+	&nbsp&nbsp&nbsp<a href="#UseFullPaths">Use Full Paths</a><br>
+	&nbsp&nbsp&nbsp<a href="#ForceOpen">Force Open GOPs in D2V File</a><br>
+	&nbsp&nbsp&nbsp<a href="#LogQuants">Log Quant Matrices</a><br>
+	&nbsp&nbsp&nbsp<a href="#LogTimestamps">Log Timestamps</a><br>
+	&nbsp&nbsp&nbsp<a href="#FusionAudio">Force Fusion-Style Audio</a><br>
+	&nbsp&nbsp&nbsp<a href="#InfoLog">Enable Info Log</a><br>
+	<br>
+	<a href="#ToolsMenu">Tools Menu</a><br>
+	&nbsp&nbsp&nbsp<a href="#AnalyzeSync">Analyze Sync</a><br>
+	&nbsp&nbsp&nbsp<a href="#FixD2V">Fix D2V</a><br>
+	&nbsp&nbsp&nbsp<a href="#ParseD2V">Parse D2V</a><br>
+	<br>
+	<a href="#HelpMenu">Help Menu</a><br>
+	&nbsp&nbsp&nbsp<a href="#SIMD">SIMD, VFAPI Plug-In</a><br>
+	&nbsp&nbsp&nbsp<a href="#UserManual">Quick Start Guide, DGIndex User Manual, and DGDecode User Manual</a><br>
+	<br>
+	<a href="#DisplayWindow">Display Window</a><br>
+	&nbsp&nbsp&nbsp<a href="#Navigation">Navigation</a><br>
+	&nbsp&nbsp&nbsp<a href="#Selection">Selection</a><br>
+	&nbsp&nbsp&nbsp<a href="#Splash">Splash Screen</a><br>
+	<br>
+	<a href="#InformationPanel">Information Panel</a><br>
+	&nbsp&nbsp&nbsp<a href="#Video">Video Section</a><br>
+	&nbsp&nbsp&nbsp<a href="#Audio">Audio Section</a><br>
+	&nbsp&nbsp&nbsp<a href="#Status">Status Section</a><br>
+	<br>
+	<a href="#AppendixA">Appendix A: D2V File Structure</a><br>
+	<a href="#AppendixB">Appendix B: Command-Line Interface</a><br>
+	<a href="#AppendixC">Appendix C: "AC3 5.1" versus "AC3 3/2"</a><br>
+	<a href="#AppendixD">Appendix D: Auxiliary INI File Options</a><br>
+	<br>
+
+	<a href="#Credits">Credits</a><br>
+	<a href="#License">License</a><br>
+	<br>
+</ul>
+
+<a name="WhatIsDGIndex"></a><br>
+<h2>
+	<table><tr>
+		<td width="75%">What is DGIndex?</td>
+		<td id="right"><a href="#Top">Table of Contents</a></td>
+
+	</table>
+</h2>
+
+<ul id="justify">
+	<p>DGIndex, part of the DGMPGDec package, is primarily designed to create an index of an MPEG video stream, containing the
+	location of each frame in the input stream, and some additional information about each frame.
+	This index, or project file, is used by the companion <a href="http://www.avisynth.org/" target="blank">Avisynth</a> filter
+	DGDecode to provide frame-accurate serving of the video via an Avisynth script. DGIndex is able to decode and
+	index most MPEG1/2 streams including elementary streams, program streams, VOBs, VCDs, SVCDs, PVA files, and transport streams.
+	Additional features include: video demuxing
+	(m1v/m2v), audio demuxing (ac3, dts, aac, mpa, and lpcm), optimized iDCTs, luminance filtering, cropping, and more.</p>
+	<p>DGIndex is an evolution of Chia-chen Kuo's DVD2AVI and is baselined off DVD2AVI v1.77.3.</p>
+	The evolved version was renamed to DGIndex to avoid naming confusions, to reflect the significant divergence of
+	functionality,  and to clearly link it with
+	DG's companion tools in DGMPGDec. DG wants to take great pains to acknowledge the origins of DGIndex as described
+	in the Credits section below.</p>
+	<p>You can get the latest binaries and source code of DGMPGDec at
+	<a href="http://rationalqm.us/dgmpgdec/dgmpgdec.html" target="blank">http://rationalqm.us/dgmpgdec/dgmpgdec.html</a>.</p>
+	<p>DGIndex is free software distributed under the terms of the GNU GPL v2 license. You must agree to the terms of the license
+	before using the program or its source code. Please see the <a href="#License">License</a> section for details.</p>
+	<p>This document is a reference manual for DGIndex. Please refer to the accompanying documents for quick start information,
+	frequently asked questions, and guidance on actual usage of DGIndex in typical scenarios.</p>
+</ul>
+
+<a name="FileMenu"></a><br>
+<h2>
+	<table><tr>
+		<td width="75%">File Menu</td>
+		<td id="right"><a href="#Top">Table of Contents</a></td>
+	</table>
+</h2>
+
+	<a name="FileOpen"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Open
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>Use this option to open one or more source files. If you open more than one file, their contents will be
+		concatenated in the order in which the files are listed in the File List dialog. Demultiplexing or frame
+		serving will produce a single output stream that is a concatenation of the source files.
+		When you open multiple files, all the
+                files must be of the same type; e.g., you cannot open MPEG1 and MPEG2 files at the same time, you cannot
+	        open program streams and transport streams at the same time, etc.</p>
+
+		<p>Clicking on File\Open causes one of two things to happen:</p>
+		<ol>
+			<li><p>If no files have yet been selected, the Open dialog will appear.<br>
+			Multiple files may be selected by holding the SHIFT or CTRL keys during file selection.<br>
+			Click "Open" to proceed to the File List dialog.</p></li>
+
+			<li><p>If one or more files have already been selected, the File List dialog will open.<br></p></li>
+		</ol>
+
+		<p>Files can also be loaded by dragging-and-dropping them onto the DGIndex window. This causes the File List to be opened
+		with the list containing the drag-and-dropped files.</p>
+
+		<p>When the File List dialog opens with newly selected files, it sorts them (using an intelligent
+		multifield sorting algorithm) and lists the selected files. In rare cases, the order produced may not be
+		what the user requires. This can be corrected by using the list editing buttons.
+		The following buttons are available for list management:</p>
+		<ul>
+			<li><b>Add</b> - Open the file selection dialog.</li>
+			<li><b>Up</b> - Move the selected item up one position in the list.</li>
+			<li><b>Down</b> - Move the selected item down one position in the list.</li>
+			<li><b>Del</b> - Remove the selected item from the list.</li>
+			<li><b>Del All</b> - Remove all items from the list.</li>
+		</ul>
+		<p>When the list is arranged satisfactorily, click "OK" and the contents of the File List will be loaded into
+		DGIndex as a continuous sequence.</p>
+
+		<p>Sometimes due to cutting or editing, video streams may start with several frames that cannot be decoded properly
+		(because their reference frames are missing). When this is the case for the first file in your file list,
+		 replaces the first few frames with copies of the first good
+		decodable frame.</p>
+	</ul></ul>
+
+	<a name="FileClose"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Close
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>Use this option to close all open input files.</p>
+	</ul></ul>
+
+	<a name="LoadProject"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Load Project
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>Use this option to open existing DGIndex (d2v) project files.</p>
+
+		<p>When a project file is loaded, DGIndex opens the project's files in the correct order
+		and restores the following settings from the project file:</p>
+		<ul>
+		<li>IDCT Algorithm
+		<li>Field Operation
+		<li>YUV -> RGB Scale
+		<li>Luminance Filter
+		<li>Clipping
+		<li>Timeline selection points
+		</ul><br>
+		Options not listed above, such as Audio options, are not restored. They remain at the
+		values they had prior to the loading of the project file.
+	</ul></ul>
+
+	<a name="SaveProject"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Save Project
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>Use this option to generate a DGIndex project file (d2v file). The project file is used by DGDecode (or DGVfapi)
+		to frame-serve the video.</p>
+
+		<p>DGIndex builds a project file containing the paths to the source files, the video settings, and
+		MPEG indexing information. For more information on the structure of d2v files, refer to Appendix A.</p>
+
+		<p>When the project is saved, the timeline selection points are honored, that is, the served video and
+		the demultiplexed audio will contain only the portions of the input streams selected by the timeline
+		<a href=#Selection>selection</a> points.</p>
+
+		<p>Generation of the project file can take several minutes depending on the size of the project and
+		the speed of your computer.</p>
+
+		<p>Note that the source file names and path locations cannot be changed after a project file is generated.
+		If you need to change their names or move them, you will either have to regenerate the project file using Save Project
+                after moving them, or you will have to edit the paths given in the top of the d2v file.</p>
+	</ul></ul>
+
+	<a name="SaveDemux"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Save Project and Demux Video
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>Use this option to generate a DGIndex project file (d2v file) as described in the section "Save Project" above,
+		and at the
+		same time demultiplex the video to a separate MPEG elementary stream file (m1v or m2v file). Elementary
+		stream files are sometimes needed for use with other applications (such as DGPulldown and DVD authoring
+		programs). DGIndex provides this functionality as a convenient tool for the sophisticated user;
+		elementary streams are not required for frame serving via DGDecode (or DGVfapi).</p>
+
+		<p>The elementary stream file will be generated in the same directory as the project (d2v) file, and its name
+		will be created by concatenating the base name of the project file with ".demuxed.m1v" for MPEG1 streams,
+		or ".demuxed.m2v" for MPEG2 streams. For example, if the project file is named "movie.d2v" and it contains
+		MPEG2 video, the elementary stream file will be named "movie.demuxed.m2v".</p>
+
+		<p>Note that demultiplexing always generates a single elementary stream file containing all the video of
+		the project, even if the project file refers to multiple source files.</p>
+	</ul></ul>
+
+
+	<a name="AudioOnly"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Demux Audio-Only Stream
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>Some streams contain only audio, and so it is not possible to do Save Project. To allow for demuxing the
+		audio from such streams, this option is provided. It may also be used on streams that contain video
+		(though it makes no sense to do that instead of Save Project), but
+		the selection range is ignored and the entire stream is demuxed, and no delay value is reported for the audio.</p>
+
+		<p>Also note that you cannot decode audio to WAV using this option. You must use Save Project.
+
+		<p>The demuxed audio file will be generated in the same directory as the source stream file(s), and its name
+		will be created by using the base name of the first loaded source file.</p>
+
+		<p>Note that demultiplexing always generates a single elementary stream file containing all the audio of
+		the project, even if the project file refers to multiple source files.</p>
+	</ul></ul>
+
+	<a name="SaveBMP"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Save BMP
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>Use this option to save the current frame on display in the DGIndex window to a Windows BMP file. When this
+		option is selected, a file dialog will open that allows you to specify the desired name and location for the
+		BMP file.</p>
+	</ul></ul>
+
+	<a name="Play"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Preview, Play, Stop, Pause/Resume
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>Use these options to control video playback in the display window. Keyboard hotkeys are given
+		in parentheses.</p>
+		<ul>
+			<li><b>Preview (F5)</b> - Plays from the beginning to the end of the selected timeline range.</li>
+			<li><b>Play (F6)</b> - Plays from the current position on the timeline.</li>
+			<li><b>Stop (ESC)</b> - Stops a running Play or Preview.</li>
+			<li><b>Pause/Resume (SPACE)</b> - Pauses/resumes a running Play or Preview.</li>
+		</ul>
+		<p>Play and Preview play only video and not audio.</p>
+		<p>The video playback speed is controlled by the
+		playback speed control options available via the <a href=#PlaybackSpeed>Options/Playback Speed</a> menu.</p>
+		<p>The Play command does not decode frames prior to the current position to obtain reference frames,
+		so you may see macroblocking
+		on the first few frames of a Play operation if you jump
+		around on the timeline. Note that this is purely a display quirk in DGIndex,
+		it never occurs in the frame-served video or in demultiplexed video files.</p>
+		<p>Play and Preview automatically pop up the <a href="#InformationPanel">Information Panel</a>.</p>
+	</ul></ul>
+
+	<a name="Exit"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Exit
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>Use this option to close all open files and terminate DGIndex.</p>
+	</ul></ul>
+
+
+<a name="StreamMenu"></a><br>
+<h2>
+	<table><tr>
+		<td width="75%">Stream Menu</td>
+		<td id="right"><a href="#Top">Table of Contents</a></td>
+	</table>
+</h2>
+
+	<a name="DetectPIDsPAT"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Detect PIDs: PAT/PMT
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>DGIndex can open transport streams. Transport streams can contain multiple programs, each of which
+		contains audio and video streams. The Stream menu allows the user to list the programs and to select the
+		desired program to be decoded. The stream menu is disabled if the input stream is not a transport stream.
+		Transport streams periodically send data tables called the PAT/PMT tables that specify the programs and
+		tags (PIDs) for the associated audio and video streams. By setting the PIDs for the desired audio and video
+		streams, you thereby select the desired program.
+
+		<p>Use the "Detect PIDs: PAT/PMT" option to list the programs and their associated streams, and to select the
+		desired streams to be decoded. DGIndex will parse the first input file for the PAT/PMT tables and, if found,
+		will display the programs and their PIDs in a list box. If PAT/PMT tables cannot be found, an error message
+		will be shown instead, in which case the list box should be closed and the "Detect PIDs: Raw" option used instead.</p>
+
+		<p>To select the desired video stream, highlight it by selecting it with a mouse click. Then click on the "Set Video"
+		button. To select the desired audio stream, highlight it by selecting it with
+                a mouse click. Then click on the "Set Audio"
+		button. To select the desired PCR stream, highlight it by selecting it with
+                a mouse click. Then click on the "Set PCR"
+		button.When you have selected your PIDs, click on the "Done" button to close the list box. The video should now
+		be displayed in the DGIndex window.</p> Note that unless you use the Log Timestamps function, the PCR PID is
+                not used and can be ignored.
+
+		<p>The PIDs are stored in the DGIndex.ini file and so will be retained across DGIndex sessions.</p>
+
+		<p>Note that selecting an audio stream as video, or vice versa, will produce undefined operation and may crash
+		DGIndex. For that reason, both PIDs come up by default to 0x02, which is a reserved value. However, because the
+		DGIndex.ini file retains PIDs from a previous session, you may run into this. If you get strange behavior or crashing,
+		then manually set the audio and video PIDs to 0x02 using the "Set PIDs" option before loading your input file(s),
+		and then detect and set your PIDs normally.</p>
+	</ul></ul>
+
+	<a name="DetectPIDsPSIP"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Detect PIDs: PSIP
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>This option is siliar to "Detect PIDs: PAT/PMT", but instead of reading PAT/PMT tables, it reads PSIP tables. PSIP
+		tables are found in terrestrial ATSC transmissions. Future versions will enhance the PSIP support to add display of the
+		program guide, etc.</p>
+	</ul></ul>
+
+	<a name="DetectPIDsRAW"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Detect PIDs: Raw
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>Rarely, a transport stream may lack PAT/PMT tables. In such cases, the PIDs of the audio and video streams
+		can be displayed and selected using the "Detect PIDs: Raw" option. Because raw PID detection does not show which
+		audio and video streams go together, some trial and error may be required to find which audio and video PIDs
+		belong together (commonly encountered pairs of associated video/audio PIDs are 11/14, 21/24, and 31/34).
+		For that reason "Detect PIDs: PAT/PMT" should always be tried first.</p>
+
+		<p>The operation of the "Detect PIDs: Raw" list box is the same as described above for the
+		"Detect PIDs: PAT/PMT" list box.</p>
+	</ul></ul>
+
+	<a name="SetPIDs"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Set PIDs
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>Use this option to manually specify PIDs using hexadecimal notation, or to query the selected PIDs.
+		If you use this dialog to specify your PIDs,
+		DGIndex will not detect PIDs and will simply use the specified PIDs to select the audio and video streams.</p>
+
+		<p>Note that selecting an audio stream as video, or vice versa, will produce undefined operation and may crash
+		DGIndex. If you get strange behavior or crashing,
+		then manually set the audio and video PIDs to 0x02 using the "Set PIDs" option before loading your input file(s),
+		and then detect and set your PIDs normally.</p>
+	</ul></ul>
+
+
+<a name="VideoMenu"></a><br>
+<h2>
+	<table><tr>
+		<td width="75%">Video Menu</td>
+		<td id="right"><a href="#Top">Table of Contents</a></td>
+	</table>
+</h2>
+
+	<a name="iDCT_Algorithm"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">iDCT Algorithm
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>Specify which iDCT algorithm will be used by DGIndex and DGDecode.</p>
+		<ul>
+		  <li><b>32-bit MMX</b> (1 in INI file, D2V file and CLI)</li>
+		  <li><b>32-bit SSE MMX</b> (2)</li>
+		  <li><b>32-bit SSE2 MMX</b> (3)</li>
+		  <li><b>64-bit Floating Point</b> (4)</li>
+		  <li><b>IEEE-1180 Reference</b> (5)</li>
+		  <li><b>Skal SSE MMX</b> (6)</li>
+		  <li><b>Simple MMX</b> (7)</li>
+		</ul>
+
+		<p>Algorithms that are not supported by your processor are automatically deleted from the menu, so
+		you may not see all of the above options.</p>
+		
+		<p>The iDCT algorithm that you should use depends primarily on what CPU you have, and to a lesser degree on the desired
+		iDCT accuracy. All of the available options are IEEE-1180 compliant. For more information on iDCTs please see
+		the DGDecode manual.</p>
+
+		<p>Quality: <b>IEEE-1180 Reference</b> > <b>64-bit Floating Point</b> > Remaining iDCTs.</p>
+
+		<p>Speed: <b>SSE2MMX</b> is the fastest. <b>IEEE-1180 Reference</b> is the slowest.</p>
+
+		<p>Note that the selected iDCT algorithm is placed in the D2V file. DGDecode can be configured to use this
+		setting (default) or it can be overridden via the "idct" parameter.</p>
+
+		<p>This setting is also stored in the DGIndex.ini file and therefore is saved across DGIndex sessions. If you edit
+		the DGIndex.ini file, or the D2V file, to specify an iDCT algorithm that is not supported by your processor,
+		then DGIndex and DGDecode will demote your setting to the next available setting that is supported by your
+		processor.</p>
+	</ul></ul>
+
+	<a name="FieldOp"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Field Operation
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>MPEG2 video provides a syntax element (RFF flags) that allows a single field of any frame to be repeated
+		automatically during display ("pulled down"). The extra fields do not occupy space in the MPEG2 stream but are simply
+		created by copying when the stream is decoded and displayed. This facility is most often used to display
+		film rate clips (23.976 fps) at the NTSC rate (29.97 fps), a process called 3:2 pulldown. In practice,
+		however, pulldown in various different patterns is commonly encountered. It can be used, for example, to
+		display 25 fps PAL at the NTSC rate. You can learn about telecining and pulldown at
+		<a href="http://www.dvdfile.com/news/special_report/production_a_z/3_2_pulldown.htm" target="blank">this web site</a>.</p>
+
+		Understanding the theory and practice required to properly set this option for a given application
+		is nontrivial. Here we can only define the operations and give some general guidance. There is ample
+		additional material available in existing guides.</p>
+
+		<p>The Field Operation setting allows the user to specify how the pulldown (RFF) flags are to be handled.</p>
+		<ul>
+			<li><b>Honor Pulldown Flags</b> - The pulldown flags (if any) are obeyed and the fields are
+		 	repeated. This means that
+			the frame-served video will appear exactly as it is intended to appear on the final display device.
+			Therefore, if you have a 3:2 pulled-down clip, you'll get the standard repeating pattern of 3 progressive frames
+			followed by 2 interlaced frames. If you have PAL or MPEG1, you'll just get the encoded pictures with no
+			repeated fields (because PAL and MPEG1 have no RFF flags to honor).
+			The frame rate will always be the same as the display frame rate of the source.</li>
+			<li><b>Ignore Pulldown Flags</b> - The pulldown flags are ignored. This allows one to obtain the
+			raw encoded MPEG pictures, with no repeated fields. However, because repeated fields intended for display are
+			ignored and not displayed, the resulting frame rate may differ from the source frame rate. It may even
+			vary throughout the clip, due to irregular patterns of pulldown flags. If the pulldown is irregular,
+			use of this option will cause the audio-video sync to change at different parts of the clip, and most
+			likely sync will not be acceptable. This option is mostly intended for power users, who would use it as
+			a diagnostic aid for inspecting the encoded MPEG pictures. Although this option ignores the flags, they
+			are still stored in the D2V file although DGDecode will also ignore them.</li>
+			<li><b>Force Film</b> - This option is intended for the special case of film content encoded at
+			23.976 fps but pulled down for display at 29.97 fps, i.e., 3:2 pulldown. This option will restore the
+			23.976 fps film rate while keeping audio and video in sync throughout the clip. This option works by ignoring
+			pulldown flags <i>and</i> inserting/removing frames to maintain a constant and sync'ed output stream.
+			Do not use this option on non-3:2 pulled-down material, and, therefore, never use it on PAL or MPEG1.
+			Also do not use this option on streams containing frame repeats.
+			</li>
+		</ul>
+
+		<p>The Field Operation is perhaps the most important option to understand when using DGIndex.
+		Most users should first preview the
+		project using the <b>Honor Pulldown Flags</b> option. If the clip is not PAL or MPEG1, and the Video Type
+		field in the Information window indicates
+		Film 95% or higher, it is likely that the clip can be treated as 3:2 pulldown material, and so the <b>Force Film</b> option
+		should be selected for generation of the D2V file.<p>
+
+		<p>If the percentage is much lower than 95% or the Video Type indicates a Video percentage, then you should leave this option set to <b>Honor Pulldown Flags</b> for generation of the D2V file. If the result is combed (because the source is interlaced, hybrid interlaced/3:2, field blended, etc.), you may want to apply a deinterlacer or inverse telecine (IVTC) filter in your Avisynth script.</p>
+
+		<p>If the film percentage is low but still mostly film, you can try using <b>Force Film</b> and see what you get. You may find some stray combed frames in the output. You can fix those by post-processing with FieldDeinterlace(full=false). If the result is satisfactory to you, then fine. If not, there are more advanced ways to handle hybrid, hard-telecined, field-blended, and other pathological video. These more advanced methods almost always require the video to be served with the <b>Honor Pulldown Flags</b> option.</p>
+
+		<p>When assessing the FILM percentage using a preview operation, it is important to use a lengthy portion of the film itself, because introductions and credits are sometimes rendered differently than the main movie content.</p>
+
+		<p>Almost invariably, if you know the source is not mostly 3:2 pulled-down NTSC, you will want to select <b>Honor Pulldown Flags</b> and then post-process as required. Keep in mind that if there are no pulldown flags, there is nothing to honor, so this option just delivers the encoded frames.</p> 
+
+		<p>The <b>Ignore Pulldown Flags</b> option should be necessary only for advanced users who want to see just the exact
+		coded pictures in the MPEG stream.</p>
+
+		<p>You should also read <a href="http://www.doom9.org/ivtc-tut.htm" target="blank">this article </a> for additional information
+		on using <b>Force Film</b> vs. external IVTC.</p>
+
+		<p>Note that the <b>Honor Pulldown Flags</b> option was formerly called <b>None</b>, and the <b>Ignore Pulldown Flags</b>
+		option was formerly called <b>Raw Encoded Frames</b>.</p>
+
+	</ul></ul>
+
+	<a name="YUVtoRGB"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">YUV->RGB
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>When you use DGVfapi to frame serve, the video is always converted to RGB. This option specifies
+		how the colorspace conversion to RGB is to be performed.</p>
+		<ul>
+		  <li><b>PC scale</b> - Map output RGB to full range: YUV [16, 235(Y)/240(UV)] -> RGB [0, 255]</li>
+		  <li><b>TV scale</b> - Map output RGB to clipped range: YUV [16, 235(Y)/240(UV)] -> RGB [16, 235]</li>
+		</ul>
+
+		<p>This option affects conversion to RGB, which occurs in only two places in DGMPGDec: 1) in the
+		display window of DGIndex, and 2) the video served by DGVfapi. Generally, unless you have a good
+		reason to clip the RGB, you should select the <b>PC scale</b> option.</p>
+		
+		<p>Two well-known situations for using <b>TV scale</b> are as follows:</p>
+	<ol>
+		<li>You are using DGVfapi to serve video to TMPGEnc and you have the <i><b>Output YUV Data
+		As Basic YCbCr Not CCIR601</b></i> option checked (it's	<u>unchecked</u> by default).</li>
+
+		<li>You are using DGVfapi to serve video to CCE with the <i><b>Luminance Level 0 To 255</b></i> option.</li></p>
+	</ol>
+	</ul></ul>
+
+	<a name="HDDisplay"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">HD Display
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>This option allows you to choose how you would like to display large (HD) videos. When a video is opened whose width is greater than 800 or whose height is greater than 600, the way the video is displayed is controlled by this option; otherwise, this option is ignored. The display choices are:</p>
+		<ul>
+		  <li><b>Full Sized</b> - The video is shown at full size (but limited by the desktop size).</li>
+		  <li><b>Shrink by Half</b> - The video is shrunk in half so that it is all visible.</li>
+		  <li><b>Top Left</b> - The top left quadrant of the video is displayed.</li>
+		  <li><b>Top Right</b> - The top right quadrant of the video is displayed.</li>
+		  <li><b>Bottom Left</b> - The bottom left quadrant of the video is displayed.</li>
+		  <li><b>Bottom Right</b>  - The bottom right quadrant of the video is displayed.</li>
+		</ul>
+<p>This option is useful for inspecting the interlace structure of HD videos. If the display is shrunk by half, then the interlacing cannot be seen. To assess the
+interlacing, you can choose a quadrant to view and then single step through the video.</p>
+<p>This option setting is stored in the INI file and so is retained
+across DGIndex invocations.</p>
+<p></p>
+</ul></ul>
+
+	<a name="LuminanceFilter"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Luminance Filter
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>Use this option to perform luminance adjustments.</p>
+
+		<p>Use the checkbox in the upper left corner to Enable or Disable this filter.
+		Position the Gamma and Offset controls until desired results are achieved. DGIndex stores the
+		luminance adjustment settings in the D2V file and DGDecode reads them and
+		applies the same luminance adjustment to the served video, so that what you see in the
+		DGIndex window is what you get in the served video.</p>
+
+		<p>Gamma performs a non-linear adjustment, while offset just adds or subtracts luminance for all
+		the pixels. It is
+		beyond the scope of this manual to describe the concept of gamma. Google is your friend.
+
+		<p>This function is unrelated to, and should not be confused with,  DGDecode's bundled Avisynth
+		filter called LumaYV12()</i>.</p>
+	</ul></ul>
+
+	<a name="CroppingFilter"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Cropping Filter
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>Use this option to crop your video.</p>
+
+		<p>Use the checkbox in the upper left corner to Enable or Disable this filter.
+		Position the Left, Right, Top, and Bottom controls until desired results are achieved.
+		DGIndex stores the
+		cropping settings in the D2V file and DGDecode reads them and
+		applies the same cropping to the served video, so that what you see in the
+		DGIndex window is what you get in the served video.</p>
+
+		<p>Note that for backward compatibility, the cropping settings are
+		referred to as "Clipping" in the D2V file.</p>
+	</ul></ul>
+
+	<a name="CopyToClipboard"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Copy Frame to Clipboard
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>Use this option to copy the frame on display to the clipboard. It may then be pasted into suitable graphics applications.</p>
+	</ul></ul>
+
+<a name="AudioMenu"></a><br>
+<h2>
+	<table><tr>
+		<td width="75%">Audio Menu</td>
+		<td id="right"><a href="#Top">Table of Contents</a></td>
+	</table>
+</h2>
+
+	<a name="OutputMethod"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Output Method
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>Use this option to control audio processing.</p>
+		<ul>
+			<li><b>Disable</b> - Disables audio processing.</li>
+			<li><b>Demux Tracks</b> - Demultiplex (demux) the selected track(s).</li>
+			<li><b>Demux All Tracks</b> - Demultiplex all the available audio tracks.</li>
+			<li><b>Decode AC3 Track to WAV</b> - Decode the selected AC3 track to WAV.</li>
+		</ul>
+		<p>DGIndex can demultiplex the following types of audio: LPCM, AC3, MPA, DTS, AAC.<br>
+		Only AC3 tracks can be decoded to WAV. Use an external audio utility, such as BeSweet,
+		to decode other audio types.</p>
+
+		<p>Demuxed audio files will be named after the project name and additional parameters of the audio
+		format.<br>
+		For example: "MyProject T80 3_2ch 448Kbps DELAY -248ms.ac3".</p>
+
+		<p>When LPCM is demuxed from a program stream, the raw PCM is repackaged as a standard WAV file. When
+		LPCM is demuxed from a transport stream, usually an M2TS (Blu-Ray) stream, the raw PCM is stored in the
+		output file. You can convert this to a standard wave file using the popular SOX audio processor tool,
+		which you can get here:</p>
+
+		<p><a href= http://sourceforge.net/projects/sox/">http://sourceforge.net/projects/sox/</a></p>
+
+		<p>A typical command line would be as follows (although you need to check your audio parameters in
+		the Info dialog to choose the correct SOX options):</p>
+
+		<tt>
+		<p>&nbsp;&nbsp;&nbsp;&nbsp;sox -B -r48000 -t .raw -c 6 -2 -s "Blu-ray PCM PID 1101 DELAY 0ms.pcm" "out.wav"</p>
+		</tt>
+
+		<p>A future version of DGIndex may integrate the WAV packaging functionality for transport streams.</p>
+
+		<p>An important number is contained in the filename of the demultiplexed audio file: the delay
+		correction for the audio relative to the video. In the example above, the audio delay correction is reported as
+		-248 milliseconds. That means that the audio should be advanced by 248 milliseconds. The number -248
+		could thus be entered directly into VirtualDub's "Audio Skew Correction" edit box to achieve audio/video
+		synchronization. Note that when AC3 tracks are decoded to WAV, their filenames do not contain a delay
+		correction value because the correction is applied during decoding.</p>
+	</ul></ul>
+
+	<a name="TrackNumber"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Select Track(s)
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>Use this option to select the audio track(s) to be operated on by <b>Demux Tracks</b> and <b>Decode AC3 Track to WAV</b>.</p>
+		<p>If <b>Demux Tracks</b> is selected, one or more tracks can be selected. If <b>Decode AC3 Track to WAV</b> is selected, only one track should be selected. If <b>Demux All Tracks</b> is selected, this option is ignored.</p>
+		<p>The desired tracks are selected by specifying a comma-separated list of audio id's. The audio id's are obtained from the Audio group box of the Information dialog after running a preview operation. For example, the Info dialog may show this:</p>
+		<tt>
+		<p>&nbsp;&nbsp;&nbsp;&nbsp;80: AC3 2/0 384<br>
+		&nbsp;&nbsp;&nbsp;&nbsp;c0: MPA L2 2ch 48 256<br>
+		&nbsp;&nbsp;&nbsp;&nbsp;c1: MPA L2 mono 48 128<br></p>
+		</tt>
+
+	<p>If you wanted to demux only the MPA tracks, you would type this in the Select Track(s) edit box:</p>
+		<tt>
+		<p>&nbsp;&nbsp;&nbsp;&nbsp;c0,c1</p>
+		</tt>
+
+		<p>Note that for transport and PVA streams, only one audio stream can be demultiplexed at a time, so audio id = 0 is always used. In fact, in these cases, it makes little sense to specify the track individually, and <b>Demux All Tracks</b> is more convenient. The same thing applies for decoding AC3 to WAV; the selected track ID should always be 0 for transport or PVA streams.</p>
+
+	</ul></ul>
+
+	<a name="AudioDecode"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Dolby Digital Decode
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>This submenu applies only when the audio output method is selected as <b>Decode AC3 Track to WAV</b>. It affects how
+		the AC3 stream is converted to WAV format.</p>
+		<p><b><i>Dynamic Range Control (DRC)</i></b> Tim Carroll writes as follows about DRC:</p>
+		<blockquote>
+<p>
+"Different listening environments present a wide variety of dynamic range requirements. Obviously a quiet movie does not fit well into a noisy environment, nor does a loud movie fit into a quiet environment. The classic solution has been to dramatically reduce the dynamic range of the audio prior to transmission, then the audio level can be set once by each viewer to suit his or her environment. The unfortunate side effect is that audio impact is lost. Explosions, dialogue, and background grasshoppers are all reproduced at the same loudness and the program can sound, well, flat -- to say the least.</p>
+<p>
+Happily, there is another solution. Dolby Digital provides a Dynamic Range Control (DRC) system that is rather unique. Based on a pre-selected DRC profile, the Dolby Digital encoders calculate and send DRC metadata along with the original audio signal. The DRC metadata can then be applied to the signal by the decoder to reduce the signal's dynamic range. On many decoders, DRC can optionally be scaled back or even disabled so that the original dynamic range of the audio is delivered.</p>
+<p>
+This unique consumer-side dynamic range processing allows the kitchen DTV set to have restricted dynamic range so that quiet audio can be heard above background noise, while simultaneously the large DTV set in the family room can have unrestricted dynamic range and can stomp on the background noise (and possibly the neighbors). DRC helps to provide the best possible presentation of program content in virtually any listening environment, regardless of the quality of the equipment, number of channels, or ambient noise level."</p>
+		</blockquote>
+		<p>DGIndex provides four possible settings for DRC, as described below. Note that some AC3 encodings may not provide
+		DRC metadata, and so the setting may appear to have no effect.</p>
+		<ul>
+			<li><b>Off</b> - Disables DRC processing and thereby delivers the full dynamic range as encoded in the audio 	
+			stream.</li>
+			<li><b>Light</b> - Reduces the dynamic range by a small amount.</li>
+			<li><b>Normal</b> - Reduces the dynamic range by a moderate amount.</li>
+			<li><b>Heavy</b> - Reduces the dynamic range by a large amount.</li>
+		</ul>
+	<p><b><i>Dolby Surround Downmix</i></b> AC3 supports up to 6 channels but when decoding to WAV only 2 channels (left and right stereo) can be output, so a process of <i>downmixing</i> is applied. This option selects which of two possible methods for downmixing is to be used. The first is used when this option is unchecked: a simple stereo downmix (called a left-only/right-only, or Lo/Ro, downmix) suitable for playback on a two-channel stereo system. The second is used when this option is checked: a surround-compatible downmix (left-total/right-total, or Lt/Rt, downmix) of the multichannel source program suitable for downstream Dolby Surround Pro Logic or other matrix decoding, usually by a Pro Logic home theater decoder.</p>
+	<p>Tim Carroll writes:</p>
+	<blockquote>
+<p>"The only difference between the downmix modes is how the surround channels are handled. The Lt/Rt downmix sums the surround channels, attenuates them 3 dB (i.e., multiply by 0.707) and adds them out-of-phase to the left channel and in-phase to the right channel. This allows a Pro Logic home theater decoder to produce L/C/R/S channels when connected to a stereo set-top box or DTV receiver. Conversely, the Lo/Ro downmix adds the right and left surround channels discretely to the left and right speaker channels. This preserves the stereo separation for stereo-only monitoring and allows for generation of a mono-compatible signal. What about the LFE channel? Well, it is simply discarded."</p>
+	</blockquote>
+	<p>If you are wondering why the LFE channel is discarded, please refer to
+<a href=#AppendixD>Appendix D</a>.</p>
+	<p>So, check this option if you plan to play the decoded audio on a Pro Logic home theater decoder. Leave it unchecked if you plan
+	to play the decoded audio on a standard left/right stereo component. Note that leaving this option unchecked does not mean that downmixing will not be performed. It just specifies the
+kind of downmixing that is done, as described above.</p>
+<a name="PreScale"></a>
+	<p><b><i>Pre-Scale Decision</i></b> Pre-Scale Decision is a more refined method of normalization than the one originally
+implemented in DGIndex (see <a href=#AudioNorm>Normalization</a> below). It is designed to reduce quantization errors of Dolby Digital decoding. 
+To use it, load your input file(s) and select audio method <b>Decode AC3 Track to WAV</b>. Then set your normalization amount using the Normalization dialog slider (don't <i>enable</i> Normalization with its check box, just set the percentage with the slider). Finally, check the <b>Pre-Scale Decision</b> menu option. Immediately, a pass will be made over the input
+files and a gain factor (pre-scale ratio) will be determined and stored for later use.
+This gain factor is such that when the audio is amplified by this
+factor, the highest sound peak will be set to the percentage of the maximum possible audio level set by the normalization selected. So, if your normalization is set to 50%, the loudest sound will be set to 50% of maximum.</p>
+
+<p>The calculated gain is shown in the Info box of the Information Window and is applied to later decoding (when Save Project is performed), as long as it is left checked. When the prescale decision is complete, the Normalization option is automatically disabled if it
+was enabled and should not be subsequently enabled, because the calculated pre-scale ratio will be used.
+<p>
+Note that if you change the selected tracks using the Select Track(s) dialog, then the Pre-Scale Decision item is automatically unchecked.</ul></ul>
+	</ul></ul><br>
+
+	<a name="AudioDownconvert"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">48 -> 44.1KHz
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>This submenu applies only when the audio output method is selected as <b>Decode AC3 Track to WAV</b>. It affects how
+		the AC3 stream is converted to WAV format.</p>
+		<p>When this option is set to a value other than "Off", the audio will be downconverted from 48KHz to 44.1KHz.
+		This conversion can take a lot of time. The quality settings allow you to trade off quality against
+		conversion time. Use "Low" for lowest quality but fastest conversion. Use "UltraHigh" for best quality but slowest 	
+		conversion. "Mid" and "High" provide intermediate tradeoffs.</p>
+	</ul></ul>
+
+	<a name="AudioNorm"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Normalization
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>This submenu applies only when the audio output method is selected as <b>Decode AC3 Track to WAV</b>. It affects how
+		the AC3 stream is converted to WAV format.</p>
+		<p>This option normalizes the audio but is not as refined as the <a href=#PreScale>Pre-Scale Decision</a> method
+described above. To use it, set the desired normalization level and then check the check box in the corner of the dialog box.
+Nothing happens immediately. Subsequently, when a Save Project operation is performed, two passes will be made. The first creates the
+project in the normal way; the second opens the created audio file and normalizes it. Normalization means that the
+audio is scaled such that the loudest sound in
+the input files is adjusted to be the percentage of the maximum volume given by the Normalization slider value.</p>
+<p>The <a href=#PreScale>Pre-Scale Decision</a> method is preferred for two reasons: 1) quantization errors are reduced, and
+2) after a first pass is made, all subsequent Save Project operations require only one pass, while with the Normalization method
+of this section two passes are always made every time Save Project is performed.</p>
+	</ul></ul>
+
+<a name="OptionsMenu"></a><br>
+<h2>
+	<table><tr>
+		<td width="75%">Options Menu</td>
+		<td id="right"><a href="#Top">Table of Contents</a></td>
+
+	</table>
+</h2>
+
+	<a name="ProcessPriority"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Process Priority
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>Specify what CPU usage priority Windows will assign to DGIndex.</p>
+		<ul>
+		  <li><b>High</b></li>
+		  <li><b>Normal</b></li>
+		  <li><b>Low</b></li>
+		</ul>
+
+		<p>Use this option if you are running multiple applications at once, and want to prioritize (or de-prioritize)
+		DGIndex for CPU usage.</p>
+	</ul></ul>
+
+	<a name="LoopPlayback"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Loop Playback
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>When this option is selected and playback during a Preview or Play operation reaches the end of the timeline, playback will
+		automatically start again at the beginning of the timeline.</p>
+	</ul></ul>
+
+	<a name="PlaybackSpeed"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Playback Speed
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>Specify the playback speed for play and preview operations.</p>
+		<ul>
+		  <li><b>Single Step</b> - Step forward one frame at a time (see description below).</li>
+		  <li><b>Super Slow</b> - 5 frames/sec.</li>
+		  <li><b>Slow</b> - 10 frames/sec.</li>
+		  <li><b>Normal</b> - The frame rate of the stream.</li>
+		  <li><b>Fast</b>  - Double the frame rate of the stream (two times Normal).</li>
+		  <li><b>Maximum</b> - The fastest possible rate that your computer can perform.</li>
+		</ul>
+		<p>The single step mode is controlled by the right arrow button (>) on the timeline. Please
+		be aware that due to orphaned B frames, the first few frames of a playback operation, including
+	    	a single-stepping operation, may show artifacts. They will <i>not</i> show up in the frame-served
+		video, so don't worry! To ameliorate this effect, start your single-stepping operation a
+		little bit ahead of the frames you desire to view. Also note that during a single-stepping
+		operation, you cannot navigate on the timeline. To single-step from a new location, first
+		exit the play operation, then reposition on the timeline in the normal way, and restart the
+		play operation. Finally, single-stepping does not give you per-frame granularity for cuts
+		and timeline positioning; it just allows you to pace the playback so that individual frames
+		can be examined.</p>
+	</ul></ul>
+
+
+<a name="AVSTemplate"></a><br>
+<h3>
+	<table><tr>
+		<td width="75%">AVS Template</td>
+		<td id="right"><a href="#Top">Table of Contents</a></td>
+
+	</table>
+</h3>
+
+	<ul><ul>
+		<p>DGIndex can automatically generate an Avisynth script for serving your project. It requires you to specify a <i>template file</i>, such as the following one:</p>
+<p><tt>
+&nbsp;&nbsp;loadplugin("...\DGDecode.dll")<br>
+&nbsp;&nbsp;loadplugin("...\Decomb.dll")<br>
+&nbsp;&nbsp;mpeg2source("__vid__",cpu=6)<br>
+&nbsp;&nbsp;fielddeinterlace()
+</tt><p>
+This is any normal AVS script, except that the D2V file name is replaced with __vid__ (that's <i>two</i> underscores before "vid" and two after). When DGIndex creates the AVS script,
+it replaces __vid__ with the correct D2V file name.</p>
+<p>To select and enable a template, use the Options/AVS Template pulldown menu item to set your
+template file as the active template file. 
+After performing a Save Project operation, DGIndex uses this file as a template and inserts the right
+file name whenever it sees __vid__.
+<p>You may also use the __aud__ specifier to generate the audio file name. Note that if you are generating more than
+one audio file, this specifier will refer to the first audio file that is opened. Therefore, to be sure to get the
+desired audio file, process just one audio stream.</p>
+<p>You may also use the __del__ specifier to generate the delay value for use in DelayAudio(__del__).</p>
+<p>DGIndex creates the AVS script file only if it does not already exist. The script file is created in the same
+directory as the d2v file.</p>
+<p>The AVS Template dialog box displays the current active template file. If no file is shown,
+then a template is not being used. The dialog box provides three possible actions:</p>
+<b>Don't Use Template</b>: Choose this action if you do not want DGIndex to automatically
+create AVS scripts.
+<br><br>
+<b>Change Template File</b>: Choose this action to select your template file and make it the
+active template for AVS generation. This action pops up a file dialog which you use to
+select your template file.
+<br><br>
+<b>Keep Current Template</b> Choose this action if you want to keep the current template file.</p>
+<p>This option setting is stored in the INI file and so is retained
+across DGIndex invocations. When an INI file is not present, the AVS Template path
+defaults to a file named "template.avs" and located in the same directory as that of the executed DGIndex.exe.</p>
+	</ul></ul>
+
+	<a name="UseFullPaths"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Use Full Paths
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>D2V files and AVS files created via an AVS template contain
+references to audio and video files. This option controls whether they should be
+stored as relative paths or full paths. Historically, DGIndex has always used
+full paths. When this option is disabled, the D2V file
+and generated AVS scripts will suppress the full path information and provide just
+the relative paths; everything is relative to the location of the D2V file.</p>
+<p>The option to continue using full paths was retained to provide backward
+compatibility to third-party applications.</p>
+<p>This option setting is stored in the INI file and so is retained
+across DGIndex invocations.</p>
+	</ul></ul>
+
+	<a name="ForceOpen"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Force Open GOPs in D2V File
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>Rarely, a stream may be encoded incorrectly, such that the GOPs are marked as closed when they are
+		really open. This can cause you to see blocking artifacts when doing random access in the frame-served
+		video. To correct these cases, the <b>Force Open GOPs in D2V File</b> option is provided. When it is checked,
+		GOPs are all marked as open in the D2V file, and the actual open/closed GOP indications in the
+		stream are ignored. This cures the macroblocking but makes random access slower. Because the problem
+		is so rare, and the cure reduces performance for normal streams, the cure is not applied automatically,
+		but is presented as an option.</p>
+		<p>In practice, if you see blocking artifacts when doing random access while frame-serving, enable the
+		<b>Force Open GOPs in D2V File</b> option and see if the blocking is fixed.</p>
+<p>This option setting is stored in the INI file and so is retained
+across DGIndex invocations.</p>	</ul></ul>
+
+	<a name="LogQuants"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Log Quant Matrices
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>When MPEG2 files are created, configurable data structures called <i>quantization matrices</i> are
+		used to control how the video is compressed. Often, different matrices work better for different
+		kinds of video. Power users often like to know what matrices have been used to encode their
+		streams. This option allows you to dump all the quantization matrices found in the stream.</p>
+		<p>To dump the matrices, enable this option and then perform a Save Project operation. A text file
+		will be created that contains the quantization matrices. For example, if your d2v file is named "movie.d2v",
+		the dump file will be named "movie.quants.txt".
+<p>Note that only stream events that change the active quant matrices are
+logged. So, for example, if you have the same matrices sent with each
+sequence header, only the first will be logged (because it changes the
+default matrices).</p>
+
+<p>Also note that the frame numbering given in the dump file
+refers to the encoded frame numbers
+and not the display frame numbers. These two are different when
+pulldown is present. In that case, you can use a DGIndex project with
+"Ignore Pulldown Flags" to serve the video such that the display frame
+numbers correspond to the encoded frame numbering.</p>
+		<p>Note that this setting is not stored in the DGIndex INI file.</p>
+	</ul></ul>
+
+	<a name="LogTimestamps"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Log Timestamps
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>This option allows you to dump a trace of the audio and video
+		PTS/DTS timestamps encountered when a Save Project operation is
+		performed. For transport streams, the PCRs encountered on the
+		configured PCR PID are also logged, and for program streams the SCRs are logged.
+                The dump also includes traces for each decoded picture
+		and GOP starts in order to expose the alignment of the timestamps with
+		the pictures.</p>
+
+		<p>To dump the timestamps, enable this option and then perform a Save Project operation. A text file
+		will be created that contains the timestamp trace. For example, if your d2v file is named "movie.d2v",
+		the dump file will be named "movie.timestamps.txt".
+
+<p>The timestamps are presented in native syntax units, and in brackets divided by 90 (so the time unit is
+milliseconds). E.g.:</p>
+<p>&nbsp;&nbsp;&nbsp;&nbsp;PCR 237636675 [2640407ms]</p>
+		<p>Note that this option setting is not stored in the DGIndex INI file.</p>
+	</ul></ul>
+
+	<a name="FusionAudio"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Force Fusion-Style Audio
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>Program streams that include audio on private stream 1 usually follow the DVD
+convention of including an audio substream number and associated header information. This is
+only a convention, however, and is not required by MPEG syntax. Some streams do not follow this convention and, instead, they do not provide an audio substream number and associated header
+information. The most common case is seen in program streams (MPG files) created by
+the <i>Dvico Fusion</i> capture cards. Therefore, we can say that these streams carry
+"Fusion-style" audio. Such streams need to be parsed differently, and this is controlled by
+this option. Note that Fusion transport streams (TP files) are handled correctly and
+this option setting is ignored for such streams.</p>
+		<p>Ideally, Fusion-style audio should be detected automatically and
+this option should not be required. However, some technical problems stand in the way
+and so the initial support for these streams requires setting this option.</p>
+		<p>Enable this option if you want to force audio parsing in Fusion style.
+Disable it for conventional DVD-like parsing.</p>
+<p>This option setting is stored in the INI file and so is retained
+across DGIndex invocations.</p>
+</ul></ul>
+
+	<a name="InfoLog"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Enable Info Log
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>When the <b>Enable Info Log</b> option is checked and the Information Panel is closed,
+		either manually or automatically by DGIndex, a log file is created that
+		contains the information displayed in the Information Panel at the time of closure. The file name used is that of
+		the first input file with the extension changed to "log". The log file is created in the same directory as the first
+		input file. If this directory is not writable, then the log file is not created. This feature may be used by the
+		command line interface (CLI) to obtain information about the input file. Refer to Appendix B or C for details.<p>
+<p>This option setting is stored in the INI file and so is retained
+across DGIndex invocations.</p>
+<p></p>
+</ul></ul>
+
+<a name="ToolsMenu"></a><br>
+<h2>
+	<table><tr>
+		<td width="75%">Tools Menu</td>
+		<td id="right"><a href="#Top">Table of Contents</a></td>
+
+	</table>
+</h2>
+
+	<a name="AnalyzeSync"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Analyze Sync
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+	<ul><ul>
+		<p>This tool allows the user to create a log of the audio delay values that would be
+generated if the project were to be started at all the I frames of the stream. This is useful for diagnosing
+problems with the audio delay reported by DGIndex. For example, a VOB is processed and the delay is reported as
+66792ms. That is obviously spurious, but why? If we execute this tool, we see the following in the generated
+log:</p>
+<p>
+-----<br>
+Delay Analysis Output (Audio ID 80)<br>
+<br>
+Decode picture: temporal reference 2[I]<br>
+delay = 66792<br>
+Decode picture: temporal reference 2[I]<br>
+delay = -231<br>
+Decode picture: temporal reference 2[I]<br>
+delay = -219<br>
+[etc.]<br>
+-----
+</p>
+<p>Clearly, there is something fishy right at the beginning of the stream (in this case it was a jump in the SCR).
+To solve this, we can start our project one GOP in from the beginning of the stream, i.e., hit the > button once
+and then the [ button before executing Save Project.</p>
+<p>When you select the Analyze Sync tool, a popup will appear allowing you to select the audio ID to analyze,
+and then a file open dialog will appear. You should specify a timestamps dump file that you have previously created
+using Options/Log Timestamps.</p>
+<p>Note that for transport and PVA streams, only one audio stream can be selected at a time, so audio id = 0 is always used. Don't confuse it
+with the audio PID.</P>
+<p>Note that for a displayed delay value to be usable and correct, you must start your project at the corresponding
+I frame.</p>
+
+		<p></p>
+	</ul></ul>
+
+
+	<a name="FixD2V"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Fix D2V
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>Sometimes streams are encountered that contain mixtures of TFF and BFF material.
+In MPEG2, these field order transitions are fixed at display time via the TFF/RFF flags. But we usually want to output a stream with one consistent field order, and some tools, such as
+Telecide and (Leak)KernelDeint, require a fixed field order. Indeed, AVI does not carry a
+field order property!</p>
+		<p>This tool adjusts the TFF/RFF flags so that a stream
+with a single field order is output. This affects only streams containing field order transitions, of course. When field order correction is applied using this tool, the uncorrected D2V file is renamed so that it ends with the extension ".bad". The corrected version is output as the usual D2V file.</p>
+		<p>This tool should be used only when you have reason to believe that field order transitions are
+present in the stream. For some pathological streams, however, you may find that the field order correction causes problems that you don't encounter when using the ".bad" D2V file. Therefore, it is always advisable to treat the correction as an advisory and to test both the good and bad D2V files.</p>
+<p>Note that field order correction should not be applied to streams containing frame repeat RFFs.</p>
+	</ul></ul>
+
+	<a name="ParseD2V"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Parse D2V
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+	<ul><ul>
+		<p>This tool is intended for power users. When selected, you are prompted to open a d2v file. After
+		the d2v file is selected, a text file is created that contains an analysis of the contents of the
+		d2v file, and the system's editor is opened on that text file. If your d2v file is named "movie.d2v",
+		the text file will be named "movie.parse.txt". The contents of the text file will be readily understood by
+		power users.</p>
+		<p></p>
+	</ul></ul>
+
+
+<a name="HelpMenu"></a><br>
+<h2>
+	<table><tr>
+		<td width="75%">Help Menu</td>
+		<td id="right"><a href="#Top">Table of Contents</a></td>
+
+	</table>
+</h2>
+
+	<a name="SIMD"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">SIMD, VFAPI Plug-In
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>These are read-only indicators displaying information about the status of DGIndex.</p>
+		<ul>
+		  <li><b>Detected SIMD</b> - Indicates which SIMD optimizations were detected as available for this CPU.</li>
+		  <li><b>VFAPI Plug-In</b> - Indicates whether the VFAPI Plug-In (DGVfapi.vfp) has been detected and
+		  is usable for VFAPI frameserving, i.e., it is present in the DGIndex
+		  program directory.</li>
+		</ul>
+		<p>The <b>VFAPI Plug-In</b> indication must be present; otherwise, VFAPI frame serving will not be operative.</p>
+	</ul></ul>
+
+	<a name="UserManual"></a><br>
+	<h3>
+		<table><tr>
+			<td width="75%">Quick Start Guide, DGIndex User Manual, and DGDecode User Manual
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>These options open the respective documents in your browser. To work, the files "QuickStart.html", "DGIndexManual.html",
+		"DGDecodeManual.html" that
+		are included in the DGMPGDec package must be in the same directory as the "DGIndex.exe" file. Do not rename
+		these files.</p>
+	</ul></ul>
+
+
+<a name="DisplayWindow"></a><br>
+<h2>
+	<table><tr>
+		<td width="75%">Display Window</td>
+		<td id="right"><a href="#Top">Table of Contents</a></td>
+
+	</table>
+</h2>
+
+	<br>
+	<a name="Navigation"></a>
+	<h3>
+		<table><tr>
+			<td width="75%">Navigation
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>Preview the video file(s) and select the start/end points for the project/demuxing.</p>
+
+		<p>Use the <b>navigation slider</b>, and these two buttons for navigation:</p>
+		  < - Seek to previous I frame.<br>
+		  > - Seek to next I frame.<br>
+		<br>
+
+		<p>Currently, the display window displays only I frames in navigation mode
+		(because they are possible selection points for cutting the video),
+		which usually appear about every 12 to 15 frames. This makes the video
+		appear to jump when stepping, instead of moving smoothly. Of course, during play, preview, or
+		frameserving, all frames are shown.</p>
+
+		<p>The video may in some cases appear stretched/squashed in the display window because DGIndex displays the video as is it
+		stored in the MPEG stream, which may not be the same as the final display size. For an explanation, read Doom9's article on
+		<a href="http://www.doom9.org/aspectratios.htm" target="blank">Aspect Ratios</a>.</p>
+
+		<p>When a video is displayed that has a frame size that will not fit on a 1024x768 desktop, the video is
+		reduced in size by a factor of two. Thus, high-definition (HD) videos can be previewed without requiring scrolling.</p>
+	</ul></ul>
+
+	<br>
+	<a name="Selection"></a>
+	<h3>
+		<table><tr>
+			<td width="75%">Selection
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		Starting and ending points for the project may also be optionally specified.<br>
+		<br>
+		  [ button or HOME key - Mark selection start point.<br>
+		  ] button or END key - Mark selection end point.<br>
+		<p>When doing Save Project, Save Project and Demux Video, or Preview, the operation will be applied
+		only to the portion of the timeline between the selected start and end points.</p>
+
+		<p>By default, the entire timeline is automatically selected.  Selection start/end point can be changed, but
+		only one set of start/end point may be specified for a project (i.e.: multiple start/end points are not yet
+		supported).</p>
+	</ul></ul>
+	<br>
+
+	<a name="Splash"></a>
+	<h3>
+		<table><tr>
+			<td width="75%">Splash Screen
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>When no file is loaded DGIndex can display a splash screen. To enable this feature,
+		place an appropriately sized windows BMP file called "dgindex.bmp"
+		in the same directory as DGIndex.exe.</p>
+	</ul></ul>
+
+
+<a name="InformationPanel"></a><br>
+<h2>
+	<table><tr>
+		<td width="75%">Information Panel</td>
+		<td id="right"><a href="#Top">Table of Contents</a></td>
+
+	</table>
+</h2>
+	<ul>
+		<p>The Information Panel displays important statistics about the loaded video and audio stream(s).
+		Information displayed in this panel is often essential for correctly processing DGIndex projects,
+		especially when frameserving into third-party applications. The Information Panel is displayed when
+		a project is saved or when using the Play/Preview commands. Note that when doing a Play/Preview
+		operation, the information will apply only to the section actually played or previewed.</p>
+
+		<p>When the <b>Enable Info Log</b> option is checked and the Information Panel is closed,
+		either manually or automatically by DGIndex, a log file is created that
+		contains the information displayed in the Information Panel at the time of closure. The file name used is that of
+		the first input file with the extension changed to "log". The log file is created in the same directory as the first
+		input file. If this directory is not writable, then the log file is not created. This feature may be used by the
+		command line interface (CLI) to obtain information about the input file. Refer to Appendix B or C for details.<p>
+	</ul>
+	<a name="Video"></a>
+	<h3>
+		<table><tr>
+			<td width="75%">Video Section
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<br>
+		  <b>Stream Type</b> - Displays the stream type: Transport [188/204], MPEG1/MPEG2 Program, PVA, or Elementary.<br><br>
+		  <b>Profile</b> - For MPEG2, this field displays the MPEG profile used to encode the currently loaded video. For
+		  MPEG1, it displays "[MPEG1]".<br><br>
+		  <b>Frame Size</b> - Displays the size of the frame in the currently displayed video. Note that this reports the values of the
+                  horizontal_size and vertical_size fields in the MPEG syntax.<br><br>
+		  <b>Display Size</b> - Displays the display size of the frame in the currently displayed video. Note that this reports the
+                  values of the display_horizontal_size and display_vertical_size fields of the MPEG syntax. If the sequence_display_extension that
+                  carries these values is not present, then this field is blank, and the display size is the same as the frame size. <br><br>
+		  <b>Aspect Ratio</b> - Displays the aspect ratio specified in the MPEG stream. In brackets, the raw value of the
+                  aspect_ratio_information field is given. By appropriately interpreting the Frame Size, Display Size, and Aspect Ratio according to
+                  the MPEG2 video specification, the sample aspect ratio (SAR) and display aspect ratio (DAR) can be inferred.<br><br>
+		  <b>Frame Rate</b> - Displays the playback frame rate of the currently loaded video.<br><br>
+		  <b>Video Type</b> - If the stream does not contain pulldown flags, this field will display "PAL" if
+		  the frame rate is 25.0 fps; otherwise, it will display "NTSC". If pulldown flags are present,
+		  this field will show a percentage "Film" or a percentage "Video" value. These two always add
+		  up to 100%, so only the greater of the two is shown.<br><br>
+		  <b>Sequence</b> - Displays <b><i>Frame only</i></b> if the <i>progressive_sequence</i> flag is set.
+		  Displays <b><i>Field/Frame</i></b> if the
+		  <i>progressive_sequence</i> flag is not set.<br><br>
+		  <b>Frame Struct</b> - Displays <i><b>Frame</b></i> or <i><b>Field</b></i> depending on whether the
+		  frame is encoded as a frame picture or field pictures.<br><br>
+		  <b>Frame Type</b> - Displays <i><b>Interlaced</b></i> or <i><b>Progressive</b></i> depending on the
+		  value of the MPEG2 <i>progressive_frame</i> flag. Please be aware that this merely describes how
+		  the frame was encoded; it says nothing about whether the <i>content</i> of the frame is progressive
+		  or interlaced. It is common for progressive video to be encoded as interlaced, and vice versa.<br><br>
+		  <b>Coding Type</b> - Displays the coding type of the decoded picture (I, P, or B).
+                  Note that if a frame
+		  is displayed with pulldown, the frame may have been assembled from two pictures with
+                  different coding types. In this case,
+                  the coding type of the latest decoded picture that makes up the frame is
+		  displayed. To view the coding types without this complication, set <b>Ignore Pulldown
+                  Flags</b> in the Video menu.<br><br>
+		  <b>Colorimetry</b> - Displays the colorimetry scheme used by the stream. Note that if the                   stream does not declare the
+		  colorimetry, then ITU-R BT.709* is reported for HD video, and ITU-R BT.470-2* is reported for SD video. The * character indicates that
+		  the stream did not declare the colorimetry.<br><br>
+		  <b>Field Order</b> - Displays <i><b>Top</b></i> or <i><b>Bottom</b></i> depending on the field order
+		  of the currently loaded video.<br><br>
+		  <b>Coded #</b> - Displays the total number of MPEG pictures decoded during the Save Project, Play,
+		  or Preview operation.<br><br>
+		  <b>Playback #</b> - Displays the total number of MPEG pictures displayed during the Save Project, Play,
+		  or Preview operation. This number can be greater than the Coded # if pulldown is present and the
+		  <b>Honor Pulldown Flags</b> option is selected.<br><br>
+		  <b>Frame Rpts</b> - Displays the total number of extra frames displayed due to RFF frame repeats encountered
+                  during the Save Project, Play,
+		  or Preview operation. If the <b>Ignore Pulldown Flags</b> option is selected, this field is not incremented.<br><br>
+		  <b>Field Rpts</b> - Displays the total number of extra fields displayed due to RFF field repeats encountered
+                  during the Save Project, Play,
+		  or Preview operation. If the <b>Ignore Pulldown Flags</b> option is selected, this field is not incremented.<br><br>
+		  <b>Vob/Cell ID</b> - Displays the Vob and Cell ID for the current position in the video stream.
+		  It is valid only for vob files.<br><br>
+		  <b>Bitrate</b> - Displays a windowed video bitrate averaged over the last 30 displayed frames.<br><br>
+		  <b>Bitrate (Avg)</b> - Displays the video bitrate averaged over all the displayed frames.<br><br>
+		  <b>Bitrate (Max)</b> - Displays the maximum video bitrate encountered over all the displayed frames.<br><br>
+	</ul></ul>
+
+	<br>
+	<a name="Audio"></a>
+	<h3>
+		<table><tr>
+			<td width="75%">Audio Section
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<br>
+		  <b>Tracks list box</b> - Displays the detected audio id's and corresponding track information.<br><br>
+		  <b>Timestamp</b> - Displays the timestamp for the current position in the audio stream.<br><br>
+	</ul></ul>
+
+	<br>
+	<a name="Status"></a>
+	<h3>
+		<table><tr>
+			<td width="75%">Status Section
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<br>
+		  <b>Elapsed</b> - Displays the time elapsed since starting the current Save Project, Play, or Preview operation.<br><br>
+		  <b>Remain</b> - Displays the time remaining for completion of the current Save Project, Play, or Preview
+		  operation.<br><br>
+		  <b>FPS</b> - Displays the frame rate achieved by DGIndex's play/preview process. Note that this may not
+		  match the video frame rate of the stream, because the user can configure the playback speed.<br><br>
+		  <b>Info</b> - Displays video and audio error information.<br><br>
+	</ul></ul>
+<br>
+<br>
+
+
+<a name="AppendixA"></a><br>
+<h2>
+	<table><tr>
+		<td width="75%">APPENDIX A: D2V File Structure
+		<td id="right"><a href="#Top">Table of Contents</a></td>
+	</table>
+</h2>
+
+<br>
+	<ul id="justify">
+	<p>This Appendix documents the syntax and semantics
+	of the D2V file format. Normal users need not concern themselves with this information, as it is intended for developers and
+	power users.</p>
+
+	<p>There are three sections to all D2V files: 1) the header section, 2) the settings section, and 3) the data section. These
+	sections are described below.</p>
+	</ul>
+
+	<h3>
+		<table><tr>
+			<td width="75%">D2V Format - Header Section
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>Following is a typical header section:</p>
+
+		<code>
+			DGIndexProjectFile16<br>
+			3<br>
+			G:\RETURN_OF_THE_KING\VIDEO_TS\VTS_01_1.VOB<br>
+			G:\RETURN_OF_THE_KING\VIDEO_TS\VTS_01_2.VOB<br>
+			G:\RETURN_OF_THE_KING\VIDEO_TS\VTS_01_3.VOB<br>
+		</code>
+	</ul></ul>
+	<ul><ul id="justify">
+
+		<p>The first line always begins with the string "DGIndexProjectFile" immediately followed by a two-digit D2V
+		version number. This number is checked by DGDecode and must match the version expected. This mechanism thus
+		enforces the requirement that DGIndex and DGDecode must be used in matched pairs. If DGDecode rejects your
+		D2V file as "obsolete", be sure that you are using the correct version of DGDecode. Sometimes one forgets
+		that one has an older version in the Avisynth plugins folder, or one forgets to upgrade DGDecode when upgrading
+		DGIndex.</p>
+
+		<p>The second line gives the number of video files included in the D2V project file. Each video file must
+		be referenced on the subsequent line(s). The header section must then terminate with a blank line.</p>
+
+		<p>Each source file reference consists of either a filename, if the <b>Use Full Paths</b> option is disabled; or the full absolute path of the referenced file, if the <b>Use Full Paths</b> option is enabled. If the <b>Use Full Paths option</b> is enabled and the referenced files are
+		moved after creation of the D2V file, you must either edit the paths to be correct, or you must regenerate
+		your D2V file.</p>
+
+		<p>In the remainder of the D2V file, the files are referenced with a number corresponding to their place in this
+		list. The list is zero-based, that is, the first file is numbered <b>0</b>.</p>
+	</ul></ul>
+
+	<br>
+	<h3>
+		<table><tr>
+			<td width="75%">D2V Format - Settings Section
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>Following is a typical settings section:</p>
+
+		<code>
+			Stream_Type=1<br>
+			MPEG_Type=2<br>
+			iDCT_Algorithm=5<br>
+			YUVRGB_Scale=1<br>
+			Luminance_Filter=0,0<br>
+			Clipping=0,0,0,0<br>
+			Aspect_Ratio=4:3<br>
+			Picture_Size=720x480<br>
+			Field_Operation=0<br>
+			Frame_Rate=29970 (30000/1001)<br>
+			Location=0,0,6,17CF3<br>
+		</code>
+		<p>Note that the Clipping setting is called "Cropping" in the DGIndex menus. It was left
+		as "Clipping" in the D2V file to avoid having to increment the D2V file format version number
+		and cause incompatibilities with existing third-party applications.
+	</ul></ul>
+	<ul><ul id="justify">
+
+		<p>The second section of a D2V file defines values that are determined by, or within, DGIndex. Some
+		are determined by DGIndex as it analyzes the MPEG stream, others
+		reflect user-specified choices. All of these fields must be explicitly defined, even if the associated value
+		is zero. The settings section also must terminate with a blank line.</p>
+
+		<p>If the stream type is set to 2 (transport stream) then two additional lines are appended after the Stream_Type line:</p>
+
+		<code>
+			MPEG2_Transport_PID=880,881,880<br>
+			Transport_Packet_Size=188
+		</code>
+
+		<p>Settings determined automatically by DGIndex are: Stream_Type, Transport_Packet_Size, MPEG_Type, Aspect_Ratio, Picture_Size, and Frame_Rate
+		(although the user-defined Field_Operation does have an impact on the Frame_Rate value).</p>
+
+		<p>The remaining settings are user-defined within DGIndex: MPEG2_Transport_PID,iDCT_Algorithm, YUVRGB_Scale,
+		Luminance_Filter, Clipping, Field_Operation, and Location.</p>
+
+		<p>The following table describes each of these parameters and the range of values possible for each.</p>
+
+		<table border="1px" cellspacing="2px" cellpadding="10%">
+			<caption><i>Table 2: D2V Parameter Definitions and Ranges</i></caption>
+			<tr>
+				<th align="center">D2V Field
+				<th align="center">Possible Values
+				<th align="center">Definition/Comments
+			<tr>
+				<td>Stream_Type
+				<td>(<b>0</b>) Elementary Stream<br>
+				    (<b>1</b>) Program Stream<br>
+				    (<b>2</b>) Transport Stream<br>
+				    (<b>3</b>) PVA Stream
+				<td>Defines the type of MPEG stream.<br>
+				Determined by DGIndex. All possible values listed.
+			<tr>
+				<td>MPEG2_Transport_PID
+				<td>(<b>Video PID, Audio PID, PCR PID</b>)
+				<td>Selects the video/audio PIDs to be decoded.<br>
+				User-specified. Appears only for Stream_Type 2.
+			<tr>
+				<td>Transport_Packet_Size
+				<td>(<b>188, 204</b>)
+				<td>Specifies the size in bytes of the transport packets.<br>
+				Determined by DGIndex. Appears only for Stream_Type 2.
+			<tr>
+				<td>MPEG_Type
+				<td>(<b>1</b>) MPEG-1<br>
+				    (<b>2</b>) MPEG-2
+				<td>Defines the type of MPEG stream.<br>
+				Determined by DGIndex. All possible values listed.
+			<tr>
+				<td>iDCT_Algorithm
+				<td> (<b>1</b>) 32-bit MMX<br>
+				     (<b>2</b>) 32-bit SSEMMX<br>
+				     (<b>3</b>) 32-bit SSE2MMX<br>
+				     (<b>4</b>) 64-bit Floating Point<br>
+				     (<b>5</b>) 64-bit IEEE-1180 Reference<br>
+				     (<b>6</b>) 32-bit SSEMMX (Skal)<br>
+				     (<b>7</b>) 32-bit Simple MMX (XviD)
+				<td>Defines the iDCT DGDecode will use to decode this video.<br>
+				User-specified. All possible values listed.
+			<tr>
+				<td>YUVRGB_Scale
+				<td>(<b>0</b>) TV Scale<br>
+				    (<b>1</b>) PC Scale
+				<td>Defines the range DGDecode will use if RGB conversion is requested.<br>
+				User-specified. All possible values listed.
+			<tr>
+				<td>Luminance_Filter
+				<td>(<b>Gamma, Offset</b>)
+				<td>Defines values for DGIndex's Luminance_Filter.<br>
+				User-specified.<br>
+				Both Gamma and Offset have a range of: +/- 256.<br>
+				This parameter is unrelated to DGDecode's <i>LumaFilter</i>.
+			<tr>
+				<td>Clipping
+				<td>(<b>ClipLeft, ClipRight, ClipTop, ClipBottom</b>)
+				<td>Defines values for Clipping (aka: Cropping) lines of video.<br>
+				User-specified.<br>
+				Arbitrary values possible within the resolution of the video.
+			<tr>
+				<td>Aspect_Ratio
+				<td>MPEG2:<br>
+				    (<b>1:1</b>)<br>
+				    (<b>4:3</b>)<br>
+				    (<b>16:9</b>)<br>
+				    (<b>2.21:1</b>)<br>
+				    MPEG1:<br>
+				    (<b>1:1</b>)<br>
+				    (<b>0.6735</b>)<br>
+				    (<b>16:9,625</b>)<br>
+				    (<b>0.7615</b>)<br>
+				    (<b>0.8055</b>)<br>
+				    (<b>16:9,525</b>)<br>
+				    (<b>0.8935</b>)<br>
+				    (<b>4:3,625</b>)<br>
+				    (<b>0.9815</b>)<br>
+				    (<b>1.0255</b>)<br>
+				    (<b>1.0695</b>)<br>
+				    (<b>4:3,525</b>)<br>
+				    (<b>1.575</b>)<br>
+				    (<b>1.2015</b>)
+				<td>Defines the Aspect Ratio of the video specified in the MPEG stream.<br>
+				Determined by DGIndex. All possible values listed.
+			<tr>
+				<td>Picture_Size
+				<td>(<b>widthxheight</b>)
+				<td>Defines the size of the video <u>after</u> clipping has been applied.<br>
+				Determined by DGIndex.<br>
+				Arbitrary values possible within the size of the loaded video.
+			<tr>
+				<td>Field_Operation
+				<td>(<b>0</b>) Honor Pulldown Flags<br>
+				    (<b>1</b>) Force Film<br>
+				    (<b>2</b>) Ignore Pulldown Flags
+				<td>Defines values for Field Operation.<br>
+				User-specified. All possible values listed.
+			<tr>
+				<td>Frame_Rate
+				<td>(<b>rate</b>) (<b>num/den</b>)
+				<td>'rate' defines output framerate * 1000.<br>
+				'num/den' defines output framerate as numerator/denominator.
+			<tr>
+				<td>Location
+				<td>(<b>StartFile,StartOffset,EndFile,EndOffset</b>)
+				<td>Defines start and end points for the video selection range.<br>
+				User-specified.<br>
+		</table>
+	</ul></ul>
+	<br>
+
+	<br>
+	<h3>
+		<table><tr>
+			<td width="75%">D2V Format - Data Section
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul><ul>
+		<p>Following is a typical data section (real ones will typically be much longer):</p>
+
+		<code>
+d00 6 0 0 0 0 0 b0 b0 90 b0 b0 a0 b0 b0 a0 b0 b0 a0 b0 b0 a0<br>
+d00 6 0 384035 0 0 0 b0 b0 90 b0 b0 a0 b0 b0 a0 b0 b0 a0 b0 b0 a0<br>
+d00 6 0 768034 0 0 0 b0 b0 90 b0 b0 a0 b0 b0 a0 b0 b0 a0 b0 b0 a0<br>
+d00 6 0 1152609 0 0 0 b0 b0 90 b0 b0 a0 b0 b0 a0 b0 b0 a0 b0 b0 a0<br>
+d00 6 0 1537064 0 0 0 b0 b0 90 b0 b0 a0 b0 b0 a0 b0 b0 a0 b0 b0 a0<br>
+d00 6 0 1922483 0 0 0 b0 b0 90 b0 b0 a0 b0 b0 a0 b0 b0 a0 b0 b0 a0<br>
+d00 6 0 2304616 0 0 0 b0 b0 90 b0 b0 a0 b0 b0 a0 b0 b0 a0 b0 b0 a0<br>
+d00 6 0 2689746 0 0 0 b0 b0 90 b0 b0 a0 b0 b0 a0 b0 b0 a0 b0 b0 a0<br>
+d00 6 0 3075088 0 0 0 b0 b0 90 b0 b0 a0 b0 b0 a0 b0 b0 a0 b0 b0 a0<br>
+d00 6 0 3459597 0 0 0 b0 b0 90 b0 b0 a0 b0 b0 a0 b0 b0 a0 b0 b0 a0<br>
+d00 6 0 3844802 0 0 0 b0 b0 90 b0 b0 a0 b0 b0 a0 b0 b0 a0 b0 b0 a0<br>
+d00 6 0 4227419 0 0 0 b0 b0 90 b0 b0 a0 b0 b0 a0 b0 b0 a0 b0 b0 a0<br>
+d00 6 0 4613561 0 0 0 b0 b0 90 b0 b0 a0 b0 b0 a0 b0 b0 a0 b0 b0 a0<br>
+d00 6 0 4996887 0 0 0 b0 b0 90 b0 b0 a0 b0 b0 a0 b0 b0 a0 b0 b0 a0 ff<br>
+<br><br>
+FINISHED  0.00% FILM<br>
+		</code>
+	</ul></ul>
+	<ul><ul id="justify">
+	
+		<p>The data section of a D2V file contains the indexing of the MPEG video stream. There is one line for each
+		I picture in the MPEG stream. Each line describes that I picture as well as all the following pictures up to, but
+		not including, the next I picture.</p>
+		
+		<p>Each I picture line consists of eight fields that must be explicitly defined, even if the associated
+		value is zero. The layout for each line is as follows:</p>
+		
+		<p><center><code>info matrix file position skip vob cell flags ...</code></center></p>
+		
+		<p>Therefore, the second line in the typical data section given above would break down as follows:</p>
+
+		<ul>
+			<table border="1px" cellspacing="2px" cellpadding="10%">
+				<caption><i>Table 3: D2V Index: I picture lines</i></caption>
+				<tr>
+					<th align="center">info
+					<th align="center">matrix
+					<th align="center">file
+					<th align="center">position
+					<th align="center">skip
+					<th align="center">vob
+					<th align="center">cell
+					<th align="center">flags
+				<tr>
+					<td><code>d00</code>
+					<td><code>6</code>
+					<td><code>0</code>
+					<td><code>384035</code>
+					<td><code>0</code>
+					<td><code>0</code>
+					<td><code>0</code>
+					<td><code>b0 b0 90 b0 b0 a0 b0 b0 a0 b0 b0 a0 b0 b0 a0</code>
+			</table>
+		</ul>
+		
+		<p>The following section describes each field of an I picture line and its range of possible values.</p>
+		
+		<p>The info field is a 12-bit hex number bit-mapped as follows:</p>
+		<ul>
+			<table border="1px" cellspacing="2px" cellpadding="10%">
+				<caption><i>Table 4: D2V Index: The info field</i></caption>
+				<tr>
+					<th align="center">Bit Position
+					<th align="center">Definition/Comments
+				<tr>
+					<td>bit 11 
+					<td>1 (Always 1 to signal start of data line)
+				<tr>
+					<td>bit 10
+					<td>1 (This line's pictures are part of a closed GOP)<br>
+					    0 (Open GOP)
+				<tr>
+					<td>bit 9
+					<td>1 (This line's pictures are part of a progressive sequence)<br>
+					    0 (Otherwise)
+				<tr>
+					<td>bit 8
+					<td>1 (This I picture starts a new GOP)<br>
+					    0 (Otherwise)
+				<tr>
+					<td>bits 7-0
+					<td>0 (Reserved)
+			</table>
+		</ul>
+
+		<p>The matrix field displays the currently applicable <i>matrix_coefficients</i> value (colorimetry).</p>
+
+		<p>The file field references the file (as defined in the beginning of the D2V file) containing this line's pictures.</p>
+
+		<p>The position field is a decimal number that points to the byte position in the source file at which
+		decoding of the indexed I picture should begin.
+		For non-packetized streams, if a sequence header is present it is indexed, otherwise
+		the picture header is indexed. Packetized streams are treated the same way except that the packet header start
+		code preceding the sequence header or picture header is indexed. We prefer to index sequence headers because
+		they may carry new quant matrices, but they are not mandatory at each GOP, so we fall back to the picture header.</p>
+
+		<p>The skip field defines how many I frames to skip to reach the one actually needed. This is required because
+		an indexed unit (especially packs) can contain multiple I frames. If nothing were done, we would have multiple
+		D2V file index lines with the same position and DGDecode would not have enough information to implement random
+		access properly. So DGIndex inserts this field telling how many I frames to skip starting from the index position
+		to reach the required I frame. Usually this field is 0, but if you have a stream with large packs, you may see
+		non-zero values in this field.</p>
+
+		<p>The vob and cell fields display the current position within the DVD navigation stream (private stream 2). The
+		VOB and CELL numbers are taken from there. Not applicable for non-DVD sources.</p>
+
+		<p>The sequence of Flags fields contains per-picture data corresponding to the pictures in <i><u>display</u></i>
+		order, that is, the Flags fields are re-ordered into display order. End Of Stream is signaled with a Flags field
+		value of <code>ff</code>. Each per-picture Flags field is an 8-bit hex number bit-mapped as follows:</p>
+
+		<ul>
+			<table border="1px" cellspacing="2px" cellpadding="10%">
+				<caption><i>Table 5: D2V Index: The Flags field</i></caption>
+				<tr>
+					<th align="center">Bit Position
+					<th align="center">Definition/Comments
+				<tr>
+					<td>bit 7
+					<td><b>1</b> (Picture is decodable without the previous GOP)<br>
+					    <b>0</b> (Otherwise)
+				<tr>
+					<td>bit 6
+					<td><i>Progressive_Frame</i> Flag (See notes below)<br>
+					    <b>0</b> (Interlaced)<br>
+					    <b>1</b> (Progressive)
+				<tr>
+					<td>bits 5-4
+					<td><i>Picture_Coding_Type</i> Flag<br>
+					    <b>00</b> (Reserved)<br>
+					    <b>01</b> (I-Frame)<br>
+					    <b>10</b> (P-Frame)<br>
+					    <b>11</b> (B-Frame)
+				<tr>
+					<td>bits 3-2
+					<td><b>00</b> (Reserved)<br>
+					    <b>01</b> (Reserved)<br>
+					    <b>10</b> (Reserved)<br>
+					    <b>11</b> (Reserved)
+				<tr>
+					<td>bit 1
+					<td><i>TFF</i> Flag
+				<tr>
+					<td>bit 0
+					<td><i>RFF</i> Flag
+			</table>
+			
+			<p><b>Notes on <i>Progressive_Frame</i> Flag:</b> This specifies that the picture is part of a
+			frame (either a frame picture making up the entire frame, or a field picture making up one of the
+			fields of the frame) whose fields are sampled at one moment. A RFF flag may be present however, such
+			that the <i><u>displayed</u></i> frame after pulldown is interlaced.</p>
+		</ul>
+	</ul></ul>
+
+<a name="AppendixB"></a><br>
+<h2>
+	<table><tr>
+		<td width="75%">APPENDIX B: Command-Line Interface</td>
+		<td id="right"><a href="#Top">Table of Contents</a></td>
+	</table>
+</h2>
+
+	<br>
+	<h3>
+		<table><tr>
+			<td width="75%">Parameters
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+
+	<ul>
+ 		<p>DGIndex can also be executed via a command-line interface. This feature is intended for use in automated
+		scripts and batch files, and for use by third-party applications. Following is the syntax and semantics for the
+		Unix-style command line interface. Note that options not included are controlled by DGIndex defaults and the DGIndex
+		INI file.</p>
+
+                <p>Note that if you have a transport stream and do not specify any PIDs, then DGIndex will attempt to determine
+                automatically as in GUI (no CLI) operation.</p>
+
+		<ul>
+			<table border="1px" cellspacing="2px" cellpadding="5%">
+			<caption><i>Table 1: Command-Line parameters supported by DGIndex</i></caption>
+				<tr>
+					<th align="center">Parameter
+					<th align="center" width=250>Command-Line Flag
+					<th align="center">Definition/Comments
+				<tr>
+					<td>Input Files
+					<td id="tt">-i input_file<br>
+                                                    -i "input_file"<br>
+                                                    -i file1 file2 file3<br>
+                                                    -i my,file.vob
+					<td>Load specified files.<br>
+					The -i option must be the first option!<br>
+                                        If a specified file cannot be found, it is ignored.<br>
+                                        Commas in filenames are supported.
+				<tr>
+					<td>Auto-Input Files
+					<td id="tt">-ai file_1.vob
+					<td>Autoload files incrementally.<br>
+					The -i option must be the first option!<br>
+                                        If a specified file cannot be found, it is ignored.<br>
+                                        Commas in filenames are supported.
+				<tr>
+					<td>Output File
+					<td id="tt">-o project<br>
+                                                    -o "c:\My Projects\project"
+					<td>Specify the DGA index file to be written.<br>
+                                        Do Not Include Extension!
+				<tr>
+					<td>Output File and Demux Video
+					<td id="tt">-od project<br>
+                                                    -od "c:\My Projects\project"
+					<td>Specify the D2V index file to be written and enable demuxing of the video.<br>
+                                        Do Not Include Extension!
+				<tr>
+					<td>Project Range
+					<td id="tt">-rg 0 0 1 1ff
+					<td>Project range, specified as in the D2V file syntax<br>
+					file numbers are zero-based, offsets are in hex (one LBA=2048 bytes)
+				<tr>
+					<td>Audio PID
+					<td id="tt">-ap audioPID
+					<td>Transport stream audio PID, hex notation (e.g., -ap 14).
+				<tr>
+					<td>Video PID
+					<td id="tt">-vp videoPID
+					<td>Transport stream video PID, hex notation (e.g., -vp 11).
+				<tr>
+					<td>PCR PID
+					<td id="tt">-pp pcrPID
+					<td>Transport stream PCR PID, hex notation (e.g., -pp 11).
+				<tr>
+					<td>iDCT Algorithm
+					<td id="tt">-ia algorithm
+					<td>1=MMX, 2=SSEMMX, 3=SSE2MMX, 4=64-bit Floating Point, 5=IEEE-1180 Reference, 6=Skal MMX, 7=Simple MMX
+				<tr>
+					<td>Field Operation
+					<td id="tt">-fo field operation
+					<td>0=Honor Pulldown Flags, 1=Force Film, 2=Ignore Pulldown Flags
+				<tr>
+					<td>YUV->RGB
+					<td id="tt">-yr method
+					<td>1=PC Scale, 2=TV Scale
+				<tr>
+					<td>Audio Tracks
+					<td id="tt">-tn track(s)
+					<td>track#,track#,track#,...<br>
+					Use a comma-separated list of audio_ids.
+                                        If OM=3 (Decode), only one track must be listed.
+				<tr>
+					<td>Output Method
+					<td id="tt">-om method
+					<td>0=None, 1=Demux Tracks, 2=Demux All Tracks, 3=Decode AC3 to WAV
+				<tr>
+					<td>Dynamic Range Control
+					<td id="tt">-drc amount
+					<td>0=Off, 1=Light, 2=Normal, 3=Heavy
+				<tr>
+					<td>Dolby Surround Downmix
+					<td id="tt">-dsd on/off
+					<td>0=Off, 1=On
+				<tr>
+					<td>Downsample Audio (48->44.1 kHz downsample)
+					<td id="tt">-dsa method
+					<td>0=None, 1=Low, 2=Mid, 3=High, 4=Ultrahigh
+				<tr>
+					<td>AVS Script Generation
+					<td id="tt">-at template_file
+					<td>Specifies a template file for AVS script generation.<br>
+					Use -at "" to disable AVS script generation.
+				<tr>
+					<td>Exit
+					<td id="tt">-exit
+					<td>Exits DGIndex when project has been saved.
+				<tr>
+					<td>Minimize
+					<td id="tt">-minimize
+					<td>Starts and runs DGIndex in the minimized state.
+				<tr>
+					<td>Hide
+					<td id="tt">-hide
+					<td>Starts and runs DGIndex in the hidden state.
+				<tr>
+					<td>Preview
+					<td id="tt">-preview
+					<td>Previews the first 100 frames (used for log generation).
+			</table>
+	</ul></ul>
+	<br>
+
+	<br>
+	<h3>
+		<table><tr>
+			<td width="75%">Example
+			<td id="right"><a href="#Top">Table of Contents</a></td>
+		</table>
+	</h3>
+	<ul><ul>
+		<pre>DGIndex dgindex -i "c:\Movies\Transformers.vob" -o "c:\Movies\Transformers" -fo 0 -om 2</pre>
+
+<p>The -preview option can be used to silently generate a log file that describes the characteristics of the input file:</p>
+
+		<pre>DGIndex -i zdf.vob -o zdf -preview -minimize -exit</pre>
+
+<p>The log file is generated in the same directory as the input file (must be writable) and will have the same name as the
+input file but with the extension replaced by "log". The log file generation option must be enabled in the INI file.
+
+	</ul></ul>
+<br>
+
+<a name="AppendixC"></a><br>
+<h2>
+	<table><tr>
+		<td width="75%">APPENDIX C: "AC3 5.1" versus "AC3 3/2"
+		<td id="right"><a href="#Top">Table of Contents</a></td>
+	</table>
+</h2>
+
+<br>
+	<ul id="justify">
+<p>DGIndex reports AC3 5.1 audio as "AC3 3/2" and users sometimes wonder why.
+The 1 in "5.1" refers to the Low Frequency Effects (LFE) channel. When 5.1 audio must be played on
+one or two speakers, the source channels must be "downmixed".
+</p>
+<p>The AC3 specification says that downmixing of the LFE channel is optional. In practice, it is dangerous, because loudspeakers can be overdriven by the full scale low frequency content of the LFE channel (which is intended for a special speaker called a subwoofer). That's why downmixing of the LFE is almost never implemented. Encoding 5.1 audio such that it can be played properly on one or two speakers is an art that is seriously complicated by downmixing the LFE channel.
+</p>
+<p>So "3/2" means 5.1 without the LFE (maybe 5.0 would be better terminology, but 3/2 is in common use). Since almost no application downmixes the LFE (including DGIndex), DGIndex labels the source as "3/2". The LFE is not downmixed because a) it is complex to implement (needs rolloff), b) it is dangerous to downmix it, and c) the LFE is often avoided anyway by content providers. There are more details in <a href=http://www.ambisonic.net/dvda.html#bass>this article</a>.</p>
+
+	</ul><br>
+
+
+<a name="AppendixD"></a><br>
+<h2>
+	<table><tr>
+		<td width="75%">APPENDIX D: Auxiliary INI File Options
+		<td id="right"><a href="#Top">Table of Contents</a></td>
+	</table>
+</h2>
+
+<br>
+	<ul id="justify">
+<p>Some aspects of DGIndex's behavior can be modified via the INI file but not through the GUI, as described below:</p>
+<p>Use_MPA_Extensions=0: The extension used on demultiplexed MPEG audio files will be "mp1", "mp2", or "mp3", depending on the audio layer.<br>
+Use_MPA_Extensions=1: The extension used on demultiplexed MPEG audio files will be "mpa".</p>
+
+<p>Notify_When_Done=0: No notification is done when a Save Project operation is finished.<br>
+Notify_When_Done=1: The end of a Save Project operation is signaled by bringing the DGIndex window to the foreground.<br>
+Notify_When_Done=2: The end of a Save Project operation is signaled by a beep.<br>
+Notify_When_Done=3: The end of a Save Project operation is signaled by bringing the DGIndex window to the foreground and a beep.</p>
+	</ul><br>
+
+
+
+
+<a name="Credits"></a><br>
+<h2>
+	<table><tr>
+		<td width="75%">Credits
+		<td id="right"><a href="#Top">Table of Contents</a></td>
+	</table>
+</h2>
+
+<ul>
+	<br>
+	Alphabetical Order:<br><br>
+	"Cyberia", users manual contents and modernization<br>
+	"dvd2svcd", command line interface<br>
+	"fccHandler", MPEG decoding fixes/improvements, good advice<br>
+	Donald Graft ("DG"), frame loss fix, accurate indexing, PVA support, MPEG1 support, and more<br>
+	Peter Gubanov, author of the MMX/SSEMMX iDCT<br>
+	Chia-chen Kuo ("jackei"), author of DVD2AVI<br>
+	Miha Peternel, author of the Floating Point and Reference iDCT<br>
+	Dmitry Rozhdestvensky, author of the SSE2 iDCT<br>
+	"sh0dan", code optimizations<br>
+	"Skal", for his SSEMMX iDCT<br>
+	"trbarry", transport parsing, and code optimizations<br>
+	"tritical", upsampling, and more<br>
+</ul>
+<br>
+
+<a name="License"></a><br>
+<h2>
+	<table><tr>
+		<td width="75%">License
+		<td id="right"><a href="#Top">Table of Contents</a></td>
+	</table>
+</h2>
+
+<ul><br>
+This program is distributed under the terms of the GNU Public License. For details
+please refer to the file COPYING.TXT included in the distribution package.
+</ul>
+<br>
+
+<hr>
+<br>
+Copyright (C) 2004-2021 Donald A. Graft, All Rights Reserved.<br>
+</body>
+</html>

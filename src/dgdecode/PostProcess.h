@@ -26,6 +26,9 @@
 #define MIN(a, b)  ( (a)<(b) ? (a) : (b) )
 #define MAX(a, b)  ( (a)>(b) ? (a) : (b) )
 
+#include <stdint.h>
+
+#if 0
 #define int8_t char
 #define uint8_t unsigned char
 #define int16_t short
@@ -34,6 +37,7 @@
 #define uint32_t unsigned int 
 #define int64_t __int64
 #define uint64_t unsigned __int64
+#endif
 #define QP_STORE_T int
 
 /******************** component function prototypes **************/

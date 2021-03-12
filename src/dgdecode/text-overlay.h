@@ -44,7 +44,7 @@
 //#include "convert.h"
 
 #include <windows.h>
-#include "avisynth2.h"
+#include "avisynth.h"
 
 
 // copy and pasted from internal.h 

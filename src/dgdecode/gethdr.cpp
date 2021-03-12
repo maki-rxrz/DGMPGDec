@@ -147,7 +147,7 @@ void CMPEG2Decoder::sequence_header()
 	vbv_buffer_size             = Get_Bits(10);
 	constrained_parameters_flag = Get_Bits(1);
 
-	if (load_intra_quantizer_matrix = Get_Bits(1))
+	if ((load_intra_quantizer_matrix = Get_Bits(1)) && (Show_Bits(8) == 8))
 	{
 		for (i=0; i<64; i++)
 			intra_quantizer_matrix[scan[ZIG_ZAG][i]] = Get_Bits(8);
@@ -158,7 +158,7 @@ void CMPEG2Decoder::sequence_header()
 			intra_quantizer_matrix[i] = default_intra_quantizer_matrix[i];
 	}
 
-	if (load_non_intra_quantizer_matrix = Get_Bits(1))
+	if ((load_non_intra_quantizer_matrix = Get_Bits(1)) && (Show_Bits(8) != 0))
 	{
 		for (i=0; i<64; i++)
 			non_intra_quantizer_matrix[scan[ZIG_ZAG][i]] = Get_Bits(8);

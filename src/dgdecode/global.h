@@ -51,7 +51,7 @@
 #include <io.h>
 #include <fcntl.h>
 #include "misc.h"
-#include "avisynth2.h"
+#include "avisynth.h"
 
 #ifdef GLOBAL
 #define XTN
