@@ -117,6 +117,7 @@
     <ClCompile Include="..\..\src\dgdecode\mc3dnow.cpp" />
     <ClCompile Include="..\..\src\dgdecode\mcmmx.cpp" />
     <ClCompile Include="..\..\src\dgdecode\AVISynthAPI.cpp" />
+    <ClCompile Include="..\..\src\dgdecode\lumayv12.cpp" />
     <ClCompile Include="..\..\src\dgdecode\misc.cpp" />
     <ClCompile Include="..\..\src\dgdecode\PostProcess.cpp" />
   </ItemGroup>
@@ -131,6 +132,11 @@
     <ClInclude Include="..\..\src\dgdecode\AvisynthAPI.h" />
     <ClInclude Include="..\..\src\dgdecode\misc.h" />
     <ClInclude Include="..\..\src\dgdecode\PostProcess.h" />
+    <ClInclude Include="..\..\src\dgdecode\avs\capi.h" />
+    <ClInclude Include="..\..\src\dgdecode\avs\config.h" />
+    <ClInclude Include="..\..\src\dgdecode\avs\cpuid.h" />
+    <ClInclude Include="..\..\src\dgdecode\avs\posix.h" />
+    <ClInclude Include="..\..\src\dgdecode\avs\types.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\..\src\dgdecode\gui.rc" />

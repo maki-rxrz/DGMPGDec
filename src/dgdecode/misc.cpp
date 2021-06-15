@@ -26,6 +26,8 @@
 #include <windows.h>
 #include <time.h>
 
+#ifdef PROFILING
+
 static ui64 local;
 static char buffer[256];
 
@@ -121,3 +123,4 @@ void timer_debug(ts* timers)
         );
     OutputDebugString(buffer);
 }
+#endif

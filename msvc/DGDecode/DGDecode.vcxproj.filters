@@ -19,6 +19,9 @@
     <Filter Include="DGDecode">
       <UniqueIdentifier>{b92ffe8f-65a1-47d7-b2eb-8eafdef68fd7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\avs">
+      <UniqueIdentifier>{b4add296-b1f7-4995-b12d-d4e43ac5fa3f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\dgdecode\alloc.cpp">
@@ -72,6 +75,9 @@
     <ClCompile Include="..\..\src\dgdecode\AVISynthAPI.cpp">
       <Filter>DGDecode</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\dgdecode\lumayv12.cpp">
+      <Filter>DGDecode</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\dgdecode\misc.cpp">
       <Filter>DGDecode</Filter>
     </ClCompile>
@@ -109,6 +115,21 @@
     </ClInclude>
     <ClInclude Include="..\..\src\dgdecode\PostProcess.h">
       <Filter>DGDecode</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\dgdecode\avs\types.h">
+      <Filter>Header Files\avs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\dgdecode\avs\posix.h">
+      <Filter>Header Files\avs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\dgdecode\avs\cpuid.h">
+      <Filter>Header Files\avs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\dgdecode\avs\config.h">
+      <Filter>Header Files\avs</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\dgdecode\avs\capi.h">
+      <Filter>Header Files\avs</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

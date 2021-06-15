@@ -219,7 +219,7 @@ __try
     }
 
     // D2V file generation rewritten by Donald Graft to support IBBPBBP...
-    if (D2V_Flag && (picture_structure==FRAME_PICTURE  || !Second_Field))
+    if (D2V_Flag && (picture_structure==FRAME_PICTURE || !Second_Field))
     {
         if (picture_coding_type == I_TYPE && gop_entries_ndx > 0)
         {

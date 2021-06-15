@@ -342,6 +342,7 @@ XTN HDC hDC;
 XTN unsigned int CLIParseD2V;
 XTN int CLINoProgress;
 XTN int CLIActive;
+#define CLITimeout 5000
 XTN char CLIPreview;
 XTN char ExitOnEnd;
 XTN char ExePath[DG_MAX_PATH];
@@ -398,7 +399,7 @@ XTN double max_rate;
 
 XTN int Clip_Left, Clip_Right, Clip_Top, Clip_Bottom;
 
-XTN int Infile[MAX_FILE_NUMBER];
+XTN FILE *Infile[MAX_FILE_NUMBER];
 XTN char *Infilename[MAX_FILE_NUMBER];
 XTN __int64 Infilelength[MAX_FILE_NUMBER];
 XTN __int64 Infiletotal;
@@ -489,12 +490,16 @@ XTN int LogTimestamps_Flag;
 XTN int StartLogging_Flag;
 XTN FILE *Timestamps;
 XTN int InfoLog_Flag;
+XTN FILE* mpafp;
+XTN FILE* mpvfp;
+XTN FILE* pcmfp;
 
 /* gui */
 XTN void Recovery(void);
 XTN void RefreshWindow(bool);
 XTN void CheckFlag(void);
 XTN int parse_cli(LPSTR lpCmdLine, LPSTR ucCmdLine);
+XTN int MessageBoxTimeout(HWND hWnd, LPCSTR lpText, LPCSTR lpCaption, UINT uType, WORD wLanguageId, DWORD dwMilliseconds);
 
 /* idct */
 extern "C" void __fastcall MMX_IDCT(short *block);

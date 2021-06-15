@@ -14,7 +14,7 @@ int parse_cli(LPSTR lpCmdLine, LPSTR ucCmdLine)
         char *p = lpCmdLine, *q;
         char *f, name[DG_MAX_PATH], *ptr;
         int in_quote = 0;
-        int tmp;
+        FILE *tmp;
         int enable_demux = 0;
         char opt[32], *o;
         char suffix[DG_MAX_PATH];
@@ -76,7 +76,7 @@ another:
                     {
                         strcpy(cwd, name);
                     }
-                    if ((tmp = _open(cwd, _O_RDONLY | _O_BINARY)) != -1)
+                    if ((tmp = fopen(cwd, "rb")) != NULL)
                     {
                         strcpy(Infilename[NumLoadedFiles], cwd);
                         Infile[NumLoadedFiles] = tmp;
@@ -128,7 +128,7 @@ another:
                         {
                             strcpy(cwd, name);
                         }
-                        if ((tmp = _open(cwd, _O_RDONLY | _O_BINARY | _O_SEQUENTIAL)) == -1)
+                        if ((tmp = fopen(cwd, "rb")) == NULL)
                             break;
                         strcpy(Infilename[NumLoadedFiles], cwd);
                         Infile[NumLoadedFiles] = tmp;
@@ -644,12 +644,12 @@ another:
         }
         if (NumLoadedFiles == 0 && WindowMode == SW_HIDE && CLIParseD2V == PARSE_D2V_NONE)
         {
-            MessageBox(hWnd, "Couldn't open input file in HIDE mode! Exiting.", NULL, MB_OK | MB_ICONERROR);
+            MessageBoxTimeout(hWnd, "Couldn't open input file in HIDE mode! Exiting...", NULL, MB_OK | MB_ICONERROR, 0, CLIActive ? CLITimeout : 0xffffffff);
             return -1;
         }
         if (!CLIActive && WindowMode == SW_HIDE && CLIParseD2V == PARSE_D2V_NONE)
         {
-            MessageBox(hWnd, "No output file in HIDE mode! Exiting.", NULL, MB_OK | MB_ICONERROR);
+            MessageBoxTimeout(hWnd, "No output file in HIDE mode! Exiting...", NULL, MB_OK | MB_ICONERROR, 0, CLIActive ? CLITimeout : 0xffffffff);
             return -1;
         }
         CheckFlag();
@@ -658,7 +658,7 @@ another:
     else if(*lpCmdLine != 0)
     {
         // Old-style CLI.
-        int tmp;
+        FILE *tmp;
         int hadRGoption = 0;
         char delimiter1[2], delimiter2[2];
         char *ende, save;
@@ -700,7 +700,7 @@ another:
                 {
                     strcpy(cwd, aFName);
                 }
-                if ((tmp = _open(cwd, _O_RDONLY | _O_BINARY | _O_SEQUENTIAL)) == -1) break;
+                if ((tmp = fopen(cwd, "rb")) == NULL) break;
                 strcpy(Infilename[NumLoadedFiles], cwd);
                 Infile[NumLoadedFiles] = tmp;
                 NumLoadedFiles++;
@@ -762,7 +762,7 @@ another:
                 {
                     strcpy(cwd, aFName);
                 }
-                if ((tmp = _open(cwd, _O_RDONLY | _O_BINARY)) != -1)
+                if ((tmp = fopen(cwd, "rb")) != NULL)
                 {
                     strcpy(Infilename[NumLoadedFiles], cwd);
                     Infile[NumLoadedFiles] = tmp;
@@ -814,7 +814,7 @@ another:
                     {
                         strcpy(cwd, line);
                     }
-                    if ((tmp = _open(cwd, _O_RDONLY | _O_BINARY)) != -1)
+                    if ((tmp = fopen(cwd, "rb")) != NULL)
                     {
                         strcpy(Infilename[NumLoadedFiles], cwd);
                         Infile[NumLoadedFiles] = tmp;
@@ -888,7 +888,7 @@ another:
 
         if (NumLoadedFiles == 0 && WindowMode == SW_HIDE && CLIParseD2V == PARSE_D2V_NONE)
         {
-            MessageBox(hWnd, "Couldn't open input file in HIDE mode! Exiting.", NULL, MB_OK | MB_ICONERROR);
+            MessageBoxTimeout(hWnd, "Couldn't open input file in HIDE mode! Exiting...", NULL, MB_OK | MB_ICONERROR, 0, CLIActive ? CLITimeout : 0xffffffff);
             return -1;
         }
 
@@ -1272,7 +1272,7 @@ another:
 
         if (!CLIActive && WindowMode == SW_HIDE && CLIParseD2V == PARSE_D2V_NONE)
         {
-            MessageBox(hWnd, "No output file in HIDE mode! Exiting.", NULL, MB_OK | MB_ICONERROR);
+            MessageBoxTimeout(hWnd, "No output file in HIDE mode! Exiting...", NULL, MB_OK | MB_ICONERROR, 0, CLIActive ? CLITimeout : 0xffffffff);
             return -1;
         }
     }
