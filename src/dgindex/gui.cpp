@@ -1248,15 +1248,17 @@ D2V_PROCESS:
                         fgets(line, 2048, D2VFile);
                         if (strncmp(line, "DGIndexProjectFile", 18) != 0)
                         {
-                            MessageBox(hWnd, "The file is not a DGIndex project file!", NULL, MB_OK | MB_ICONERROR);
                             fclose(D2VFile);
+                            D2VFile = NULL;
+                            MessageBox(hWnd, "The file is not a DGIndex project file!", NULL, MB_OK | MB_ICONERROR);
                             break;
                         }
                         sscanf(line, "DGIndexProjectFile%d", &D2Vformat);
                         if (D2Vformat != D2V_FILE_VERSION)
                         {
-                            MessageBox(hWnd, "Obsolete D2V file.\nRecreate it with this version of DGIndex.", NULL, MB_OK | MB_ICONERROR);
                             fclose(D2VFile);
+                            D2VFile = NULL;
+                            MessageBox(hWnd, "Obsolete D2V file.\nRecreate it with this version of DGIndex.", NULL, MB_OK | MB_ICONERROR);
                             break;
                         }
 
@@ -1290,11 +1292,9 @@ D2V_PROCESS:
                                     Infile[NumLoadedFiles-i-1] = NULL;
                                     i++;
                                 }
-
                                 NumLoadedFiles = 0;
                                 break;
                             }
-
                             i--;
                         }
 
