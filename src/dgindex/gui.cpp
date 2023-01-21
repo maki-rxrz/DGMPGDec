@@ -1300,6 +1300,14 @@ D2V_PROCESS:
 
                         Recovery();
 
+                        if (NumLoadedFiles == 0)
+                        {
+                            fclose(D2VFile);
+                            D2VFile = NULL;
+                            MessageBox(hWnd, "There is no target file written in D2V file!", NULL, MB_OK | MB_ICONERROR);
+                            break;
+                        }
+
                         fscanf(D2VFile, "\nStream_Type=%d\n", &SystemStream_Flag);
                         if (SystemStream_Flag == TRANSPORT_STREAM)
                         {
@@ -1347,26 +1355,23 @@ D2V_PROCESS:
 
                         CheckFlag();
 
-                        if (NumLoadedFiles)
-                        {
-                            fscanf(D2VFile, "Location=%d,%I64x,%d,%I64x\n",
-                                &process.leftfile, &process.leftlba, &process.rightfile, &process.rightlba);
+                        fscanf(D2VFile, "Location=%d,%I64x,%d,%I64x\n",
+                            &process.leftfile, &process.leftlba, &process.rightfile, &process.rightlba);
 
-                            process.startfile = process.leftfile;
-                            process.startloc = process.leftlba * SECTOR_SIZE;
-                            process.end = Infiletotal - SECTOR_SIZE;
-                            process.endfile = process.rightfile;
-                            process.endloc = process.rightlba* SECTOR_SIZE;
-                            process.run = 0;
-                            process.start = process.startloc;
-                            process.trackleft = (process.startloc*TRACK_PITCH/Infiletotal);
-                            process.trackright = (process.endloc*TRACK_PITCH/Infiletotal);
-                            process.locate = LOCATE_INIT;
-                            InvalidateRect(hwndSelect, NULL, TRUE);
+                        process.startfile = process.leftfile;
+                        process.startloc = process.leftlba * SECTOR_SIZE;
+                        process.end = Infiletotal - SECTOR_SIZE;
+                        process.endfile = process.rightfile;
+                        process.endloc = process.rightlba* SECTOR_SIZE;
+                        process.run = 0;
+                        process.start = process.startloc;
+                        process.trackleft = (process.startloc*TRACK_PITCH/Infiletotal);
+                        process.trackright = (process.endloc*TRACK_PITCH/Infiletotal);
+                        process.locate = LOCATE_INIT;
+                        InvalidateRect(hwndSelect, NULL, TRUE);
 
-                            if (!threadId || WaitForSingleObject(hThread, INFINITE)==WAIT_OBJECT_0)
-                                hThread = CreateThread(NULL, 0, MPEG2Dec, 0, 0, &threadId);
-                        }
+                        if (!threadId || WaitForSingleObject(hThread, INFINITE)==WAIT_OBJECT_0)
+                            hThread = CreateThread(NULL, 0, MPEG2Dec, 0, 0, &threadId);
                     }
                     break;
 
