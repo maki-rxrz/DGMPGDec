@@ -772,7 +772,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 strcpy(++path_p, "vpy");
             else
                 strcpy(++path_p, "avs");
-            if (*AVSTemplatePath && !fopen(avsfile, "r") && (tplate = fopen(AVSTemplatePath, "r")))
+            tplate = avs = NULL;
+            if (*AVSTemplatePath && !(avs = fopen(avsfile, "r")) && (tplate = fopen(AVSTemplatePath, "r")))
             {
                 avs = fopen(avsfile, "w");
                 if (avs)
@@ -874,6 +875,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     fclose(tplate);
                     fclose(avs);
                 }
+            }
+            else
+            {
+                if (avs)
+                    fclose(avs);
+                if (tplate)
+                    fclose(tplate);
             }
             if (CLIParseD2V & PARSE_D2V_AFTER_SAVING)
             {
