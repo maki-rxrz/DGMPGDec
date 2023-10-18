@@ -448,11 +448,11 @@ do {                                                                    \
 
 #define GET_PES_TIMESTAMP(ts, b1, b2, b3, b4, b5)       \
 do {                                                    \
-    ts = (__int64) (b1 & 0x0e) << 29                    \
-                 | (b2       ) << 22                    \
-                 | (b3 & 0xfe) << 14                    \
-                 | (b4       ) <<  7                    \
-                 | (b5       ) >>  1;                   \
+    ts  = (__int64) (b1 & 0x0e) << 29;                  \
+    ts |= (__int64) (b2       ) << 22;                  \
+    ts |= (__int64) (b3 & 0xfe) << 14;                  \
+    ts |= (__int64) (b4       ) <<  7;                  \
+    ts |= (__int64) (b5       ) >>  1;                  \
 } while (0)
 
 // Transport packet data structure.
@@ -812,7 +812,10 @@ retry_sync:
 
                     // Now we're at the start of the audio.
                     // Find the audio header.
-                    code = (Get_Byte() << 24) | (Get_Byte() << 16) | (Get_Byte() << 8) | Get_Byte();
+                    code  = Get_Byte() << 24;
+                    code |= Get_Byte() << 16;
+                    code |= Get_Byte() <<  8;
+                    code |= Get_Byte();
                     Packet_Length -= 4;
                     while ((code & 0xfff80000) != 0xfff80000 && Packet_Length > 0)
                     {
