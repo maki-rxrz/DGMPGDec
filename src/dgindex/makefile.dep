@@ -5,7 +5,7 @@ $(INTDIR)\d2vparse.obj : d2vparse.cpp global.h misc.h resource.h pat.h
 $(INTDIR)\getbit.obj : getbit.cpp global.h misc.h resource.h pat.h getbit.h AC3Dec\ac3.h
 $(INTDIR)\gethdr.obj : gethdr.cpp global.h misc.h resource.h pat.h getbit.h
 $(INTDIR)\getpic.obj : getpic.cpp global.h misc.h resource.h pat.h getbit.h
-$(INTDIR)\gui.obj : gui.cpp resource.h global.h misc.h pat.h
+$(INTDIR)\gui.obj : gui.cpp resource.h global.h misc.h pat.h ..\config.h
 $(INTDIR)\idctfpu.obj : idctfpu.cpp
 $(INTDIR)\idctref.obj : idctref.cpp
 $(INTDIR)\initial_parse.obj : initial_parse.cpp resource.h global.h misc.h pat.h
@@ -29,4 +29,4 @@ $(INTDIR)\AC3Dec\imdct.obj : AC3Dec\imdct.cpp AC3Dec\ac3.h
 $(INTDIR)\AC3Dec\parse.obj : AC3Dec\parse.cpp AC3Dec\ac3.h AC3Dec\bitstream.h
 $(INTDIR)\AC3Dec\rematrix.obj : AC3Dec\rematrix.cpp AC3Dec\ac3.h
 $(INTDIR)\AC3Dec\sanity_check.obj : AC3Dec\sanity_check.cpp AC3Dec\ac3.h
-$(INTDIR)\gui.res : gui.rc resource.h
+$(INTDIR)\gui.res : gui.rc resource.h ..\config.h
